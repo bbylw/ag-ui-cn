@@ -1,6 +1,9 @@
 ---
 import "@fontsource-variable/bricolage-grotesque";
 import "@fontsource-variable/instrument-sans";
+// The two faces this page actually paints with, discovered before the CSS.
+import displayFace from "@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url";
+import textFace from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2?url";
 import "../styles/landing.css";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
@@ -22,7 +25,7 @@ const description =
   "Kiri 是一个用 Rust 从零构建的容器运行时，适用于 macOS、Windows 和 Linux。兼容 docker CLI、Compose 与 buildx，一条守护进程直连内核，Engine API 响应 2.55 ms，启动容器只需数毫秒。";
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} fontPreloads={[textFace, displayFace]}>
   <div class="kiri" id="main-content">
     <div class="k-grain" aria-hidden="true"></div>
     <Nav />

@@ -11,7 +11,7 @@ const shares = [
 ];
 ---
 
-<section class="k-section k-alt" id="share">
+<section class="k-section k-alt k-defer" id="share" tabindex="-1">
   <div class="k-wrap k-sh-grid">
     <div data-reveal>
       <p class="k-kicker" data-code="SHRE-03">Kiri Share</p>
@@ -32,14 +32,18 @@ const shares = [
           Kiri Share 文档
           <Icon name="ph:arrow-right" class="h-4 w-4" aria-hidden="true" />
         </a>
-        <button type="button" class="k-btn k-btn-sm k-btn-ghost" data-k-share-warn-btn aria-expanded="false">
-          访客会先看到什么？
-        </button>
       </div>
-      <div class="k-sh-warn" data-k-share-warn hidden>
-        <b><Icon name="ph:warning" class="h-4 w-4" aria-hidden="true" />这是一个分享链接</b>
-        首次访问会先显示 Kiri 的提示页，说明它来自某台个人电脑上的临时分享，而不是一个正式站点——确认后才继续打开，链接也就无法伪装成你的银行。
-      </div>
+      <details class="k-sh-disc">
+        <summary class="k-btn k-btn-sm k-btn-ghost k-sh-sum">
+          <span class="k-sh-sum-shut">访客会先看到什么？</span>
+          <span class="k-sh-sum-open">收起提示页说明</span>
+          <Icon name="ph:caret-down" class="k-sh-caret h-4 w-4" aria-hidden="true" />
+        </summary>
+        <div class="k-sh-warn">
+          <b><Icon name="ph:warning" class="h-4 w-4" aria-hidden="true" />这是一个分享链接</b>
+          首次访问会先显示 Kiri 的提示页，说明它来自某台个人电脑上的临时分享，而不是一个正式站点——确认后才继续打开，链接也就无法伪装成你的银行。
+        </div>
+      </details>
     </div>
 
     <figure class="k-sh-card" data-k-share data-reveal>

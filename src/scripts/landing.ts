@@ -17,6 +17,13 @@ let teardowns: Teardown[] = [];
 
 const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/** Native scroll-driven animations beat any observer we could write. */
+const nativeView =
+  typeof CSS !== "undefined" && CSS.supports("(animation-timeline: view()) and (animation-range: entry)");
+const nativeScroll =
+  typeof CSS !== "undefined" && CSS.supports("(animation-timeline: scroll()) and (animation-range: 0% 100%)");
+const nativeSpy = typeof CSS !== "undefined" && CSS.supports("scroll-target-group: auto");
+
 function listen<K extends keyof HTMLElementEventMap>(
   el: HTMLElement | Document | Window,
   type: K | string,
@@ -55,21 +62,42 @@ function paintRange(input: HTMLInputElement) {
   input.style.setProperty("--k-fill", `${pct}%`);
 }
 
-/** Runs `fn` only while `el` is on screen; returns a stop function. */
+/**
+ * Runs `fn` only while `el` is on screen *and* the browser is still rendering
+ * it. `content-visibility: auto` sections report their own rendering state,
+ * which arrives earlier than intersection and is what actually costs battery.
+ */
 function whileVisible(
   el: HTMLElement,
   enter: () => void,
   leave: () => void,
   options: IntersectionObserverInit = { threshold: 0.15 },
 ) {
+  let inView = false;
+  let rendering = true;
+  const sync = () => (inView && rendering ? enter() : leave());
+
   const io = new IntersectionObserver(
     (entries) => {
-      for (const e of entries) e.isIntersecting ? enter() : leave();
+      for (const e of entries) {
+        inView = e.isIntersecting;
+        sync();
+      }
     },
     options,
   );
   io.observe(el);
   teardowns.push(() => io.disconnect());
+
+  const host = el.closest<HTMLElement>(".k-defer");
+  if (host && "contentVisibility" in document.documentElement.style) {
+    const onState = (ev: Event) => {
+      rendering = !(ev as Event & { skipped: boolean }).skipped;
+      sync();
+    };
+    host.addEventListener("contentvisibilityautostatechange", onState);
+    teardowns.push(() => host.removeEventListener("contentvisibilityautostatechange", onState));
+  }
 }
 
 /* ------------------------------------------------------------------ chrome */
@@ -81,6 +109,18 @@ function initChrome(root: HTMLElement) {
   const burger = q<HTMLButtonElement>(root, "[data-k-burger]");
   const mobile = q<HTMLElement>(root, "[data-k-mobile]");
 
+  // The scroll range is measured on resize, never inside the scroll handler:
+  // reading scrollHeight per frame forces a layout the page cannot afford.
+  let max = 1;
+  const measure = () => {
+    max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  };
+  measure();
+  const ro = new ResizeObserver(measure);
+  ro.observe(document.body);
+  teardowns.push(() => ro.disconnect());
+  listen(window, "resize", measure, { passive: true });
+
   let queued = false;
   const onScroll = () => {
     if (queued) return;
@@ -88,9 +128,8 @@ function initChrome(root: HTMLElement) {
     requestAnimationFrame(() => {
       queued = false;
       const y = window.scrollY;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
       nav?.classList.toggle("is-scrolled", y > 8);
-      if (progress) progress.style.width = `${max > 0 ? Math.min(100, (y / max) * 100) : 0}%`;
+      if (progress && !nativeScroll) progress.style.setProperty("--k-p", String(Math.min(1, y / max)));
       top?.classList.toggle("is-on", y > 700);
     });
   };
@@ -142,29 +181,52 @@ function initChrome(root: HTMLElement) {
 
   // current section in the nav
   const spies = every<HTMLAnchorElement>(root, "[data-k-spy]");
-  const sections = navLinks
-    .map((l) => document.getElementById(l.href.slice(1)))
-    .filter((el): el is HTMLElement => el !== null);
-  if (spies.length && sections.length) {
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          spies.forEach((a) => a.classList.toggle("is-active", a.dataset.kSpy === e.target.id));
-        }
-      },
-      { rootMargin: "-45% 0px -50% 0px" },
-    );
-    sections.forEach((s) => io.observe(s));
-    teardowns.push(() => io.disconnect());
+  const setCurrent = (id: string | null) => {
+    spies.forEach((a) => {
+      const on = a.dataset.kSpy === id;
+      a.classList.toggle("is-active", on);
+      if (on) a.setAttribute("aria-current", "true");
+      else a.removeAttribute("aria-current");
+    });
+  };
+  if (spies.length && nativeSpy) {
+    // :target-current draws the state; aria-current is what a reader hears.
+    const sync = () => {
+      const cur = q<HTMLAnchorElement>(root, "[data-k-spy]:target-current");
+      spies.forEach((a) => {
+        if (a === cur) a.setAttribute("aria-current", "true");
+        else a.removeAttribute("aria-current");
+      });
+    };
+    sync();
+    // Chromium resolves :target-current one frame after it dispatches
+    // scrollend, so the first frame still names the section we just left.
+    const deferred = () => requestAnimationFrame(() => requestAnimationFrame(sync));
+    listen(document, "scrollend", deferred, { passive: true });
+  } else if (spies.length) {
+    const sections = navLinks
+      .map((l) => document.getElementById(l.href.slice(1)))
+      .filter((el): el is HTMLElement => el !== null);
+    if (sections.length) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) setCurrent(e.target.id);
+          }
+        },
+        { rootMargin: "-45% 0px -50% 0px" },
+      );
+      sections.forEach((s) => io.observe(s));
+      teardowns.push(() => io.disconnect());
+    }
   }
 
-  // staged reveals
+  // Entry effects: native view() timelines where they exist, one observer
+  // where they do not. Content is never hidden by a script that failed.
   const items = every<HTMLElement>(root, "[data-reveal]");
-  items.forEach((el) => el.style.setProperty("--k-i", el.dataset.i ?? "0"));
-  if (reduced()) {
-    items.forEach((el) => el.classList.add("is-in"));
-  } else {
+  if (!nativeView && !reduced()) {
+    root.classList.add("k-js-reveal");
+    items.forEach((el) => el.style.setProperty("--k-i", el.dataset.i ?? "0"));
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
@@ -537,6 +599,7 @@ function initTerminal(root: HTMLElement) {
 
   let timers: number[] = [];
   let started = false;
+  let finished = false;
 
   const clear = () => {
     timers.forEach((t) => window.clearTimeout(t));
@@ -549,11 +612,13 @@ function initTerminal(root: HTMLElement) {
     out.map((o) => `<span class="k-${o.tone ?? "o"}">${esc(o.text)}</span>`).join("\n");
 
   function full() {
+    finished = true;
     out.innerHTML = `${termSession.map((l) => lineHtml(l.cmd, l.out)).join("\n\n")}\n\n<span class="k-p">$ </span><span class="k-cursor"></span>`;
   }
 
   function play() {
     clear();
+    finished = false;
     if (reduced()) {
       full();
       return;
@@ -594,7 +659,7 @@ function initTerminal(root: HTMLElement) {
   whileVisible(
     fig,
     () => {
-      if (!started) {
+      if (!started || (!finished && timers.length === 0)) {
         started = true;
         play();
       }
@@ -613,8 +678,6 @@ function initShare(root: HTMLElement) {
   const toggle = q<HTMLButtonElement>(card, "[data-k-share-toggle]");
   const copy = q<HTMLButtonElement>(card, "[data-k-share-copy]");
   const hits = q<HTMLElement>(card, "[data-k-share-hits]");
-  const warnBtn = q<HTMLButtonElement>(root, "[data-k-share-warn-btn]");
-  const warn = q<HTMLElement>(root, "[data-k-share-warn]");
 
   let connected = true;
   let count = 14;
@@ -631,14 +694,6 @@ function initShare(root: HTMLElement) {
     listen(toggle, "click", () => {
       connected = !connected;
       paint();
-    });
-
-  if (warnBtn && warn)
-    listen(warnBtn, "click", () => {
-      const open = warn.hidden;
-      warn.hidden = !open;
-      warnBtn.setAttribute("aria-expanded", String(open));
-      warnBtn.textContent = open ? "收起提示页说明" : "访客会先看到什么？";
     });
 
   const id = window.setInterval(() => {

@@ -49,6 +49,13 @@
 	--k-gutter: clamp(16px, 4vw, 40px);
 	--k-nav-h: 66px;
 
+	/* the page's own scrollbar, thumb kept above 3:1 against the track */
+	--k-scroll-thumb: color-mix(in srgb, var(--k-ember) 62%, var(--k-line-strong));
+	--k-scroll-track: var(--k-surface-2);
+
+	/* a real spring, sampled into linear() — see the @supports block below */
+	--k-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
 	--k-display: "Bricolage Grotesque Variable", "PingFang SC", "Hiragino Sans GB",
 		"Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
 	--k-text: "Instrument Sans Variable", "PingFang SC", "Hiragino Sans GB",
@@ -65,8 +72,11 @@
 	background: var(--k-bg);
 	color: var(--k-ink);
 	font-family: var(--k-text);
-	font-size: 17px;
+	font-size: 1.0625rem;
 	line-height: 1.6;
+	/* the fallback face is scaled to the web font's x-height, so the swap
+	 * does not move the page under the reader */
+	font-size-adjust: from-font;
 	overflow-x: clip;
 }
 
@@ -103,26 +113,69 @@ body:has(.kiri) {
 	background: var(--k-bg, #f6f2ea);
 }
 
+/* the document scroller belongs to the page, not to the browser chrome */
+html:has(.kiri) {
+	--k-scroll-thumb: #7a6414;
+	--k-scroll-track: #efe9dd;
+	scrollbar-color: var(--k-scroll-thumb) var(--k-scroll-track);
+	scrollbar-width: thin;
+	/* Reserve the scrollbar lane so short and tall pages share one width.
+	 * `scrollbar-gutter: stable` would do the same, but Chromium aborts a
+	 * view transition when the root reserves a gutter *and* a section holds
+	 * focus, which kills the animation on every anchor-then-navigate path. */
+	overflow-y: scroll;
+	/* keeps focused controls clear of the fixed nav (WCAG 2.4.11) */
+	scroll-padding-top: var(--k-nav-h, 66px);
+}
+html[data-mode="dark"]:has(.kiri) {
+	--k-scroll-thumb: #c9a53a;
+	--k-scroll-track: #171e26;
+}
+
+@media (prefers-contrast: more) {
+	html:has(.kiri) {
+		--k-scroll-thumb: #0f1419;
+		--k-scroll-track: #ffffff;
+	}
+	html[data-mode="dark"]:has(.kiri) {
+		--k-scroll-thumb: #f6f2ea;
+		--k-scroll-track: #000000;
+	}
+	.kiri {
+		--k-scroll-thumb: var(--k-ink);
+		--k-scroll-track: var(--k-bg);
+		--k-muted: var(--k-text-2);
+		--k-line: var(--k-line-strong);
+	}
+}
+
 .kiri *,
 .kiri *::before,
 .kiri *::after {
 	box-sizing: border-box;
 }
 
-.kiri h1,
-.kiri h2,
-.kiri h3,
-.kiri h4 {
+/* :where() keeps the reset at zero specificity so a single component class
+ * such as .k-lede can still set its own margin, leading or weight. */
+.kiri :where(h1, h2, h3, h4) {
 	font-family: var(--k-display);
 	letter-spacing: -0.02em;
 	line-height: 1.1;
 	margin: 0;
 	font-weight: 700;
 	color: var(--k-ink);
+	text-wrap: balance;
 }
 
-.kiri p {
+.kiri :where(p) {
 	margin: 0;
+}
+
+/* long runs of copy: no single-word last lines */
+.kiri p,
+.kiri li,
+.kiri figcaption {
+	text-wrap: pretty;
 }
 
 .kiri :where(a) {
@@ -141,29 +194,37 @@ body:has(.kiri) {
 	border-radius: 8px;
 }
 
+/* anchor targets are regions, not controls: keep the ring inside them */
+.kiri section:focus-visible {
+	outline-offset: -4px;
+	border-radius: 0;
+}
+
 .kiri ::selection {
 	background: color-mix(in srgb, var(--k-ember) 30%, transparent);
 }
 
-/* the page's own scrollbar */
-.kiri ::-webkit-scrollbar {
-	width: 10px;
-	height: 10px;
-}
-.kiri ::-webkit-scrollbar-track {
-	background: var(--k-surface-2);
-}
-.kiri ::-webkit-scrollbar-thumb {
-	background: color-mix(in srgb, var(--k-ember) 55%, var(--k-line-strong));
-	border-radius: 99px;
-	border: 2px solid var(--k-surface-2);
-}
-.kiri ::-webkit-scrollbar-thumb:hover {
-	background: var(--k-ember);
-}
+/* every inner scroller wears the same scrollbar */
 .kiri * {
-	scrollbar-color: color-mix(in srgb, var(--k-ember) 55%, var(--k-line-strong)) var(--k-surface-2);
+	scrollbar-color: var(--k-scroll-thumb) var(--k-scroll-track);
 	scrollbar-width: thin;
+}
+@supports not (scrollbar-color: auto) {
+	.kiri ::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+	.kiri ::-webkit-scrollbar-track {
+		background: var(--k-scroll-track);
+	}
+	.kiri ::-webkit-scrollbar-thumb {
+		background: var(--k-scroll-thumb);
+		border-radius: 99px;
+		border: 2px solid var(--k-scroll-track);
+	}
+	.kiri ::-webkit-scrollbar-thumb:hover {
+		background: var(--k-ember);
+	}
 }
 
 /* paper grain over the whole page */
@@ -195,7 +256,38 @@ body:has(.kiri) {
 .k-section {
 	position: relative;
 	padding: clamp(60px, 8vw, 112px) 0;
-	scroll-margin-top: calc(var(--k-nav-h) + 18px);
+	scroll-margin-top: 18px;
+}
+
+/* Below the fold only: the browser skips layout/paint until the section
+ * approaches the viewport, and remembers its real height afterwards. */
+@supports (content-visibility: auto) {
+	.k-defer {
+		content-visibility: auto;
+		contain-intrinsic-size: auto none auto var(--k-defer-h, 800px);
+	}
+	.kiri #race { --k-defer-h: 1340px; }
+	.kiri #features { --k-defer-h: 1031px; }
+	.kiri #cli { --k-defer-h: 492px; }
+	.kiri #share { --k-defer-h: 569px; }
+	.kiri #resource { --k-defer-h: 712px; }
+	.kiri #start { --k-defer-h: 562px; }
+	.kiri #how { --k-defer-h: 591px; }
+	.kiri #app { --k-defer-h: 757px; }
+	.kiri #docs { --k-defer-h: 174px; }
+	.kiri .k-footer { --k-defer-h: 459px; }
+}
+@supports not (content-visibility: auto) {
+	.k-defer {
+		contain: layout style paint;
+	}
+}
+
+/* the instrument panels mutate every frame; keep that reflow to themselves */
+.k-race,
+.k-term,
+.k-rl {
+	contain: layout style paint;
 }
 
 .k-alt {
@@ -222,6 +314,7 @@ body:has(.kiri) {
 	background-image: var(--k-tile);
 	background-repeat: repeat;
 	opacity: 0.5;
+	-webkit-mask-image: linear-gradient(180deg, transparent, black 30%, black 70%, transparent);
 	mask-image: linear-gradient(180deg, transparent, black 30%, black 70%, transparent);
 }
 
@@ -235,7 +328,7 @@ body:has(.kiri) {
 	align-items: center;
 	gap: 10px;
 	margin: 0 0 14px;
-	font: 600 13px/1 var(--k-mono);
+	font: 600 0.8125rem/1 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
 	color: var(--k-ember-text);
@@ -252,7 +345,7 @@ body:has(.kiri) {
 	content: attr(data-code);
 	margin-left: 4px;
 	padding: 3px 7px;
-	font: 600 10.5px/1 var(--k-mono);
+	font: 600 0.6563rem/1 var(--k-mono);
 	letter-spacing: 0.14em;
 	color: var(--k-muted);
 	border: 1px dashed var(--k-line-strong);
@@ -261,14 +354,14 @@ body:has(.kiri) {
 }
 
 .k-h2 {
-	font-size: clamp(29px, 4.4vw, 46px);
+	font-size: clamp(1.8125rem, 0.5rem + 3.8vw, 2.875rem);
 	font-weight: 800;
 	letter-spacing: -0.03em;
 }
 
 .k-lede {
 	margin-top: 18px;
-	font-size: clamp(16px, 1.5vw, 19px);
+	font-size: clamp(1rem, 0.5rem + 1.1vw, 1.1875rem);
 	color: var(--k-text-2);
 	max-width: 46em;
 }
@@ -285,7 +378,7 @@ body:has(.kiri) {
 	position: relative;
 	z-index: 1;
 	margin-top: 30px;
-	font-size: 15px;
+	font-size: 0.9375rem;
 	font-weight: 600;
 }
 .k-more a {
@@ -315,7 +408,7 @@ body:has(.kiri) {
 	align-items: center;
 	justify-content: center;
 	gap: 8px;
-	font: 600 16px/1 var(--k-text);
+	font: 600 1rem/1 var(--k-text);
 	padding: 14px 20px;
 	border-radius: 12px;
 	background: var(--k-ember);
@@ -347,7 +440,7 @@ body:has(.kiri) {
 }
 .k-btn-sm {
 	padding: 9px 14px;
-	font-size: 14px;
+	font-size: 0.875rem;
 	border-radius: 10px;
 	box-shadow: none;
 }
@@ -356,7 +449,7 @@ body:has(.kiri) {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
-	font: 600 11px/1 var(--k-mono);
+	font: 600 0.6875rem/1 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	padding: 4px 7px;
@@ -458,7 +551,7 @@ body:has(.kiri) {
 .k-beta {
 	align-self: flex-start;
 	margin-top: 2px;
-	font: 600 10px/1 var(--k-mono);
+	font: 600 0.625rem/1 var(--k-mono);
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--k-ember-text);
@@ -474,12 +567,14 @@ body:has(.kiri) {
 	list-style: none;
 	margin: 0;
 	padding: 0;
+	/* the browser tracks which fragment target is on screen */
+	scroll-target-group: auto;
 }
 .k-nav-link {
 	display: block;
 	color: var(--k-text-2);
 	text-decoration: none;
-	font-size: 15px;
+	font-size: 0.9375rem;
 	font-weight: 500;
 	padding: 8px 12px;
 	border-radius: 9px;
@@ -490,9 +585,11 @@ body:has(.kiri) {
 	background: var(--k-surface-2);
 	text-decoration: none;
 }
-.k-nav-link.is-active {
+/* :is() keeps the rule alive in browsers without :target-current */
+.k-nav-link:is(:target-current, .is-active) {
 	color: var(--k-ember-text);
 	background: var(--k-ember-soft);
+	box-shadow: inset 0 -2px 0 var(--k-ember);
 }
 
 .k-nav-actions {
@@ -524,9 +621,11 @@ body:has(.kiri) {
 	left: 0;
 	bottom: -1px;
 	height: 2px;
-	width: 0;
+	width: 100%;
+	transform-origin: left center;
+	/* JS only writes this number when the browser has no scroll timeline */
+	scale: var(--k-p, 0) 1;
 	background: linear-gradient(90deg, var(--k-ember), var(--k-rose));
-	transition: width 0.1s linear;
 }
 
 .k-burger {
@@ -558,7 +657,7 @@ body:has(.kiri) {
 
 .k-hero {
 	position: relative;
-	scroll-margin-top: var(--k-nav-h);
+	scroll-margin-top: 0;
 	padding: calc(var(--k-nav-h) + clamp(34px, 6vw, 74px)) 0 clamp(48px, 7vw, 92px);
 	overflow: hidden;
 }
@@ -599,7 +698,7 @@ body:has(.kiri) {
 	display: inline-flex;
 	align-items: center;
 	gap: 10px;
-	font: 500 13px/1.3 var(--k-mono);
+	font: 500 0.8125rem/1.3 var(--k-mono);
 	color: var(--k-text-2);
 	background: var(--k-surface);
 	border: 1px solid var(--k-line);
@@ -621,7 +720,7 @@ body:has(.kiri) {
 }
 
 .k-h1 {
-	font-size: clamp(40px, 6.6vw, 76px);
+	font-size: clamp(2.5rem, 0.6rem + 5.9vw, 4.75rem);
 	font-weight: 800;
 	margin: 22px 0 20px;
 	letter-spacing: -0.04em;
@@ -645,7 +744,7 @@ body:has(.kiri) {
 	transform: skewX(-10deg) scaleX(0);
 	transform-origin: left center;
 	opacity: 0.9;
-	animation: k-underline 0.9s 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+	animation: k-underline 0.9s 0.35s var(--k-ease) forwards;
 }
 @keyframes k-underline {
 	to {
@@ -654,7 +753,7 @@ body:has(.kiri) {
 }
 
 .k-hero-lede {
-	font-size: clamp(16px, 1.6vw, 20px);
+	font-size: clamp(1rem, 0.5rem + 1.2vw, 1.25rem);
 	color: var(--k-text-2);
 	max-width: 34em;
 }
@@ -670,7 +769,7 @@ body:has(.kiri) {
 }
 .k-stat-k {
 	margin: 0 0 6px;
-	font: 600 11.5px/1 var(--k-mono);
+	font: 600 0.7188rem/1 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
 	color: var(--k-muted);
@@ -682,7 +781,7 @@ body:has(.kiri) {
 	flex-wrap: wrap;
 }
 .k-big {
-	font: 800 clamp(46px, 6.6vw, 70px)/1 var(--k-display);
+	font: 800 clamp(2.875rem, 0.6rem + 5.9vw, 4.375rem)/1 var(--k-display);
 	letter-spacing: -0.045em;
 	font-variant-numeric: tabular-nums;
 	color: var(--k-ink);
@@ -694,13 +793,13 @@ body:has(.kiri) {
 	letter-spacing: 0;
 }
 .k-stat-side {
-	font: 600 15px/1.4 var(--k-text);
+	font: 600 0.9375rem/1.4 var(--k-text);
 	color: var(--k-text-2);
 }
 .k-stat-cap {
 	margin-top: 8px;
 	color: var(--k-text-2);
-	font-size: 14.5px;
+	font-size: 0.9063rem;
 }
 .k-stat-cap strong {
 	color: var(--k-ink);
@@ -720,7 +819,7 @@ body:has(.kiri) {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px 18px;
-	font-size: 14px;
+	font-size: 0.875rem;
 	color: var(--k-muted);
 }
 .k-proof span {
@@ -742,7 +841,7 @@ body:has(.kiri) {
 	align-items: center;
 	gap: 8px;
 	margin: 0 0 8px;
-	font: 700 14px/1.3 var(--k-text);
+	font: 700 0.875rem/1.3 var(--k-text);
 	color: var(--k-ink);
 }
 .k-lang-k svg {
@@ -754,10 +853,11 @@ body:has(.kiri) {
 	padding: 0;
 	display: flex;
 	flex-wrap: wrap;
-	font: 400 13.5px/1.7 var(--k-text);
+	font: 400 0.8438rem/1.7 var(--k-text);
 	color: var(--k-muted);
 	max-height: 5.2em;
 	overflow: hidden;
+	-webkit-mask-image: linear-gradient(180deg, black 62%, transparent);
 	mask-image: linear-gradient(180deg, black 62%, transparent);
 }
 .k-lang-list li {
@@ -799,7 +899,7 @@ body:has(.kiri) {
 	overflow: hidden;
 	background: var(--k-win);
 	color: var(--k-win-text);
-	font: 13px/1.4 var(--k-text);
+	font: 0.8125rem/1.4 var(--k-text);
 	box-shadow: 0 50px 90px -40px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
 	transform: perspective(1600px) rotateY(-6deg) rotateX(2deg);
 	transform-origin: 40% 50%;
@@ -828,12 +928,12 @@ body:has(.kiri) {
 }
 .k-win-bar b {
 	margin-left: 10px;
-	font: 600 12px/1 var(--k-text);
+	font: 600 0.75rem/1 var(--k-text);
 	color: var(--k-win-muted);
 }
 .k-win-bar em {
 	margin-left: auto;
-	font: 500 11px/1 var(--k-mono);
+	font: 500 0.6875rem/1 var(--k-mono);
 	font-style: normal;
 	color: var(--k-win-muted);
 }
@@ -881,13 +981,13 @@ body:has(.kiri) {
 	gap: 10px;
 }
 .k-win-head b {
-	font: 700 16px/1 var(--k-display);
+	font: 700 1rem/1 var(--k-display);
 }
 .k-vm {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	font-size: 11.5px;
+	font-size: 0.7188rem;
 	color: var(--k-win-muted);
 }
 .k-vm i {
@@ -921,18 +1021,18 @@ body:has(.kiri) {
 	min-width: 0;
 }
 .k-stat-tile .k-tile-k {
-	font: 600 10px/1 var(--k-mono);
+	font: 600 0.625rem/1 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	color: var(--k-win-muted);
 }
 .k-stat-tile b {
-	font: 700 22px/1 var(--k-display);
+	font: 700 1.375rem/1 var(--k-display);
 	letter-spacing: -0.02em;
 	font-variant-numeric: tabular-nums;
 }
 .k-stat-tile small {
-	font-size: 11px;
+	font-size: 0.6875rem;
 	color: var(--k-win-muted);
 	font-weight: 600;
 }
@@ -946,7 +1046,7 @@ body:has(.kiri) {
 	flex: 1;
 	border-radius: 2px;
 	background: linear-gradient(180deg, #f2cf5b, #8a6a00);
-	transition: height 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+	transition: height 0.6s var(--k-ease);
 }
 .k-spark.is-mem i {
 	background: linear-gradient(180deg, #6ea8ff, #2f6feb);
@@ -984,17 +1084,17 @@ body:has(.kiri) {
 }
 .k-row-name {
 	font-weight: 700;
-	font-size: 12.5px;
+	font-size: 0.7813rem;
 }
 .k-row-img {
-	font: 400 11.5px/1 var(--k-mono);
+	font: 400 0.7188rem/1 var(--k-mono);
 	color: var(--k-win-muted);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 .k-row-state {
-	font: 500 11px/1 var(--k-mono);
+	font: 500 0.6875rem/1 var(--k-mono);
 	color: var(--k-win-muted);
 	white-space: nowrap;
 	font-variant-numeric: tabular-nums;
@@ -1019,14 +1119,14 @@ body:has(.kiri) {
 .k-share-row code {
 	flex: 1;
 	min-width: 0;
-	font: 500 12px/1 var(--k-mono);
+	font: 500 0.75rem/1 var(--k-mono);
 	color: var(--k-win-text);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 .k-share-row span {
-	font: 600 11px/1 var(--k-text);
+	font: 600 0.6875rem/1 var(--k-text);
 	color: #f06595;
 }
 
@@ -1037,7 +1137,7 @@ body:has(.kiri) {
 	padding: 9px 14px;
 	background: var(--k-win-2);
 	border-top: 1px solid var(--k-win-line);
-	font: 500 11px/1 var(--k-mono);
+	font: 500 0.6875rem/1 var(--k-mono);
 	color: var(--k-win-muted);
 }
 .k-win-foot span:last-child {
@@ -1059,13 +1159,13 @@ body:has(.kiri) {
 	animation: k-float 6s ease-in-out infinite;
 }
 .k-float b {
-	font: 800 24px/1 var(--k-display);
+	font: 800 1.5rem/1 var(--k-display);
 	letter-spacing: -0.03em;
 	color: var(--k-ember-text);
 	font-variant-numeric: tabular-nums;
 }
 .k-float span {
-	font: 500 11.5px/1.3 var(--k-text);
+	font: 500 0.7188rem/1.3 var(--k-text);
 	color: var(--k-muted);
 }
 @keyframes k-float {
@@ -1089,7 +1189,7 @@ body:has(.kiri) {
 	justify-content: space-between;
 }
 .k-works-k {
-	font: 600 13px/1.4 var(--k-mono);
+	font: 600 0.8125rem/1.4 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	color: var(--k-muted);
@@ -1110,7 +1210,7 @@ body:has(.kiri) {
 	border-radius: 10px;
 	background: var(--k-bg);
 	border: 1px solid var(--k-line);
-	font: 500 13px/1 var(--k-mono);
+	font: 500 0.8125rem/1 var(--k-mono);
 	color: var(--k-text-2);
 	transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
@@ -1152,7 +1252,7 @@ body:has(.kiri) {
 .k-rc-title {
 	margin-left: 10px;
 	color: var(--k-win-muted);
-	font: 400 12.5px/1.4 var(--k-mono);
+	font: 400 0.7813rem/1.4 var(--k-mono);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -1162,10 +1262,12 @@ body:has(.kiri) {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	font: 600 11px/1 var(--k-mono);
+	font: 600 0.6875rem/1 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	color: var(--k-win-muted);
+	white-space: nowrap;
+	flex-shrink: 0;
 }
 .k-rc-live i {
 	width: 7px;
@@ -1193,7 +1295,7 @@ body:has(.kiri) {
 	min-width: 0;
 }
 .k-ctl-k {
-	font: 600 10px/1 var(--k-mono);
+	font: 600 0.625rem/1 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.09em;
 	color: var(--k-win-muted);
@@ -1209,6 +1311,7 @@ body:has(.kiri) {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	flex-wrap: wrap;
 }
 
 .k-seg {
@@ -1222,7 +1325,7 @@ body:has(.kiri) {
 	border: 0;
 	background: transparent;
 	color: var(--k-win-muted);
-	font: 600 13px/1 var(--k-text);
+	font: 600 0.8125rem/1 var(--k-text);
 	padding: 8px 12px;
 	border-radius: 8px;
 	cursor: pointer;
@@ -1247,7 +1350,7 @@ body:has(.kiri) {
 	border-radius: 10px;
 	background: var(--k-ember);
 	color: var(--k-on-ember);
-	font: 700 13.5px/1 var(--k-text);
+	font: 700 0.8438rem/1 var(--k-text);
 	transition: filter 0.15s ease, transform 0.15s ease;
 }
 .k-run:hover {
@@ -1325,7 +1428,7 @@ body:has(.kiri) {
 	display: inline-flex;
 	align-items: center;
 	gap: 8px;
-	font: 500 12.5px/1 var(--k-text);
+	font: 500 0.7813rem/1 var(--k-text);
 	color: var(--k-win-muted);
 	cursor: pointer;
 	user-select: none;
@@ -1355,7 +1458,7 @@ body:has(.kiri) {
 	height: 13px;
 	border-radius: 4px;
 	background: var(--k-win-muted);
-	transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.18s ease;
+	transition: transform 0.18s var(--k-ease), background 0.18s ease;
 }
 .k-switch input:checked + i {
 	background: color-mix(in srgb, var(--k-ember) 60%, transparent);
@@ -1393,7 +1496,7 @@ body:has(.kiri) {
 	flex-wrap: wrap;
 }
 .k-lane-name {
-	font: 700 19px/1 var(--k-display);
+	font: 700 1.1875rem/1 var(--k-display);
 	letter-spacing: -0.02em;
 }
 .k-lane .k-chip-moss {
@@ -1402,7 +1505,7 @@ body:has(.kiri) {
 }
 .k-timer {
 	margin-left: auto;
-	font: 700 17px/1 var(--k-mono);
+	font: 700 1.0625rem/1 var(--k-mono);
 	font-variant-numeric: tabular-nums;
 	color: var(--k-win-text);
 }
@@ -1456,7 +1559,7 @@ body:has(.kiri) {
 	transition: box-shadow 0.12s ease;
 }
 .k-stop span {
-	font: 400 11.5px/1.2 var(--k-mono);
+	font: 400 0.7188rem/1.2 var(--k-mono);
 	color: var(--k-win-muted);
 	white-space: nowrap;
 }
@@ -1484,7 +1587,7 @@ body:has(.kiri) {
 }
 .k-lane-note {
 	color: var(--k-win-muted);
-	font-size: 13.5px;
+	font-size: 0.8438rem;
 	margin-top: 8px;
 	max-width: 62em;
 }
@@ -1497,7 +1600,7 @@ body:has(.kiri) {
 	border-radius: 8px;
 	background: var(--k-win-2);
 	box-shadow: inset 0 0 0 1px var(--k-win-line);
-	font: 500 11.5px/1 var(--k-mono);
+	font: 500 0.7188rem/1 var(--k-mono);
 	color: var(--k-win-muted);
 }
 .k-residue b {
@@ -1512,7 +1615,7 @@ body:has(.kiri) {
 
 .k-rc-foot {
 	padding: 13px 20px 16px;
-	font-size: 12.5px;
+	font-size: 0.7813rem;
 	line-height: 1.6;
 	color: var(--k-win-muted);
 	border-top: 1px solid var(--k-win-line);
@@ -1534,7 +1637,7 @@ body:has(.kiri) {
 	gap: 14px;
 }
 .k-bar-name {
-	font: 600 13.5px/1 var(--k-text);
+	font: 600 0.8438rem/1 var(--k-text);
 	color: var(--k-text-2);
 }
 .k-bar-row.is-kiri .k-bar-name {
@@ -1554,10 +1657,10 @@ body:has(.kiri) {
 	border-radius: 0 5px 5px 0;
 	width: 0;
 	background: var(--k-bar-color, var(--k-muted));
-	transition: width 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+	transition: width 0.9s var(--k-ease);
 }
 .k-bar-val {
-	font: 700 14px/1 var(--k-mono);
+	font: 700 0.875rem/1 var(--k-mono);
 	font-variant-numeric: tabular-nums;
 	text-align: right;
 	color: var(--k-ink);
@@ -1570,7 +1673,7 @@ body:has(.kiri) {
 	flex-wrap: wrap;
 	gap: 8px 20px;
 	margin-top: 16px;
-	font-size: 13px;
+	font-size: 0.8125rem;
 	color: var(--k-muted);
 }
 .k-legend span {
@@ -1631,12 +1734,12 @@ body:has(.kiri) {
 	margin-bottom: 16px;
 }
 .k-ft h3 {
-	font-size: 20px;
+	font-size: 1.25rem;
 	margin-bottom: 8px;
 }
 .k-ft p {
 	color: var(--k-text-2);
-	font-size: 15px;
+	font-size: 0.9375rem;
 	line-height: 1.6;
 }
 .k-ft-link {
@@ -1644,7 +1747,7 @@ body:has(.kiri) {
 	align-items: center;
 	gap: 6px;
 	margin-top: 14px;
-	font: 600 13.5px/1 var(--k-text);
+	font: 600 0.8438rem/1 var(--k-text);
 	color: color-mix(in srgb, var(--k-ft-accent) 78%, var(--k-ink));
 	text-decoration: none;
 }
@@ -1679,7 +1782,7 @@ body:has(.kiri) {
 	gap: 12px;
 	align-items: start;
 	color: var(--k-text-2);
-	font-size: 15px;
+	font-size: 0.9375rem;
 	line-height: 1.6;
 }
 .k-point svg {
@@ -1721,7 +1824,7 @@ body:has(.kiri) {
 }
 .k-term-bar b {
 	margin-left: 8px;
-	font: 400 12px/1 var(--k-mono);
+	font: 400 0.75rem/1 var(--k-mono);
 	color: var(--k-win-muted);
 }
 .k-term-stack {
@@ -1758,7 +1861,7 @@ body:has(.kiri) {
 	margin: 0;
 	padding: 18px;
 	min-height: 322px;
-	font: 13px/1.8 var(--k-mono);
+	font: 0.8125rem/1.8 var(--k-mono);
 	white-space: pre-wrap;
 	word-break: break-word;
 	overflow: hidden;
@@ -1799,13 +1902,13 @@ body:has(.kiri) {
 	gap: 10px;
 	padding: 10px 14px;
 	border-top: 1px solid var(--k-win-line);
-	font: 400 12px/1.4 var(--k-mono);
+	font: 400 0.75rem/1.4 var(--k-mono);
 	color: var(--k-win-muted);
 }
 .k-term-foot .k-run {
 	margin-left: auto;
 	padding: 7px 12px;
-	font-size: 12.5px;
+	font-size: 0.7813rem;
 }
 
 /* ---------- share ---------- */
@@ -1827,7 +1930,7 @@ body:has(.kiri) {
 	padding-left: 22px;
 	position: relative;
 	color: var(--k-text-2);
-	font-size: 15px;
+	font-size: 0.9375rem;
 	line-height: 1.6;
 }
 .k-sh-points li::before {
@@ -1868,7 +1971,7 @@ body:has(.kiri) {
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	font: 700 12.5px/1 var(--k-text);
+	font: 700 0.7813rem/1 var(--k-text);
 	color: color-mix(in srgb, var(--k-rose) 75%, var(--k-ink));
 	white-space: nowrap;
 }
@@ -1889,7 +1992,7 @@ body:has(.kiri) {
 .k-sh-url {
 	flex: 1;
 	min-width: 0;
-	font: 500 13.5px/1 var(--k-mono);
+	font: 500 0.8438rem/1 var(--k-mono);
 	color: var(--k-ink);
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1902,7 +2005,7 @@ body:has(.kiri) {
 .k-sh-btn {
 	border: 0;
 	cursor: pointer;
-	font: 700 12.5px/1 var(--k-text);
+	font: 700 0.7813rem/1 var(--k-text);
 	color: #fff;
 	background: linear-gradient(180deg, color-mix(in srgb, var(--k-rose) 82%, #000), color-mix(in srgb, var(--k-rose) 62%, #000));
 	padding: 9px 12px;
@@ -1924,7 +2027,7 @@ body:has(.kiri) {
 	gap: 10px;
 	padding: 12px 6px;
 	border-top: 1px solid var(--k-line);
-	font-size: 14px;
+	font-size: 0.875rem;
 	color: var(--k-muted);
 }
 .k-sh-list li:first-child {
@@ -1938,14 +2041,14 @@ body:has(.kiri) {
 .k-sh-list code {
 	flex: 1;
 	min-width: 0;
-	font-size: 12.5px;
+	font-size: 0.7813rem;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 .k-sh-list em {
 	font-style: normal;
-	font-size: 12px;
+	font-size: 0.75rem;
 	font-weight: 600;
 	color: var(--k-m, var(--k-muted));
 	white-space: nowrap;
@@ -1966,11 +2069,11 @@ body:has(.kiri) {
 	margin: 10px 0 0;
 	padding-top: 14px;
 	border-top: 1px solid var(--k-line);
-	font-size: 13px;
+	font-size: 0.8125rem;
 	color: var(--k-muted);
 }
 .k-sh-toggle {
-	font: 700 13px/1 var(--k-text);
+	font: 700 0.8125rem/1 var(--k-text);
 	color: var(--k-ink);
 	background: transparent;
 	border: 1px solid var(--k-line-strong);
@@ -1984,17 +2087,55 @@ body:has(.kiri) {
 	background: var(--k-surface-2);
 	border-color: var(--k-rose);
 }
+/* a native disclosure: works with scripting off, opens to its own height */
+.k-sh-disc {
+	margin-top: 12px;
+}
+.k-sh-sum {
+	display: inline-flex;
+	list-style: none;
+	cursor: pointer;
+}
+.k-sh-sum::-webkit-details-marker {
+	display: none;
+}
+.k-sh-sum .k-sh-sum-open {
+	display: none;
+}
+.k-sh-disc[open] .k-sh-sum-shut {
+	display: none;
+}
+.k-sh-disc[open] .k-sh-sum-open {
+	display: inline;
+}
+.k-sh-caret {
+	transition: rotate 0.25s var(--k-ease);
+}
+.k-sh-disc[open] .k-sh-caret {
+	rotate: 180deg;
+}
+@supports (interpolate-size: allow-keywords) {
+	.k-sh-disc {
+		interpolate-size: allow-keywords;
+	}
+	.k-sh-disc::details-content {
+		block-size: 0;
+		overflow-y: clip;
+		transition: block-size 0.32s var(--k-ease), content-visibility 0.32s allow-discrete;
+	}
+	.k-sh-disc[open]::details-content {
+		block-size: auto;
+	}
+}
+
 .k-sh-warn {
 	margin-top: 14px;
 	padding: 14px;
 	border-radius: 12px;
 	background: var(--k-bg);
 	border: 1px dashed color-mix(in srgb, var(--k-amber) 55%, var(--k-line));
-	font-size: 13px;
+	font-size: 0.8125rem;
 	color: var(--k-text-2);
-}
-.k-sh-warn[hidden] {
-	display: none;
 }
 .k-sh-warn b {
 	display: flex;
@@ -2002,7 +2143,7 @@ body:has(.kiri) {
 	gap: 7px;
 	color: color-mix(in srgb, var(--k-amber) 80%, var(--k-ink));
 	margin-bottom: 6px;
-	font-size: 13.5px;
+	font-size: 0.8438rem;
 }
 
 /* ---------- resource lab ---------- */
@@ -2027,7 +2168,7 @@ body:has(.kiri) {
 }
 .k-rl-controls h3 {
 	color: var(--k-win-text);
-	font-size: 16px;
+	font-size: 1rem;
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -2045,7 +2186,7 @@ body:has(.kiri) {
 	border: 1px solid var(--k-win-line);
 	border-radius: 9px;
 	padding: 9px 12px;
-	font: 600 13px/1 var(--k-text);
+	font: 600 0.8125rem/1 var(--k-text);
 	cursor: pointer;
 	width: 100%;
 }
@@ -2073,7 +2214,7 @@ body:has(.kiri) {
 	gap: 8px;
 	padding: 7px 12px;
 	border-radius: 999px;
-	font: 700 12.5px/1 var(--k-text);
+	font: 700 0.7813rem/1 var(--k-text);
 	background: rgba(63, 182, 139, 0.14);
 	color: #6fd3a5;
 }
@@ -2097,7 +2238,7 @@ body:has(.kiri) {
 }
 .k-rl-clock {
 	margin-left: auto;
-	font: 600 13px/1 var(--k-mono);
+	font: 600 0.8125rem/1 var(--k-mono);
 	color: var(--k-win-muted);
 	font-variant-numeric: tabular-nums;
 }
@@ -2110,7 +2251,7 @@ body:has(.kiri) {
 	grid-template-columns: 96px minmax(0, 1fr) 92px;
 	gap: 12px;
 	align-items: center;
-	font: 500 12.5px/1 var(--k-mono);
+	font: 500 0.7813rem/1 var(--k-mono);
 	color: var(--k-win-muted);
 }
 .k-meter {
@@ -2126,7 +2267,7 @@ body:has(.kiri) {
 	width: 0;
 	border-radius: 4px;
 	background: linear-gradient(90deg, #2f6feb, #6ea8ff);
-	transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+	transition: width 0.35s var(--k-ease);
 }
 .k-meter-fill.is-daemon {
 	background: linear-gradient(90deg, #8a6a00, #f2cf5b);
@@ -2146,7 +2287,7 @@ body:has(.kiri) {
 .k-rl-graph-k {
 	display: flex;
 	justify-content: space-between;
-	font: 600 10px/1 var(--k-mono);
+	font: 600 0.625rem/1 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	color: var(--k-win-muted);
@@ -2164,10 +2305,12 @@ body:has(.kiri) {
 	display: grid;
 	gap: 6px;
 	align-content: start;
-	font: 400 12px/1.5 var(--k-mono);
+	font: 400 0.75rem/1.5 var(--k-mono);
 	color: var(--k-win-muted);
 	height: 126px;
 	overflow: hidden;
+	-webkit-mask-image: linear-gradient(180deg, black 72%, transparent);
+	mask-image: linear-gradient(180deg, black 72%, transparent);
 }
 .k-rl-log li {
 	display: flex;
@@ -2180,7 +2323,7 @@ body:has(.kiri) {
 	flex: none;
 }
 .k-rl-note {
-	font-size: 12.5px;
+	font-size: 0.7813rem;
 	color: var(--k-win-muted);
 	line-height: 1.6;
 }
@@ -2223,19 +2366,19 @@ body:has(.kiri) {
 	transform: skewX(-10deg);
 	background: var(--k-ember-soft);
 	border: 1px solid color-mix(in srgb, var(--k-ember) 35%, transparent);
-	font: 700 12px/1 var(--k-mono);
+	font: 700 0.75rem/1 var(--k-mono);
 	color: var(--k-ember-text);
 }
 .k-st-n span {
 	transform: skewX(10deg);
 }
 .k-st h3 {
-	font-size: 20px;
+	font-size: 1.25rem;
 	margin: 14px 0 8px;
 }
 .k-st p {
 	color: var(--k-text-2);
-	font-size: 14.5px;
+	font-size: 0.9063rem;
 	line-height: 1.6;
 	flex: 1;
 }
@@ -2248,7 +2391,7 @@ body:has(.kiri) {
 	border-radius: 10px;
 	background: var(--k-win);
 	color: var(--k-win-text);
-	font: 400 12px/1.5 var(--k-mono);
+	font: 400 0.75rem/1.5 var(--k-mono);
 	overflow: hidden;
 }
 .k-cmd code {
@@ -2292,7 +2435,7 @@ body:has(.kiri) {
 	align-items: center;
 	gap: 6px;
 	margin-top: 14px;
-	font: 700 13.5px/1 var(--k-text);
+	font: 700 0.8438rem/1 var(--k-text);
 	text-decoration: none;
 }
 .k-st-cta:hover {
@@ -2315,6 +2458,7 @@ body:has(.kiri) {
 	background: var(--k-surface-2);
 	border: 1px solid var(--k-line);
 	margin-bottom: 20px;
+	max-width: 100%;
 }
 .k-tab {
 	display: inline-flex;
@@ -2323,7 +2467,7 @@ body:has(.kiri) {
 	border: 0;
 	background: transparent;
 	color: var(--k-text-2);
-	font: 600 14px/1 var(--k-text);
+	font: 600 0.875rem/1 var(--k-text);
 	padding: 9px 14px;
 	border-radius: 9px;
 	cursor: pointer;
@@ -2362,7 +2506,7 @@ body:has(.kiri) {
 	display: flex;
 	align-items: center;
 	gap: 9px;
-	font: 700 15px/1.2 var(--k-display);
+	font: 700 0.9375rem/1.2 var(--k-display);
 }
 .k-node-h svg {
 	color: var(--k-ember-text);
@@ -2375,7 +2519,7 @@ body:has(.kiri) {
 }
 .k-node-p {
 	margin-top: 7px;
-	font: 400 12.5px/1.6 var(--k-mono);
+	font: 400 0.7813rem/1.6 var(--k-mono);
 	color: var(--k-muted);
 }
 .k-node.is-guest .k-node-p {
@@ -2388,7 +2532,7 @@ body:has(.kiri) {
 	margin-top: 12px;
 }
 .k-hop {
-	font: 500 11.5px/1 var(--k-mono);
+	font: 500 0.7188rem/1 var(--k-mono);
 	padding: 7px 9px;
 	border-radius: 8px;
 	background: var(--k-win-2);
@@ -2426,7 +2570,7 @@ body:has(.kiri) {
 	border-radius: 999px;
 	background: var(--k-surface);
 	border: 1px solid var(--k-line-strong);
-	font: 600 11.5px/1 var(--k-mono);
+	font: 600 0.7188rem/1 var(--k-mono);
 	color: var(--k-ember-text);
 }
 .k-packet {
@@ -2473,7 +2617,7 @@ body:has(.kiri) {
 	box-shadow: var(--k-stack);
 }
 .k-tile-v {
-	font: 800 30px/1 var(--k-display);
+	font: 800 1.875rem/1 var(--k-display);
 	letter-spacing: -0.03em;
 	font-variant-numeric: tabular-nums;
 	color: var(--k-ember-text);
@@ -2485,12 +2629,12 @@ body:has(.kiri) {
 }
 .k-tile-l {
 	margin-top: 8px;
-	font: 700 14px/1.3 var(--k-text);
+	font: 700 0.875rem/1.3 var(--k-text);
 	color: var(--k-ink);
 }
 .k-tile-d {
 	margin-top: 6px;
-	font-size: 13px;
+	font-size: 0.8125rem;
 	line-height: 1.55;
 	color: var(--k-muted);
 }
@@ -2536,7 +2680,7 @@ body:has(.kiri) {
 	align-items: center;
 	justify-content: space-between;
 	gap: 10px;
-	font-size: 19px;
+	font-size: 1.1875rem;
 }
 .k-ap h3 svg {
 	color: var(--k-muted);
@@ -2552,13 +2696,13 @@ body:has(.kiri) {
 .k-ap p {
 	margin-top: 8px;
 	color: var(--k-text-2);
-	font-size: 14.5px;
+	font-size: 0.9063rem;
 	line-height: 1.6;
 }
 .k-ap small {
 	display: block;
 	margin-top: 12px;
-	font: 500 11.5px/1.4 var(--k-mono);
+	font: 500 0.7188rem/1.4 var(--k-mono);
 	color: var(--k-muted);
 }
 
@@ -2579,7 +2723,7 @@ body:has(.kiri) {
 	box-shadow: var(--k-stack);
 }
 .k-band h2 {
-	font-size: clamp(23px, 2.6vw, 32px);
+	font-size: clamp(1.4375rem, 0.5rem + 2.1vw, 2rem);
 	font-weight: 800;
 	letter-spacing: -0.03em;
 }
@@ -2587,7 +2731,7 @@ body:has(.kiri) {
 	margin-top: 10px;
 	max-width: 56em;
 	color: var(--k-text-2);
-	font-size: 15.5px;
+	font-size: 0.9688rem;
 	line-height: 1.65;
 }
 .k-band-actions {
@@ -2630,12 +2774,12 @@ body:has(.kiri) {
 .k-foot-tag {
 	margin-top: 12px;
 	color: var(--k-muted);
-	font-size: 14.5px;
+	font-size: 0.9063rem;
 	max-width: 26em;
 	line-height: 1.6;
 }
 .k-foot-h {
-	font: 600 11.5px/1 var(--k-mono);
+	font: 600 0.7188rem/1 var(--k-mono);
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
 	color: var(--k-muted);
@@ -2651,7 +2795,7 @@ body:has(.kiri) {
 .k-foot-list a {
 	color: var(--k-text-2);
 	text-decoration: none;
-	font-size: 14.5px;
+	font-size: 0.9063rem;
 }
 .k-foot-list a:hover {
 	color: var(--k-ink);
@@ -2665,7 +2809,7 @@ body:has(.kiri) {
 	padding: 8px 14px;
 	border-radius: 999px;
 	border: 1px solid var(--k-line-strong);
-	font: 600 13px/1 var(--k-text);
+	font: 600 0.8125rem/1 var(--k-text);
 	color: var(--k-text-2);
 	text-decoration: none;
 	transition: background 0.15s ease, color 0.15s ease;
@@ -2681,7 +2825,7 @@ body:has(.kiri) {
 	margin-top: 34px;
 	padding-top: 22px;
 	border-top: 1px solid var(--k-line);
-	font-size: 12.5px;
+	font-size: 0.7813rem;
 	line-height: 1.7;
 	color: var(--k-muted);
 }
@@ -2719,20 +2863,181 @@ body:has(.kiri) {
 
 /* ---------- reveal ---------- */
 
-[data-reveal] {
+/* Content is visible by default. Only a browser without scroll-driven
+ * animations gets the JS-driven class, so a script failure can never
+ * leave the page blank. */
+.k-js-reveal [data-reveal] {
 	opacity: 0;
-	transform: translateY(16px);
-	transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+	translate: 0 16px;
+	transition: opacity 0.7s ease, translate 0.7s var(--k-ease);
 	transition-delay: calc(var(--k-i, 0) * 70ms);
 }
-[data-reveal].is-in {
+.k-js-reveal [data-reveal].is-in {
 	opacity: 1;
-	transform: none;
+	translate: none;
+}
+
+/* ---------- scroll-driven layer ---------- */
+
+@media (prefers-reduced-motion: no-preference) {
+	@supports (transition-timing-function: linear(0, 1)) {
+		.kiri {
+			/* a critically-damped spring, sampled */
+			--k-ease: linear(
+				0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%,
+				0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%,
+				1.015 55%, 1.017 63.9%, 1.001 89%, 1
+			);
+		}
+	}
+
+	@supports ((animation-timeline: scroll()) and (animation-range: 0% 100%)) {
+		/* the header settles into its compact height as the page moves */
+		@keyframes k-nav-shrink {
+			to {
+				height: 54px;
+			}
+		}
+		@keyframes k-mark-shrink {
+			to {
+				height: 25px;
+			}
+		}
+		@keyframes k-read {
+			from {
+				scale: 0 1;
+			}
+			to {
+				scale: 1 1;
+			}
+		}
+		.k-nav-in {
+			animation: k-nav-shrink auto linear both;
+		}
+		.k-brand-logo {
+			animation: k-mark-shrink auto linear both;
+		}
+		.k-progress {
+			animation: k-read auto linear both;
+		}
+		/* Timelines live in their own rule: a minifier that folds them into
+		 * the `animation` shorthand produces a value Chrome throws away. */
+		.kiri .k-nav-in,
+		.kiri .k-brand-logo,
+		.kiri .k-progress {
+			animation-timeline: scroll(block root);
+		}
+		.kiri .k-nav-in,
+		.kiri .k-brand-logo {
+			animation-range: 0px 120px;
+		}
+	}
+
+	@supports ((animation-timeline: view()) and (animation-range: entry)) {
+		/* entry: rise and settle. No JS, no observers, no jank. */
+		@keyframes k-rise {
+			from {
+				opacity: 0;
+				translate: 0 22px;
+			}
+			to {
+				opacity: 1;
+				translate: 0 0;
+			}
+		}
+		@keyframes k-drift-far {
+			from {
+				translate: 0 -70px;
+			}
+			to {
+				translate: 0 70px;
+			}
+		}
+		@keyframes k-drift-near {
+			from {
+				translate: 0 46px;
+			}
+			to {
+				translate: 0 -46px;
+			}
+		}
+		@keyframes k-tile-drift {
+			from {
+				translate: 0 26px;
+			}
+			to {
+				translate: 0 -26px;
+			}
+		}
+		@keyframes k-skyline-drift {
+			from {
+				translate: 0 22px;
+			}
+			to {
+				translate: 0 -6px;
+			}
+		}
+		[data-reveal] {
+			animation: k-rise auto linear both;
+		}
+		.k-hero::before {
+			animation: k-drift-far auto linear both;
+		}
+		.k-hero::after,
+		.k-hx {
+			animation: k-drift-near auto linear both;
+		}
+		.k-alt::after {
+			inset: -30px 0;
+			animation: k-tile-drift auto linear both;
+		}
+		.k-skyline {
+			animation: k-skyline-drift auto linear both;
+		}
+
+		.kiri {
+			timeline-scope: --k-hero;
+		}
+		.kiri .k-hero {
+			view-timeline: --k-hero;
+		}
+		.kiri [data-reveal],
+		.kiri .k-alt::after,
+		.kiri .k-skyline {
+			animation-timeline: view();
+		}
+		.kiri [data-reveal] {
+			animation-range: entry 0% entry 88%;
+		}
+		.kiri .k-hero::before,
+		.kiri .k-hero::after {
+			animation-timeline: --k-hero;
+			animation-range: cover 0% exit 100%;
+		}
+		.kiri .k-hx {
+			animation-timeline: --k-hero;
+			animation-range: cover 20% exit 100%;
+		}
+		.kiri .k-alt::after {
+			animation-range: cover 0% cover 100%;
+		}
+		.kiri .k-skyline {
+			animation-range: entry 0% cover 60%;
+		}
+		/* cards in a grid stagger off their own position, not a hand-set index */
+		@supports (animation-range: entry calc(1% * sibling-index())) {
+			.kiri .k-ft-grid > [data-reveal],
+			.kiri .k-st-grid > [data-reveal],
+			.kiri .k-ap-grid > [data-reveal] {
+				animation-range: entry calc(3% * sibling-index()) entry calc(60% + 4% * sibling-index());
+			}
+		}
+	}
 }
 
 /* ---------- responsive ---------- */
 
-@media (max-width: 1080px) {
+@media (max-width: 67.5em) {
 	.k-nav-links {
 		display: none;
 	}
@@ -2749,7 +3054,17 @@ body:has(.kiri) {
 	}
 }
 
-@media (max-width: 960px) {
+@media (max-width: 60em) {
+	.kiri #race { --k-defer-h: 1286px; }
+	.kiri #features { --k-defer-h: 1431px; }
+	.kiri #cli { --k-defer-h: 826px; }
+	.kiri #share { --k-defer-h: 789px; }
+	.kiri #resource { --k-defer-h: 1078px; }
+	.kiri #start { --k-defer-h: 726px; }
+	.kiri #how { --k-defer-h: 953px; }
+	.kiri #app { --k-defer-h: 997px; }
+	.kiri #docs { --k-defer-h: 228px; }
+	.kiri .k-footer { --k-defer-h: 688px; }
 	.k-hero-grid,
 	.k-cli-grid,
 	.k-sh-grid,
@@ -2780,10 +3095,20 @@ body:has(.kiri) {
 	}
 }
 
-@media (max-width: 640px) {
+@media (max-width: 40em) {
 	.kiri {
-		font-size: 16px;
+		font-size: 1rem;
 	}
+	.kiri #race { --k-defer-h: 1561px; }
+	.kiri #features { --k-defer-h: 2521px; }
+	.kiri #cli { --k-defer-h: 940px; }
+	.kiri #share { --k-defer-h: 893px; }
+	.kiri #resource { --k-defer-h: 1149px; }
+	.kiri #start { --k-defer-h: 1249px; }
+	.kiri #how { --k-defer-h: 1252px; }
+	.kiri #app { --k-defer-h: 1331px; }
+	.kiri #docs { --k-defer-h: 262px; }
+	.kiri .k-footer { --k-defer-h: 1068px; }
 	.k-hero-side {
 		order: 0;
 	}
@@ -2803,7 +3128,7 @@ body:has(.kiri) {
 		padding: 9px 11px;
 	}
 	.k-stat-tile b {
-		font-size: 20px;
+		font-size: 1.25rem;
 	}
 	.k-ft-grid,
 	.k-ap-grid,
@@ -2816,7 +3141,7 @@ body:has(.kiri) {
 		height: 74px;
 	}
 	.k-stop span {
-		font-size: 9px;
+		font-size: 0.5625rem;
 	}
 	.k-lane:nth-child(odd) .k-stop:nth-child(even) span {
 		margin-top: 15px;
@@ -2841,15 +3166,15 @@ body:has(.kiri) {
 		padding: 9px 12px;
 	}
 	.k-float b {
-		font-size: 19px;
+		font-size: 1.1875rem;
 	}
 	.k-nav-actions .k-btn {
 		padding: 9px 12px;
-		font-size: 13.5px;
+		font-size: 0.8438rem;
 	}
 	.k-term-body {
 		min-height: 300px;
-		font-size: 11.5px;
+		font-size: 0.7188rem;
 	}
 	.k-foot-grid {
 		grid-template-columns: minmax(0, 1fr);
@@ -2870,11 +3195,31 @@ body:has(.kiri) {
 	[data-reveal] {
 		opacity: 1;
 		transform: none;
+		translate: none;
 	}
 	.k-underline::after {
 		transform: skewX(-10deg) scaleX(1);
 	}
 	.k-packet {
 		display: none;
+	}
+}
+/* 320px-class phones: the race console must keep every control reachable */
+@media (max-width: 22em) {
+	.k-tab {
+		padding: 8px 10px;
+		font-size: 0.8125rem;
+	}
+	.k-rc-bar {
+		padding: 10px 12px;
+		gap: 5px;
+	}
+	.k-rc-title {
+		margin-left: 6px;
+		font-size: 0.6875rem;
+	}
+	.k-rc-tools {
+		padding: 12px 12px;
+		gap: 10px 14px;
 	}
 }
