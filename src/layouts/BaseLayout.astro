@@ -19,7 +19,10 @@ import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
 import WebMCP from "@/components/WebMCP.astro";
 import type { BasePageProps } from "@cloudflare/nimbus-docs/types";
 
-type Props = BasePageProps;
+type Props = BasePageProps & {
+  /** Fonts this page actually renders with; defaults to the docs body face. */
+  fontPreloads?: string[];
+};
 
 const {
   title,
@@ -36,7 +39,10 @@ const {
   entryId,
   apiVersion,
   coordinate,
+  fontPreloads,
 } = Astro.props;
+
+const preloadedFonts = fontPreloads ?? [interLatin];
 
 // The page's language, or the site's; `dir="rtl"` for a right-to-left one.
 const { lang, dir } = await getPageLanguage(locale);
@@ -74,7 +80,13 @@ const resolvedMarkdownUrl =
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preload" href={interLatin} as="font" type="font/woff2" crossorigin />
+    <!-- opt into the OS text-scale setting; every size here is rem-based -->
+    <meta name="text-scale" content="scale" />
+    {
+      preloadedFonts.map((f) => (
+        <link rel="preload" href={f} as="font" type="font/woff2" crossorigin />
+      ))
+    }
     <WebMCP />
 
     <script is:inline>
