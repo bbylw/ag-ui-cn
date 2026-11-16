@@ -3,6 +3,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Header from "../components/Header.astro";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 
+// GitHub Pages serves this project under /kiri-cn; prefix every internal link.
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+
 const title = "Kiri — 小巧快速的容器运行时";
 const description =
   "Kiri 是一个用 Rust 从零构建的容器运行时，适用于 macOS、Windows 和 Linux。兼容 docker CLI、Compose 与 buildx，一条守护进程直连内核，启动容器只需数毫秒。";
@@ -181,7 +185,7 @@ const steps = [
               </div>
               <div class="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
                 <span>2 CPU / 8 GB 环境，同一 docker CLI，取中位数</span>
-                <a href="/guide/benchmarks/" class="inline-flex items-center gap-0.5 font-medium text-brand no-underline hover:underline">
+                <a href={href("/guide/benchmarks/")} class="inline-flex items-center gap-0.5 font-medium text-brand no-underline hover:underline">
                   查看基准测试
                   <Icon aria-hidden="true" name="ph:arrow-right" class="h-3 w-3" />
                 </a>
@@ -199,7 +203,7 @@ const steps = [
                 下载 Kiri
               </a>
               <a
-                href="/quick-start/"
+                href={href("/quick-start/")}
                 class="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-6 py-3 text-sm font-medium text-foreground no-underline shadow-[var(--nb-shadow-sm)] transition-colors hover:bg-accent"
               >
                 阅读文档
@@ -335,7 +339,7 @@ const steps = [
             </div>
             <p class="mt-4 text-xs leading-5 text-muted-foreground">
               一台 Apple Silicon Mac 上的一次完整测量，所有引擎限制为 2 CPU / 8 GB，使用同一个 docker CLI 与默认 bridge 网络，取中位数。
-              <a href="/guide/benchmarks/" class="ms-1 font-medium text-brand no-underline hover:underline">查看完整数据</a>
+              <a href={href("/guide/benchmarks/")} class="ms-1 font-medium text-brand no-underline hover:underline">查看完整数据</a>
             </p>
           </div>
 
@@ -418,15 +422,15 @@ const steps = [
           </ul>
 
           <div class="mt-8 flex flex-wrap gap-3">
-            <a href="/docker/containers/" class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
+            <a href={href("/docker/containers/")} class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
               容器与 Compose 文档
               <Icon aria-hidden="true" name="ph:arrow-right" class="h-3.5 w-3.5" />
             </a>
-            <a href="/guide/kubernetes/" class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
+            <a href={href("/guide/kubernetes/")} class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
               Kubernetes 文档
               <Icon aria-hidden="true" name="ph:arrow-right" class="h-3.5 w-3.5" />
             </a>
-            <a href="/features/share/" class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
+            <a href={href("/features/share/")} class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
               Kiri Share 文档
               <Icon aria-hidden="true" name="ph:arrow-right" class="h-3.5 w-3.5" />
             </a>
@@ -465,11 +469,11 @@ const steps = [
               </li>
             </ul>
             <div class="mt-8 flex flex-wrap gap-3">
-              <a href="/guide/cli/" class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground no-underline transition-colors hover:bg-primary-hover">
+              <a href={href("/guide/cli/")} class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground no-underline transition-colors hover:bg-primary-hover">
                 命令行参考
                 <Icon aria-hidden="true" name="ph:arrow-right" class="h-4 w-4" />
               </a>
-              <a href="/quick-start/" class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
+              <a href={href("/quick-start/")} class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
                 快速开始
               </a>
             </div>
@@ -567,7 +571,7 @@ const steps = [
               </li>
             </ul>
             <div class="mt-8 flex flex-wrap gap-3">
-              <a href="/features/share/" class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground no-underline transition-colors hover:bg-primary-hover">
+              <a href={href("/features/share/")} class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground no-underline transition-colors hover:bg-primary-hover">
                 了解 Kiri Share
                 <Icon aria-hidden="true" name="ph:arrow-right" class="h-4 w-4" />
               </a>
@@ -608,7 +612,7 @@ const steps = [
           </ol>
           <p class="mt-6 text-xs text-muted-foreground">
             Apple silicon / Intel · macOS 14+ · Windows 10/11（WSL2，Beta）· Linux（.deb / .rpm）。
-            <a href="/install/" class="ms-1 font-medium text-brand no-underline hover:underline">查看安装说明</a>
+            <a href={href("/install/")} class="ms-1 font-medium text-brand no-underline hover:underline">查看安装说明</a>
           </p>
         </div>
       </section>
@@ -678,11 +682,11 @@ const steps = [
           </div>
 
           <div class="mt-8 flex flex-wrap items-center gap-3">
-            <a href="/guide/how-it-works/" class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
+            <a href={href("/guide/how-it-works/")} class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
               了解工作原理
               <Icon aria-hidden="true" name="ph:arrow-right" class="h-3.5 w-3.5" />
             </a>
-            <a href="/compare/docker-desktop/" class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
+            <a href={href("/compare/docker-desktop/")} class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
               与 Docker Desktop 对比
               <Icon aria-hidden="true" name="ph:arrow-right" class="h-3.5 w-3.5" />
             </a>
@@ -702,7 +706,7 @@ const steps = [
               <p class="mt-4 text-base leading-7 text-muted-foreground">
                 在 macOS 上，Kiri 通过 Apple 的 Virtualization.framework 启动一个 Linux VM，使用自定义内核与用 Rust 编写的 PID 1；宿主与来宾通过 vsock 通信。在 Linux 上，同一条守护进程直接运行在你的内核上，没有 VM；在 Windows 上它运行于 WSL2 中。
               </p>
-              <a href="/platforms/linux/" class="mt-6 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
+              <a href={href("/platforms/linux/")} class="mt-6 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
                 查看各平台说明
                 <Icon aria-hidden="true" name="ph:arrow-right" class="h-3.5 w-3.5" />
               </a>
@@ -721,7 +725,7 @@ const steps = [
               ))}
               <p class="text-xs leading-5 text-muted-foreground sm:col-span-3">
                 在同一台 Apple Silicon Mac 上测量；方法与原始数据见
-                <a href="/guide/benchmarks/" class="ms-1 font-medium text-brand no-underline hover:underline">基准测试</a>。
+                <a href={href("/guide/benchmarks/")} class="ms-1 font-medium text-brand no-underline hover:underline">基准测试</a>。
               </p>
             </div>
           </div>
@@ -743,11 +747,11 @@ const steps = [
 
           <div class="mt-10 grid gap-4 sm:grid-cols-3">
             {[
-              ["Mac", "通过 Virtualization.framework 运行一个最小 Linux VM", "/platforms/linux/"],
+              ["Mac", "通过 Virtualization.framework 运行一个最小 Linux VM", "/guide/how-it-works/"],
               ["Windows", "运行在 WSL2 中，Docker API 走命名管道（Beta）", "/platforms/windows/"],
               ["Linux", "原生运行，没有 VM：守护进程直接在你的内核上 clone3", "/platforms/linux/"],
-            ].map(([p, d, href]) => (
-              <a href={href} class="group rounded-xl border border-border bg-card p-5 no-underline shadow-[var(--nb-shadow-sm)] transition-colors hover:bg-accent/40">
+            ].map(([p, d, url]) => (
+              <a href={href(url)} class="group rounded-xl border border-border bg-card p-5 no-underline shadow-[var(--nb-shadow-sm)] transition-colors hover:bg-accent/40">
                 <div class="flex items-center justify-between">
                   <h3 class="text-base font-semibold text-foreground">{p}</h3>
                   <Icon aria-hidden="true" name="ph:arrow-up-right" class="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
@@ -770,7 +774,7 @@ const steps = [
                 <Icon aria-hidden="true" name="ph:download-simple" class="h-4 w-4" />
                 下载 Kiri
               </a>
-              <a href="/install/" class="inline-flex items-center rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
+              <a href={href("/install/")} class="inline-flex items-center rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent">
                 所有平台
               </a>
             </div>
@@ -789,7 +793,7 @@ const steps = [
               </p>
             </div>
             <div class="flex shrink-0 flex-wrap gap-3">
-              <a href="/intro/" class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground no-underline transition-colors hover:bg-primary-hover">
+              <a href={href("/intro/")} class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground no-underline transition-colors hover:bg-primary-hover">
                 进入文档
                 <Icon aria-hidden="true" name="ph:arrow-right" class="h-4 w-4" />
               </a>
@@ -814,19 +818,19 @@ const steps = [
         <div>
           <p class="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">文档</p>
           <ul class="mt-3 space-y-2 text-sm">
-            <li><a href="/intro/" class="text-muted-foreground no-underline hover:text-foreground">什么是 Kiri</a></li>
-            <li><a href="/quick-start/" class="text-muted-foreground no-underline hover:text-foreground">快速开始</a></li>
-            <li><a href="/install/" class="text-muted-foreground no-underline hover:text-foreground">安装</a></li>
-            <li><a href="/guide/cli/" class="text-muted-foreground no-underline hover:text-foreground">命令行</a></li>
+            <li><a href={href("/intro/")} class="text-muted-foreground no-underline hover:text-foreground">什么是 Kiri</a></li>
+            <li><a href={href("/quick-start/")} class="text-muted-foreground no-underline hover:text-foreground">快速开始</a></li>
+            <li><a href={href("/install/")} class="text-muted-foreground no-underline hover:text-foreground">安装</a></li>
+            <li><a href={href("/guide/cli/")} class="text-muted-foreground no-underline hover:text-foreground">命令行</a></li>
           </ul>
         </div>
         <div>
           <p class="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">能力</p>
           <ul class="mt-3 space-y-2 text-sm">
-            <li><a href="/docker/containers/" class="text-muted-foreground no-underline hover:text-foreground">容器与 Compose</a></li>
-            <li><a href="/guide/kubernetes/" class="text-muted-foreground no-underline hover:text-foreground">Kubernetes</a></li>
-            <li><a href="/features/share/" class="text-muted-foreground no-underline hover:text-foreground">Kiri Share</a></li>
-            <li><a href="/guide/machines/" class="text-muted-foreground no-underline hover:text-foreground">Linux 机器</a></li>
+            <li><a href={href("/docker/containers/")} class="text-muted-foreground no-underline hover:text-foreground">容器与 Compose</a></li>
+            <li><a href={href("/guide/kubernetes/")} class="text-muted-foreground no-underline hover:text-foreground">Kubernetes</a></li>
+            <li><a href={href("/features/share/")} class="text-muted-foreground no-underline hover:text-foreground">Kiri Share</a></li>
+            <li><a href={href("/guide/machines/")} class="text-muted-foreground no-underline hover:text-foreground">Linux 机器</a></li>
           </ul>
         </div>
         <div>
@@ -835,7 +839,7 @@ const steps = [
             <li><a href="https://runkiri.com/" target="_blank" rel="noopener" class="text-muted-foreground no-underline hover:text-foreground">官网</a></li>
             <li><a href="https://docs.runkiri.com/" target="_blank" rel="noopener" class="text-muted-foreground no-underline hover:text-foreground">官方文档</a></li>
             <li><a href="https://github.com/libracoder/kiri" target="_blank" rel="noopener" class="text-muted-foreground no-underline hover:text-foreground">GitHub</a></li>
-            <li><a href="/guide/whats-new/" class="text-muted-foreground no-underline hover:text-foreground">更新日志</a></li>
+            <li><a href={href("/guide/whats-new/")} class="text-muted-foreground no-underline hover:text-foreground">更新日志</a></li>
           </ul>
         </div>
       </div>

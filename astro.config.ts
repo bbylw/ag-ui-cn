@@ -6,7 +6,7 @@ import nimbus, {
 import { tableScroll } from "@cloudflare/nimbus-docs/markdown";
 
 const nimbusConfig = defineNimbusConfig({
-  site: "https://kiri.example.com",
+  site: "https://w404.nyc.mn",
   title: "Kiri 文档",
   description: "Kiri 是一个小巧、快速的容器运行时，适用于 macOS、Windows 和 Linux。完整中文介绍与文档。",
   locale: "zh-CN",
@@ -70,6 +70,8 @@ const nimbusConfig = defineNimbusConfig({
 });
 
 export default defineConfig({
+  site: "https://w404.nyc.mn",
+  base: "/kiri-cn",
   output: "static",
   vite: {
     plugins: [tailwindcss()],
