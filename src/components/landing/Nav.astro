@@ -9,10 +9,9 @@ const href = (path: string) => `${base}${path}`;
 
 <header class="k-nav" data-k-nav>
   <div class="k-wrap k-nav-in">
-    <a href={href("/")} class="k-brand" aria-label="Kiri 中文文档首页">
+    <a href={href("/")} class="k-brand" aria-label="Kiri 首页">
       <Mark class="k-logo k-brand-logo" />
       <span class="k-beta">Beta</span>
-      <span class="k-brand-cn">中文文档</span>
     </a>
 
     <nav aria-label="页面导航">
@@ -50,7 +49,7 @@ const href = (path: string) => `${base}${path}`;
   <div class="k-progress" data-k-progress></div>
   <div class="k-mobile" id="k-mobile" data-k-mobile>
     {navLinks.map((l) => <a href={l.href}>{l.label}</a>)}
-    <a href={href("/intro/")}>中文文档</a>
+    <a href={href("/intro/")}>文档</a>
     <a href={DOWNLOAD_URL} target="_blank" rel="noopener">下载 Kiri</a>
     <a href={REPO_URL} target="_blank" rel="noopener">GitHub</a>
   </div>

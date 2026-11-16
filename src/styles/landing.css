@@ -467,13 +467,6 @@ body:has(.kiri) {
 	padding: 3px 6px;
 	border-radius: 999px;
 }
-.k-brand-cn {
-	font: 600 12px/1 var(--k-text);
-	color: var(--k-muted);
-	border-left: 1px solid var(--k-line-strong);
-	padding-left: 9px;
-	margin-left: 2px;
-}
 
 .k-nav-links {
 	display: flex;
@@ -2849,9 +2842,6 @@ body:has(.kiri) {
 	}
 	.k-float b {
 		font-size: 19px;
-	}
-	.k-brand-cn {
-		display: none;
 	}
 	.k-nav-actions .k-btn {
 		padding: 9px 12px;
