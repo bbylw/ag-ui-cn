@@ -1,0 +1,13 @@
+---
+import { logo } from "../logo";
+interface Props {
+  class?: string;
+}
+const { class: cls = "k-logo" } = Astro.props;
+const viewBox = `0 0 ${logo.width} ${logo.height}`;
+---
+
+<span class={cls} aria-hidden="true">
+  <svg class="k-logo-light" viewBox={viewBox} xmlns="http://www.w3.org/2000/svg" set:html={logo.light} />
+  <svg class="k-logo-dark" viewBox={viewBox} xmlns="http://www.w3.org/2000/svg" set:html={logo.dark} />
+</span>

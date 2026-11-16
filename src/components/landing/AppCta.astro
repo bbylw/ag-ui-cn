@@ -1,0 +1,82 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { platforms, DOWNLOAD_URL } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+---
+
+<section class="k-section k-alt" id="app">
+  <div class="k-wrap">
+    <header class="k-head" data-reveal>
+      <p class="k-kicker" data-code="APP-07">桌面应用</p>
+      <h2 class="k-h2">原生应用，不是网页套壳。</h2>
+      <p class="k-lede">
+        Mac 上是 AppKit 与系统 WebKit，Windows 上是 Win32 与 WebView2——没有 Electron，也没有随附浏览器。容器、镜像、卷、网络与
+        Compose 项目都在同一个窗口里，每个容器都有实时统计、日志、终端与文件，菜单栏也能直接操作。
+      </p>
+    </header>
+
+    <div class="k-ap-grid">
+      {
+        platforms.map((p, i) => (
+          <a href={href(p.href)} class="k-ap" data-reveal data-i={i}>
+            <span class="k-ap-badge">
+              <Icon name={p.icon} class="h-6 w-6" aria-hidden="true" />
+            </span>
+            <h3>
+              {p.name}
+              <Icon name="ph:arrow-up-right" class="h-[18px] w-[18px]" aria-hidden="true" />
+            </h3>
+            <p>{p.desc}</p>
+            <small>{p.badge}</small>
+          </a>
+        ))
+      }
+    </div>
+
+    <div class="k-band" style="margin-top:34px" data-reveal>
+      <div>
+        <h2>下载 Kiri，然后打开一个新终端。</h2>
+        <p>
+          Kiri 会创建 <code>kiri</code> docker context，并自带 docker、Compose 与 buildx。从 OrbStack 或 Docker Desktop
+          过来？<code>kiri import</code> 会把镜像、卷与容器一起带过来，源侧只读。
+        </p>
+        <div class="k-cmd k-band-cmd">
+          <code>docker run --rm hello-world</code>
+          <button type="button" class="k-copy" data-copy="docker run --rm hello-world" aria-label="复制命令">
+            <Icon name="ph:copy" class="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+      <div class="k-band-actions">
+        <a href={DOWNLOAD_URL} target="_blank" rel="noopener" class="k-btn">
+          <Icon name="ph:download-simple" class="h-[18px] w-[18px]" aria-hidden="true" />
+          下载 Kiri
+        </a>
+        <a href={href("/install/")} class="k-btn k-btn-ghost">所有平台</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="k-section" id="docs">
+  <div class="k-wrap">
+    <div class="k-band" data-reveal>
+      <div>
+        <h2>完整的中文文档。</h2>
+        <p>
+          从安装到 Compose、构建、Kubernetes、Linux 机器、域名与分享，33 篇文档覆盖 Kiri 的全部能力，并附带
+          <code>llms.txt</code> 与每页 Markdown，方便你和你的 agent 一起读。
+        </p>
+      </div>
+      <div class="k-band-actions">
+        <a href={href("/intro/")} class="k-btn">
+          进入文档
+          <Icon name="ph:arrow-right" class="h-[18px] w-[18px]" aria-hidden="true" />
+        </a>
+        <a href={href("/faq/")} class="k-btn k-btn-ghost">常见问题</a>
+      </div>
+    </div>
+  </div>
+</section>

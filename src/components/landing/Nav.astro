@@ -1,0 +1,69 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import Mark from "./Mark.astro";
+import { DOWNLOAD_URL, REPO_URL, navLinks } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+---
+
+<header class="k-nav" data-k-nav>
+  <div class="k-wrap k-nav-in">
+    <a href={href("/")} class="k-brand" aria-label="Kiri 中文文档首页">
+      <Mark class="k-logo k-brand-logo" />
+      <span class="k-beta">Beta</span>
+      <span class="k-brand-cn">中文文档</span>
+    </a>
+
+    <nav aria-label="页面导航">
+      <ul class="k-nav-links">
+        {
+          navLinks.map((l) => (
+            <li>
+              <a href={l.href} class="k-nav-link" data-k-spy={l.href.slice(1)}>
+                {l.label}
+              </a>
+            </li>
+          ))
+        }
+        <li><a href={href("/intro/")} class="k-nav-link">文档</a></li>
+      </ul>
+    </nav>
+
+    <div class="k-nav-actions">
+      <button type="button" class="k-icon-btn k-theme" data-k-theme aria-label="切换深色模式" aria-pressed="false">
+        <Icon name="ph:moon" class="k-moon h-[18px] w-[18px]" aria-hidden="true" />
+        <Icon name="ph:sun" class="k-sun h-[18px] w-[18px]" aria-hidden="true" />
+      </button>
+      <a href={REPO_URL} target="_blank" rel="noopener" class="k-icon-btn k-nav-gh" aria-label="在 GitHub 上查看 Kiri">
+        <Icon name="ph:github-logo" class="h-[18px] w-[18px]" aria-hidden="true" />
+      </a>
+      <a href={DOWNLOAD_URL} target="_blank" rel="noopener" class="k-btn k-btn-sm">
+        <Icon name="ph:download-simple" class="h-4 w-4" aria-hidden="true" />
+        下载
+      </a>
+      <button type="button" class="k-icon-btn k-burger" data-k-burger aria-label="打开菜单" aria-expanded="false" aria-controls="k-mobile">
+        <Icon name="ph:list" class="h-[18px] w-[18px]" aria-hidden="true" />
+      </button>
+    </div>
+  </div>
+  <div class="k-progress" data-k-progress></div>
+  <div class="k-mobile" id="k-mobile" data-k-mobile>
+    {navLinks.map((l) => <a href={l.href}>{l.label}</a>)}
+    <a href={href("/intro/")}>中文文档</a>
+    <a href={DOWNLOAD_URL} target="_blank" rel="noopener">下载 Kiri</a>
+    <a href={REPO_URL} target="_blank" rel="noopener">GitHub</a>
+  </div>
+</header>
+
+<style>
+  .k-theme .k-sun {
+    display: none;
+  }
+  :global([data-mode="dark"]) .k-theme .k-sun {
+    display: block;
+  }
+  :global([data-mode="dark"]) .k-theme .k-moon {
+    display: none;
+  }
+</style>
