@@ -13,7 +13,9 @@
 import { createCardRenderer, type CardNode, type CardTypography } from "@cloudflare/nimbus-docs/og";
 import { root } from "astro:config/server";
 
-import { logo } from "@/components/logo";
+import sharp from "sharp";
+
+import { mark } from "@/components/logo";
 
 // The starter's light theme (src/styles/globals.css), in hex for Satori.
 const FOREGROUND = "#171717";
@@ -53,14 +55,22 @@ const el = (type: string, style: Style, children?: CardNode | (CardNode | undefi
   props: { style, children },
 });
 
+// Kiri's official mark, rasterized once at build time: Satori's SVG subset
+// doesn't cover the skew and clip path the artwork uses, so the card embeds an
+// exact PNG rendering of the upstream SVG instead.
+const markPng = `data:image/png;base64,${(
+  await sharp(
+    Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${mark.width} ${mark.height}" width="256" height="256">${mark.svg}</svg>`,
+    ),
+  )
+    .png()
+    .toBuffer()
+).toString("base64")}`;
+
 const Logo = (height: number): CardNode => ({
-  type: "svg",
-  props: {
-    width: Math.round((height * logo.width) / logo.height),
-    height,
-    viewBox: `0 0 ${logo.width} ${logo.height}`,
-    children: logo.paths.map((d, i) => ({ type: "path", props: { d, fill: logo.fills[i] ?? FOREGROUND } })),
-  },
+  type: "img",
+  props: { src: markPng, width: height, height },
 });
 
 async function card({ section, title, sizes }: { section?: string; title: string; sizes: number[] }): Promise<CardNode> {

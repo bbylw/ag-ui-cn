@@ -1,33 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kiri">
-  <defs>
-    <linearGradient id="tile" x1="8" y1="0" x2="56" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5b4bf5"/>
-      <stop offset="0.52" stop-color="#3c6ff2"/>
-      <stop offset="1" stop-color="#1cc0dd"/>
-    </linearGradient>
-    <linearGradient id="top" x1="20" y1="12" x2="44" y2="32" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#e2e8ff"/>
-    </linearGradient>
-    <linearGradient id="leftFace" x1="13" y1="22" x2="32" y2="52" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#cfd6ff"/>
-      <stop offset="1" stop-color="#a8b6f5"/>
-    </linearGradient>
-    <linearGradient id="rightFace" x1="32" y1="32" x2="51" y2="52" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#93a6ec"/>
-      <stop offset="1" stop-color="#6f86dd"/>
-    </linearGradient>
-    <radialGradient id="sheen" cx="0" cy="0" r="1" gradientTransform="translate(18 10) rotate(45) scale(46)" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-    </radialGradient>
-    <clipPath id="tileClip"><rect width="64" height="64" rx="15"/></clipPath>
-  </defs>
-  <g clip-path="url(#tileClip)">
-    <rect width="64" height="64" fill="url(#tile)"/>
-    <rect width="64" height="64" fill="url(#sheen)"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>Kiri</title>
+  <g transform="translate(2.6 0) skewX(-10)">
+    <clipPath id="fc"><rect x="5" y="2" width="26" height="28" rx="7"/></clipPath>
+    <rect x="5" y="2" width="26" height="28" rx="7" fill="#E0B420"/>
+    <rect x="0" y="0" width="40" height="9" fill="#F2CF5B" clip-path="url(#fc)"/>
+    <ellipse cx="18.6" cy="15" rx="2.4" ry="2.9" fill="#0F1419"/>
+    <ellipse cx="25.4" cy="15" rx="2.4" ry="2.9" fill="#0F1419"/>
   </g>
-  <path d="M32 12.51L49.58 22.49L32 31.51L14.43 22.49Z" fill="url(#top)"/>
-  <path d="M14.05 23.39L31.45 32.31L31.45 51.59L14.05 41.72Z" fill="url(#leftFace)"/>
-  <path d="M49.95 23.39L49.95 41.72L32.55 51.59L32.55 32.31Z" fill="url(#rightFace)"/>
 </svg>
