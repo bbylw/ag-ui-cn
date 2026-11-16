@@ -1,0 +1,43 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { features } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+const accent = { rose: "var(--k-rose)", teal: "var(--k-teal)", orchid: "var(--k-orchid)" } as const;
+---
+
+<section class="k-section k-alt" id="features">
+  <div class="k-wrap">
+    <header class="k-head" data-reveal>
+      <p class="k-kicker" data-code="FEAT-09">全部能力</p>
+      <h2 class="k-h2">你会为 Docker Desktop 打开的每一件事。</h2>
+      <p class="k-lede">
+        容器只是起点。Kiri 还能构建镜像、运行 Kubernetes 与完整的 Linux 机器，并把任意容器一键放上公网。
+      </p>
+    </header>
+
+    <ul class="k-ft-grid" role="list">
+      {
+        features.map((f, i) => (
+          <li
+            class="k-ft"
+            style={f.tone ? `--k-ft-accent: ${accent[f.tone]}` : undefined}
+            data-reveal
+            data-i={i % 3}
+          >
+            <span class="k-ft-ico">
+              <Icon name={f.icon} class="h-[22px] w-[22px]" aria-hidden="true" />
+            </span>
+            <h3>{f.title}</h3>
+            <p>{f.desc}</p>
+            <a href={href(f.href)} class="k-ft-link">
+              阅读文档
+              <Icon name="ph:arrow-right" class="h-3.5 w-3.5" aria-hidden="true" />
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>

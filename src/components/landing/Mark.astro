@@ -1,0 +1,11 @@
+---
+import { logo } from "../logo";
+interface Props {
+  class?: string;
+}
+const { class: cls = "k-mark" } = Astro.props;
+---
+
+<svg class={cls} viewBox={`0 0 ${logo.width} ${logo.height}`} fill="currentColor" aria-hidden="true" focusable="false">
+  {logo.paths.map((d) => <path d={d} />)}
+</svg>

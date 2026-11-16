@@ -1,0 +1,47 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { steps } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+---
+
+<section class="k-section k-alt" id="start">
+  <div class="k-wrap">
+    <header class="k-head" data-reveal>
+      <p class="k-kicker" data-code="STRT-05">开始使用</p>
+      <h2 class="k-h2">从下载到公网链接，四步。</h2>
+      <p class="k-lede">安装包自带引擎、docker CLI、Compose 与 buildx，不需要另外装 Docker。</p>
+    </header>
+
+    <ol class="k-st-grid" role="list">
+      {
+        steps.map((s, i) => (
+          <li class="k-st" data-reveal data-i={i}>
+            <span class="k-st-n">
+              <span>{s.n}</span>
+            </span>
+            <h3>{s.title}</h3>
+            <p>{s.desc}</p>
+            <div class="k-cmd">
+              <code>{s.code}</code>
+              <button type="button" class="k-copy" data-copy={s.code} aria-label={`复制命令：${s.code}`}>
+                <Icon name="ph:copy" class="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+            {s.cta && (
+              <a href={s.cta.href} target="_blank" rel="noopener" class="k-st-cta">
+                {s.cta.label}
+                <Icon name="ph:arrow-right" class="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+
+    <p class="k-more">
+      <a href={href("/install/")}>各平台安装说明与卸载方式 <span aria-hidden="true">→</span></a>
+    </p>
+  </div>
+</section>

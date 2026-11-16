@@ -1,0 +1,20 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { tools } from "../../lib/landing";
+---
+
+<section class="k-works">
+  <div class="k-wrap k-works-in">
+    <p class="k-works-k">与你已经在用的东西<br />完全兼容</p>
+    <ul class="k-works-list" role="list">
+      {
+        tools.map((t) => (
+          <li class="k-tool">
+            <Icon name="ph:check" class="h-3.5 w-3.5" aria-hidden="true" />
+            {t}
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>

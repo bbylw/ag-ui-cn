@@ -1,0 +1,69 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+
+const shares = [
+  { name: "web", target: "nginx · 8080", machine: "本机", color: "var(--k-rose)" },
+  { name: "api", target: "myapp-api · 3000", machine: "本机", color: "var(--k-ember)" },
+  { name: "docs", target: "astro · 4321", machine: "办公室 PC", color: "var(--k-orchid)" },
+];
+---
+
+<section class="k-section k-alt" id="share">
+  <div class="k-wrap k-sh-grid">
+    <div data-reveal>
+      <p class="k-kicker" data-code="SHRE-03">Kiri Share</p>
+      <h2 class="k-h2">把容器链接发给任何人。</h2>
+      <p class="k-lede">
+        登录后执行 <code>kiri share 3000</code>，或在容器上点击 Share，它就会在
+        <code>runkiri.cloud</code> 上以 HTTPS 对外响应，直到你断开。给客户看当前分支、测试
+        webhook，或在手机上打开你的应用。
+      </p>
+      <ul class="k-sh-points" role="list">
+        <li><b>保留你的名字。</b> <code>kiri share reserve NAME</code> 预留名称，下次它仍然属于你。</li>
+        <li><b>所有电脑，一个列表。</b> 同一账号在任意设备上都能查看并断开自己的链接。</li>
+        <li><b>用量看得见。</b> <code>kiri share status</code> 或窗口里的 This month 查看并发数、速率与流量。</li>
+        <li><b>随时断开。</b> 窗口里点断开，终端里 <code>Ctrl+C</code>；不用时及时关掉。</li>
+      </ul>
+      <div class="k-cta">
+        <a href={href("/features/share/")} class="k-btn k-btn-sm">
+          Kiri Share 文档
+          <Icon name="ph:arrow-right" class="h-4 w-4" aria-hidden="true" />
+        </a>
+        <button type="button" class="k-btn k-btn-sm k-btn-ghost" data-k-share-warn-btn aria-expanded="false">
+          访客会先看到什么？
+        </button>
+      </div>
+      <div class="k-sh-warn" data-k-share-warn hidden>
+        <b><Icon name="ph:warning" class="h-4 w-4" aria-hidden="true" />这是一个分享链接</b>
+        首次访问会先显示 Kiri 的提示页，说明它来自某台个人电脑上的临时分享，而不是一个正式站点——确认后才继续打开，链接也就无法伪装成你的银行。
+      </div>
+    </div>
+
+    <figure class="k-sh-card" data-k-share data-reveal>
+      <div class="k-sh-top">
+        <span class="k-sh-live"><i></i><span data-k-share-state>已连接</span></span>
+        <code class="k-sh-url" data-k-share-url>https://web.runkiri.cloud</code>
+        <button type="button" class="k-sh-btn" data-copy="https://web.runkiri.cloud" data-k-share-copy>复制</button>
+      </div>
+      <ul class="k-sh-list" role="list">
+        {
+          shares.map((s) => (
+            <li style={`--k-m: ${s.color}`}>
+              <span class="k-sh-dot" />
+              <b>{s.name}</b>
+              <code>{s.target}</code>
+              <em>{s.machine}</em>
+            </li>
+          ))
+        }
+      </ul>
+      <div class="k-sh-foot">
+        <span>账号内共 3 个分享 · 今日 <b data-k-share-hits>14</b> 次访问</span>
+        <button type="button" class="k-sh-toggle" data-k-share-toggle>断开</button>
+      </div>
+    </figure>
+  </div>
+</section>

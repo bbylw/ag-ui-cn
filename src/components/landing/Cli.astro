@@ -1,0 +1,60 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { cliPoints, termSession } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+const sessionText = termSession.map((l) => `$ ${l.cmd}\n${l.out.map((o) => o.text).join("\n")}`).join("\n\n");
+---
+
+<section class="k-section" id="cli">
+  <div class="k-wrap k-cli-grid">
+    <div data-reveal>
+      <p class="k-kicker" data-code="TERM-02">命令行优先</p>
+      <h2 class="k-h2">你本来就在敲的命令。</h2>
+      <p class="k-lede">
+        Kiri 打开后，普通的 <code>docker</code> 命令就跑在 Kiri 上；而 <code>kiri</code> 补上了 Docker
+        没有的东西：每个容器的名字、Kubernetes、Linux 机器与公网链接。
+      </p>
+      <ul class="k-points" role="list">
+        {
+          cliPoints.map((p) => (
+            <li class="k-point">
+              <Icon name={p.icon} class="h-[18px] w-[18px]" aria-hidden="true" />
+              <span>
+                <b>{p.lead}</b> {p.rest}
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+      <div class="k-cta">
+        <a href={href("/guide/cli/")} class="k-btn k-btn-sm">
+          命令行参考
+          <Icon name="ph:arrow-right" class="h-4 w-4" aria-hidden="true" />
+        </a>
+        <a href={href("/quick-start/")} class="k-btn k-btn-sm k-btn-ghost">快速开始</a>
+      </div>
+    </div>
+
+    <figure class="k-term" data-k-term data-reveal>
+      <div class="k-term-bar">
+        <i></i><i></i><i></i>
+        <b>~ zsh</b>
+        <span class="k-term-stack" aria-hidden="true"><b></b><b></b><b></b></span>
+      </div>
+      <pre class="k-term-body"><code data-k-term-body><span class="k-p">$ </span><span class="k-cursor"></span></code></pre>
+      <figcaption class="k-term-foot">
+        <span>示例会话 · 始终指向 Kiri</span>
+        <button type="button" class="k-run k-run-ghost" data-k-term-copy data-copy={sessionText}>
+          <Icon name="ph:copy" class="h-3.5 w-3.5" aria-hidden="true" />
+          复制
+        </button>
+        <button type="button" class="k-run" data-k-term-replay>
+          <Icon name="ph:arrow-clockwise" class="h-3.5 w-3.5" aria-hidden="true" />
+          重放
+        </button>
+      </figcaption>
+    </figure>
+  </div>
+</section>

@@ -1,0 +1,162 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { raceEngines, raceCommand } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+const toneVar = { kiri: "var(--k-ember)", dd: "var(--k-teal)", orb: "var(--k-orchid)" } as const;
+---
+
+<section class="k-section" id="race">
+  <div class="k-wrap">
+    <header class="k-head" data-reveal>
+      <p class="k-kicker" data-code="RACE-01">对比</p>
+      <h2 class="k-h2">同一条命令，三条路径。</h2>
+      <p class="k-lede">
+        OrbStack 与 Docker Desktop 的每次容器启动都要穿过五个程序，每个程序各有自己的 socket。Kiri 只经过一条守护进程和一个代理，由代理直接调用内核。下面这场比赛可以放慢来看。
+      </p>
+    </header>
+
+    <div class="k-race" data-k-race data-reveal>
+      <div class="k-rc-bar">
+        <i></i><i></i><i></i>
+        <code class="k-rc-title" data-k-race-cmd>{raceCommand.cli}</code>
+        <span class="k-rc-live" data-k-race-live><i></i><span data-k-race-state>待发车</span></span>
+      </div>
+
+      <div class="k-rc-tools">
+        <div class="k-ctl">
+          <span class="k-ctl-k">请求路径</span>
+          <div class="k-seg" role="group" aria-label="请求路径">
+            <button type="button" class="k-seg-b is-on" data-k-path="cli" aria-pressed="true">docker CLI</button>
+            <button type="button" class="k-seg-b" data-k-path="api" aria-pressed="false">Engine API</button>
+          </div>
+        </div>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">慢放 <b data-k-speed-val>40×</b></span>
+          <div class="k-ctl-row">
+            <input
+              type="range"
+              class="k-range"
+              data-k-speed
+              min="1"
+              max="120"
+              step="1"
+              value="40"
+              aria-label="慢放倍数"
+            />
+          </div>
+        </div>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">播放</span>
+          <div class="k-ctl-row">
+            <button type="button" class="k-run" data-k-play>
+              <Icon name="ph:play" class="k-i-play h-4 w-4" aria-hidden="true" />
+              <Icon name="ph:pause" class="k-i-pause h-4 w-4" aria-hidden="true" />
+              <span data-k-play-label>发车</span>
+            </button>
+            <button type="button" class="k-run k-run-ghost" data-k-replay>
+              <Icon name="ph:arrow-clockwise" class="h-4 w-4" aria-hidden="true" />
+              重播
+            </button>
+          </div>
+        </div>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">参赛引擎</span>
+          <div class="k-ctl-row">
+            {
+              raceEngines.map((e) => (
+                <label class="k-switch">
+                  <input type="checkbox" data-k-engine={e.id} checked />
+                  <i />
+                  {e.name}
+                </label>
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">显示</span>
+          <div class="k-ctl-row">
+            <label class="k-switch">
+              <input type="checkbox" data-k-loop checked />
+              <i />
+              循环
+            </label>
+            <label class="k-switch">
+              <input type="checkbox" data-k-residue checked />
+              <i />
+              残留进程
+            </label>
+            <button type="button" class="k-run k-run-ghost" data-k-reset>重置</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="k-rc-lanes">
+        {
+          raceEngines.map((e) => (
+            <div
+              class:list={["k-lane", e.tone === "kiri" && "is-kiri"]}
+              data-k-lane={e.id}
+              style={`--k-lane-color: ${toneVar[e.tone]}`}
+            >
+              <div class="k-lane-head">
+                <span class="k-lane-name">{e.name}</span>
+                <span class="k-chip k-chip-moss">实测</span>
+                <b class="k-timer" data-k-timer>0 ms</b>
+              </div>
+              <div class="k-track" data-k-track>
+                <div class="k-track-fill" data-k-fill />
+                {e.stops.cli.map((s, i) => (
+                  <span class="k-stop" style={`left:${(i / (e.stops.cli.length - 1)) * 100}%`}>
+                    <span>{s}</span>
+                  </span>
+                ))}
+                <span class="k-token" data-k-token aria-hidden="true" />
+              </div>
+              <p class="k-lane-note">{e.note}</p>
+              <p class:list={["k-residue", e.residue === 0 && "is-zero"]} data-k-residue-row>
+                <Icon name="ph:stack" class="h-3.5 w-3.5" aria-hidden="true" />
+                每个运行中的容器留下 <b>{e.residue}</b> 个常驻进程
+              </p>
+            </div>
+          ))
+        }
+      </div>
+
+      <p class="k-rc-foot">
+        同一台 Apple Silicon Mac、同一个 docker CLI、默认 bridge 网络，30 次取中位数（p50）。站点上的每一跳按等距绘制，只有总时长是实测数字；CLI 路径包含 docker 客户端自身的启动开销。
+        <a href={href("/guide/benchmarks/")}>查看完整基准测试 →</a>
+      </p>
+    </div>
+
+    <div class="k-bars" data-k-bars data-reveal>
+      {
+        raceEngines.map((e) => (
+          <div class:list={["k-bar-row", e.tone === "kiri" && "is-kiri"]} data-k-bar={e.id}>
+            <span class="k-bar-name">{e.name}</span>
+            <span class="k-bar-track">
+              <span class="k-bar-fill" style={`--k-bar-color: ${toneVar[e.tone]}`} data-k-bar-fill />
+            </span>
+            <span class="k-bar-val" data-k-bar-val>{e.ms.cli} ms</span>
+          </div>
+        ))
+      }
+    </div>
+    <p class="k-legend">
+      <span><i class="k-sw" style="background:var(--k-orchid)"></i>OrbStack</span>
+      <span><i class="k-sw" style="background:var(--k-teal)"></i>Docker Desktop</span>
+      <span><i class="k-sw" style="background:var(--k-ember)"></i>Kiri</span>
+      <span data-k-bars-caption>docker CLI 路径 · 越低越好</span>
+    </p>
+
+    <p class="k-more">
+      <a href={href("/compare/docker-desktop/")}>与 Docker Desktop 逐项对比 <span aria-hidden="true">→</span></a>
+    </p>
+  </div>
+</section>

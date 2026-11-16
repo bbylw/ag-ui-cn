@@ -1,0 +1,118 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+---
+
+<section class="k-section" id="resource">
+  <div class="k-wrap">
+    <header class="k-head" data-reveal>
+      <p class="k-kicker" data-code="MEM-04">内存与休眠</p>
+      <h2 class="k-h2">没有工作的时候，它几乎不占地方。</h2>
+      <p class="k-lede">
+        VM 用内存气球贴近容器的实际用量；没有容器运行、空闲约 60 秒后它会自动关机，把内存还给系统，下一条命令再用约
+        0.15 秒把它叫回来。下面这台机器交给你操作。
+      </p>
+    </header>
+
+    <div class="k-rl" data-k-rl data-reveal>
+      <div class="k-rl-controls">
+        <h3><Icon name="ph:sliders-horizontal" class="h-[18px] w-[18px]" aria-hidden="true" />控制台</h3>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">运行中的容器 <b data-k-rl-containers-val>4</b></span>
+          <input type="range" class="k-range" data-k-rl-containers min="0" max="12" step="1" value="4" aria-label="运行中的容器数量" />
+        </div>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">每容器内存 <b data-k-rl-per-val>128 MB</b></span>
+          <input type="range" class="k-range" data-k-rl-per min="32" max="512" step="16" value="128" aria-label="每个容器占用的内存" />
+        </div>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">时间流速 <b data-k-rl-speed-val>6×</b></span>
+          <input type="range" class="k-range" data-k-rl-speed min="1" max="20" step="1" value="6" aria-label="模拟时间流速" />
+        </div>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">空闲多久后休眠</span>
+          <select class="k-select" data-k-rl-idle aria-label="空闲休眠阈值">
+            <option value="30">30 秒</option>
+            <option value="60" selected>60 秒（文档示例）</option>
+            <option value="120">120 秒</option>
+          </select>
+        </div>
+
+        <div class="k-ctl">
+          <span class="k-ctl-k">操作</span>
+          <div class="k-rl-actions">
+            <button type="button" class="k-run" data-k-rl-play>
+              <Icon name="ph:play" class="k-i-play h-4 w-4" aria-hidden="true" />
+              <Icon name="ph:pause" class="k-i-pause h-4 w-4" aria-hidden="true" />
+              <span data-k-rl-play-label>暂停</span>
+            </button>
+            <button type="button" class="k-run k-run-ghost" data-k-rl-wake>立即唤醒</button>
+            <button type="button" class="k-run k-run-ghost" data-k-rl-reset>重置</button>
+          </div>
+        </div>
+
+        <label class="k-switch">
+          <input type="checkbox" data-k-rl-auto />
+          <i />
+          自动演示：容器来来去去
+        </label>
+      </div>
+
+      <div class="k-rl-stage">
+        <div class="k-rl-head">
+          <span class="k-rl-state" data-k-rl-state><i></i><span data-k-rl-state-text>运行中</span></span>
+          <span class="k-rl-clock">模拟时间 <b data-k-rl-clock>00:00</b></span>
+        </div>
+
+        <div class="k-rl-meters">
+          <div class="k-meter-row">
+            <span>VM 气球</span>
+            <span class="k-meter"><span class="k-meter-fill" data-k-rl-vm-fill></span></span>
+            <span class="k-meter-val" data-k-rl-vm-val>632 MB</span>
+          </div>
+          <div class="k-meter-row">
+            <span>守护进程</span>
+            <span class="k-meter"><span class="k-meter-fill is-daemon" data-k-rl-daemon-fill></span></span>
+            <span class="k-meter-val" data-k-rl-daemon-val>15 MB</span>
+          </div>
+          <div class="k-meter-row">
+            <span>空闲计时</span>
+            <span class="k-meter"><span class="k-meter-fill" data-k-rl-idle-fill style="background:linear-gradient(90deg,#b4690e,#ffc23d)"></span></span>
+            <span class="k-meter-val" data-k-rl-idle-val>0 / 60 s</span>
+          </div>
+        </div>
+
+        <div class="k-rl-graph">
+          <div class="k-rl-graph-k"><span>内存占用 · 最近 2 分钟</span><span data-k-rl-peak>峰值 632 MB</span></div>
+          <svg viewBox="0 0 300 96" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="k-rl-grad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#6ea8ff" stop-opacity="0.45" />
+                <stop offset="100%" stop-color="#6ea8ff" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            <line x1="0" y1="24" x2="300" y2="24" stroke="rgba(255,255,255,.07)" stroke-width="1" />
+            <line x1="0" y1="60" x2="300" y2="60" stroke="rgba(255,255,255,.07)" stroke-width="1" />
+            <path data-k-rl-area fill="url(#k-rl-grad)" d="" />
+            <polyline data-k-rl-line fill="none" stroke="#6ea8ff" stroke-width="2" stroke-linejoin="round" points="" />
+          </svg>
+        </div>
+
+        <ul class="k-rl-log" role="list" data-k-rl-log>
+          <li><b>00:00</b><span>引擎就绪，4 个容器运行中</span></li>
+        </ul>
+
+        <p class="k-rl-note">
+          示意模型：按<a href={href("/guide/memory/")}>《内存与休眠》</a>描述的行为模拟，用来说明气球与休眠如何配合，不是实测数据。守护进程约
+          15 MB、唤醒约 0.15 秒来自文档示例。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
