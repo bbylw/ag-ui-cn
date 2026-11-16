@@ -1,8 +1,43 @@
 ---
 interface Props { class?: string }
-const { class: cls = "h-5 w-auto" } = Astro.props;
+const { class: cls = "h-6" } = Astro.props;
+// Gradient ids must be unique: the logo renders more than once per page.
+const id = `kiri-${Math.random().toString(36).slice(2, 8)}`;
 ---
+
 <span class:list={["inline-flex items-center gap-2 font-semibold tracking-tight text-foreground", cls]} aria-hidden="true">
-  <span class="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground text-[13px] font-bold leading-none">K</span>
-  <span class="text-[15px]">Kiri</span>
+  <svg class="h-full w-auto shrink-0" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id={`${id}-tile`} x1="8" y1="0" x2="56" y2="64" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#5b4bf5" />
+        <stop offset="0.52" stop-color="#3c6ff2" />
+        <stop offset="1" stop-color="#1cc0dd" />
+      </linearGradient>
+      <linearGradient id={`${id}-top`} x1="20" y1="12" x2="44" y2="32" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#ffffff" />
+        <stop offset="1" stop-color="#e2e8ff" />
+      </linearGradient>
+      <linearGradient id={`${id}-left`} x1="13" y1="22" x2="32" y2="52" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#cfd6ff" />
+        <stop offset="1" stop-color="#a8b6f5" />
+      </linearGradient>
+      <linearGradient id={`${id}-right`} x1="32" y1="32" x2="51" y2="52" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#93a6ec" />
+        <stop offset="1" stop-color="#6f86dd" />
+      </linearGradient>
+      <radialGradient id={`${id}-sheen`} cx="0" cy="0" r="1" gradientTransform="translate(18 10) rotate(45) scale(46)" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#ffffff" stop-opacity="0.28" />
+        <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+      </radialGradient>
+      <clipPath id={`${id}-clip`}><rect width="64" height="64" rx="15" /></clipPath>
+    </defs>
+    <g clip-path={`url(#${id}-clip)`}>
+      <rect width="64" height="64" fill={`url(#${id}-tile)`} />
+      <rect width="64" height="64" fill={`url(#${id}-sheen)`} />
+    </g>
+    <path d="M32 12.51L49.58 22.49L32 31.51L14.43 22.49Z" fill={`url(#${id}-top)`} />
+    <path d="M14.05 23.39L31.45 32.31L31.45 51.59L14.05 41.72Z" fill={`url(#${id}-left)`} />
+    <path d="M49.95 23.39L49.95 41.72L32.55 51.59L32.55 32.31Z" fill={`url(#${id}-right)`} />
+  </svg>
+  <span class="whitespace-nowrap text-[0.95em] leading-none">Kiri</span>
 </span>
