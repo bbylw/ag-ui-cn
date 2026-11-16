@@ -1,0 +1,77 @@
+---
+title: 工作原理
+description: 了解 Kiri 如何以更少的组件在 macOS、Windows 和 Linux 上运行容器。
+---
+
+# 工作原理
+
+Kiri 运行 Linux 容器所依赖的组件更少：宿主机上的一个守护进程，加上 VM（或 Linux 主机）内的一个代理进程。它自己实现 Docker Engine API 与容器运行时，不包含 `dockerd`、`containerd`、`containerd-shim` 或 `runc`。
+
+## 两个部分
+
+### Mac 上的守护进程（daemon）
+
+- 守护进程 `kiri` 运行在 macOS 上，负责在需要时启动轻量 Linux VM（通过 Virtualization.framework）。
+- 它在 `~/.kiri/run/docker.sock` 提供 Docker Engine API，并在 `/var/run/docker.sock` 空闲且无其他引擎占用时创建兼容符号链接。
+- 负责镜像拉取与存储、网络中继/端口转发、域名（`.kiri.local` / `.kiri.localhost`）、共享目录挂载与文件暴露等宿主机侧工作。
+- 负责 VM 资源管理：内存气球（balloon）、空闲自动休眠（约 60 秒无运行容器后关机）、快速唤醒。
+
+### VM 内的代理（agent）
+
+- 代理 `kiri-init` 在 VM 中作为 PID 1 运行，通过 **vsock** 与宿主机守护进程通信（不使用 TCP/SSH）。
+- 每个容器对应一次 `clone3` 系统调用，直接进入新的命名空间与 cgroup；无每容器 shim 进程。
+- 使用 overlayfs 作为容器根文件系统，应用能力集（capabilities）与 seccomp 过滤器；默认以非特权方式运行（除非显式请求特权）。
+- 当没有容器运行时，VM 内基本无额外常驻负载。
+
+## 启动与空闲休眠
+
+- 守护进程随登录启动，VM 仅在有工作时运行。
+- 典型冷启动从“发起请求”到“代理就绪”约 0.1 秒量级；之后代理常驻于 VM，只有 VM 会按需开关机。
+- 空闲约 1 分钟且无容器运行时，VM 断电释放内存；下次使用再启动。
+
+## 容器创建路径
+
+以 `docker run --rm alpine true` 为例：
+
+1. `docker` CLI 通过 Unix socket 向 Kiri 守护进程发送 Engine API 请求。
+2. 守护进程检查镜像与网络，准备 rootfs/挂载/配置。
+3. 守护进程通过 vsock 向代理发送一次创建请求。
+4. 代理执行 `clone3` 创建容器进程并设置命名空间、cgroup、overlayfs、能力与 seccomp。
+5. 进程退出后清理；若无其他容器运行，VM 进入可休眠状态。
+
+相比传统栈（dockerd → containerd → shim → runc），Kiri 在 API 之后的路径更短，没有常驻 shim。
+
+## 镜像
+
+- 镜像按 OCI/Docker 格式拉取并存储在 `~/Library/Application Support/Kiri/`（macOS）等数据目录。
+- 分层按内容寻址去重；容器使用 overlayfs，将可写层叠加在只读镜像层之上。
+- 拉取支持并发与重试优化；在 Apple Silicon 上可通过 Rosetta 运行 `linux/amd64` 镜像。
+
+## 网络
+
+- 默认 bridge 网络下，容器有独立网络命名空间和私有地址；`-p` 发布端口由守护进程在宿主机转发。
+- 容器间可通过用户自定义网络按名称互访；提供 `host.docker.internal` 等常见能力。
+- 可选本地域名：`<name>.kiri.localhost`（免配置）与 `<name>.kiri.local`（需开启）；Compose 服务可使用 `<service>.<project>.kiri.local`。
+
+## 磁盘与文件
+
+- 容器文件系统位于 VM 的 ext4 磁盘中，并通过 FUSE/VirtioFS 等机制向宿主机暴露视图（如 macOS 的 `~/Kiri`）。
+- 绑定挂载将宿主机目录映射进容器；命名卷由 Kiri 管理并持久化。
+
+## 构建（BuildKit）
+
+- `docker build` / `docker buildx build` 使用 BuildKit；Kiri 以容器方式按需管理 BuildKit 实例。
+- 构建结果可加载回 Kiri 的镜像存储；空闲时构建组件可停止以节省资源。
+
+## macOS 应用
+
+- 菜单栏应用与窗口提供容器/镜像/卷/网络/构建/Kubernetes 等视图。
+- 应用与守护进程协同：守护进程负责引擎与 VM 生命周期，应用负责展示与交互。
+
+## Linux 上的 Kiri
+
+- Linux 无需 VM：守护进程与代理直接运行在宿主机内核上，由 systemd 管理（`kiri.service`）。
+- vsock 通信在 Linux 上由私有目录中的 Unix socket 替代；容器隔离机制（命名空间、cgroup、overlayfs 等）保持一致。
+- 无 VM 内存气球与 VM 级休眠概念。
+
+更多细节与测量见 [基准测试](/guide/benchmarks/) 与 [内存与休眠](/guide/memory/)。

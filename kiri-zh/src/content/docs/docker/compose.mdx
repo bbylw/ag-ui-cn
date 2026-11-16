@@ -1,0 +1,51 @@
+---
+title: Compose
+description: 使用 Docker Compose 在 Kiri 中编排多容器应用。
+---
+
+# Compose
+
+Kiri 与 Docker Compose 兼容，可使用现有的 `compose.yaml` / `docker-compose.yml` 文件启动多容器应用。
+
+## 基本用法
+
+```bash
+# 启动服务
+docker compose up -d
+
+# 查看状态与日志
+docker compose ps
+docker compose logs -f
+
+# 停止与清理
+docker compose stop
+docker compose down
+```
+
+确保当前 Docker 上下文指向 Kiri（`docker context use kiri`），或使用 `kiri compose ...`。
+
+## 项目与命名
+
+- Compose 默认以目录名等作为项目名；同一项目下的容器、网络、卷会关联在一起。
+- Kiri 窗口可按 Compose 项目对容器分组展示与批量操作（视版本）。
+
+## 网络与服务发现
+
+- Compose 会为项目创建网络，服务间可通过服务名互相访问。
+- 结合 [域名](/features/domains/) 功能，服务可通过 `<service>.<project>.kiri.local` 等形式访问（需启用并按规则配置）。
+
+## 端口、卷与配置
+
+- `ports`：将服务端口发布到宿主机。
+- `volumes`：支持绑定挂载与命名卷；命名卷数据由 Kiri 持久化。
+- `environment` / `env_file`、`depends_on`、`restart` 等常见字段按 Compose 规范工作（以 Kiri 对 Engine API 的支持范围为准）。
+
+## 与构建配合
+
+若 `compose.yaml` 中包含 `build` 配置，`docker compose up --build` 会触发镜像构建并加载到 Kiri。构建行为与缓存见 [构建](/docker/builds/)。
+
+## 注意事项
+
+- 若同时运行 Docker Desktop 与 Kiri，注意当前 context 指向的引擎，避免在不同引擎间产生混淆。
+- 依赖宿主机特定路径或 Linux 专属能力的配置，在不同平台/VM 环境下可能需要调整。
+- 不支持的驱动或选项会返回明确错误；遇到问题可先用最小化 compose 文件定位差异。

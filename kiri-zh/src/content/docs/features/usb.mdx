@@ -1,0 +1,66 @@
+---
+title: USB 设备
+description: 将 USB 设备附加到 Kiri 容器中使用（Beta）。
+---
+
+# USB 设备（Beta）
+
+自 0.2.0 起，Kiri 在 macOS、Windows 和 Linux 上提供 USB 设备支持（Beta），可将宿主机上的 USB 设备用于容器内程序。
+
+## 支持与限制
+
+- **可用示例**：串口适配器、Zigbee/无线电棒、鼠标键盘等常见设备通常可用（具体取决于设备与驱动）。
+- **暂不支持/受限**：摄像头、音频设备等在当前版本可能不可用或不稳定。
+- 设备在 Linux 环境中通常表现为 `/dev/ttyUSB0`、`/dev/ttyACM0` 等节点，或相应网络接口（视设备类型而定）。
+
+## 在窗口中使用
+
+- 侧边栏提供 **USB** 视图，列出可用设备。
+- 点击设备可查看详情：在 Linux 侧的设备路径/接口，以及可复制的 `docker run` 或 Compose 配置示例。
+- 通过界面执行 **Attach / Detach** 将设备附加或分离。
+
+## 命令行
+
+```bash
+# 列出设备
+kiri usb list
+
+# 附加设备
+kiri usb attach <设备标识>
+
+# 分离设备
+kiri usb detach <设备标识>
+```
+
+（具体参数与标识格式以 `kiri usb --help` 为准。）
+
+## 各平台说明
+
+### macOS
+- Kiri 将附加的 USB 设备透传到其 Linux VM 中，再供容器通过 `--device` 等方式访问。
+- 首次附加可能需要输入管理员密码（一次性授权，视系统提示）。
+
+### Windows
+- 通过 **usbipd-win** 将设备共享到 WSL 环境。
+- 若未安装 usbipd-win，Kiri 窗口的 USB 区域可提供安装入口（通常通过 `winget` 安装）。
+- 首次附加设备时，Windows 可能要求管理员批准设备共享；之后可在 Kiri 中附加/分离。
+
+### Linux
+- 容器可直接访问宿主机设备节点（在权限允许的情况下）；USB 视图主要用于展示设备及其 `--device` 路径，便于配置容器。
+
+## 在容器中使用设备
+
+附加后，在运行容器时传入设备，例如：
+
+```bash
+docker run --rm -it --device /dev/ttyUSB0 your-image
+```
+
+或在 Compose 中配置 `devices` 映射（路径以设备详情页显示为准）。
+
+## 故障排查
+
+- 确认设备在宿主机系统中可被识别。
+- Windows 上检查 usbipd-win 状态与设备共享权限；必要时重新插拔设备。
+- 确认容器内用户与设备文件权限匹配，或按需调整运行参数。
+- 由于功能仍为 Beta，部分设备可能需要等待后续版本改进。

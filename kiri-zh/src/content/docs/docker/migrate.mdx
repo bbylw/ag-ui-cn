@@ -1,0 +1,103 @@
+---
+title: 从 Docker Desktop 迁移
+description: 将镜像、卷与容器从 Docker Desktop 迁移到 Kiri，并在两者间切换。
+---
+
+# 从 Docker Desktop 迁移
+
+Kiri 与 Docker Desktop 一样实现 Docker Engine API，因此 `docker` CLI、Compose 与 buildx 无需修改即可使用。需要迁移的是 Docker Desktop VM 内的数据：镜像、卷与容器。Kiri 提供导入能力，且可与 Docker Desktop 并存。
+
+## 会变与不会变的内容
+
+`docker` 通过当前 **context** 选择引擎：
+
+- Docker Desktop：`desktop-linux`（通常为 `~/.docker/run/docker.sock`）
+- Kiri：`kiri`（`~/.kiri/run/docker.sock`）
+
+| 可直接沿用 | 需要复制或重新拉取 |
+| --- | --- |
+| Dockerfile、Compose 文件、脚本 | 镜像 |
+| `host.docker.internal`、`-p`、`-v`、按名称访问的网络 | 命名卷及其数据 |
+| — | 容器配置/实例（可由 Kiri 重新创建） |
+
+## 导入镜像、卷与容器
+
+在 macOS 上，`kiri import` 通过 Docker CLI 从源引擎读取并写入 Kiri。导入时 **Docker Desktop 需保持运行**，且不会修改或删除其数据。
+
+- **镜像**：从 Docker Desktop `docker save`，在 Kiri 侧 `docker load`（通常仅列出已打标签镜像）。
+- **命名卷**：通过临时只读辅助容器读取并以 tar 流写入 Kiri，尽量保留文件属主与权限；匿名卷（长哈希名）通常不导入。辅助容器需要在源侧存在带 `tar` 的镜像（如 `alpine:latest`、`busybox:latest` 等之一）。
+- **容器**：根据源侧 `inspect` 信息在 Kiri 中重新创建（命令、入口点、环境变量、标签、工作目录、用户、端口、挂载、重启策略、资源限制、能力、网络等）；缺失网络会先创建，缺失镜像会先导入。容器在 Kiri 中以**停止**状态创建。
+- Kiri 中已存在同名对象通常会被跳过。
+
+命令示例：
+
+```bash
+# 列出可导入内容（从 Docker Desktop）
+kiri import desktop-linux --list
+
+# 导入全部列出项
+kiri import desktop-linux
+
+# 仅导入指定对象
+kiri import desktop-linux image postgres:16
+kiri import desktop-linux volume shop_pgdata
+kiri import desktop-linux container shop-db-1
+```
+
+> 不带源参数时，`kiri import` 可能默认从 OrbStack 读取（以实际版本为准）；从 Docker Desktop 导入请明确指定 `desktop-linux`。
+
+窗口中也可在 **Settings → Import** 或相关提示条中选择来源、勾选要导入的项目并执行导入；已在 Kiri 中存在的项目会标记为不可选。
+
+**从零开始**：也可以不导入任何数据。直接使用 Kiri 拉取镜像、运行 `docker compose up` 重建容器；仅在需要保留卷内数据或避免重新拉取大镜像时，导入更有价值。
+
+## 切换 Docker 上下文
+
+安装 Kiri 时可能会添加 `kiri` context，但不一定立即切换默认 context（尤其是检测到已有 Docker Desktop 时）。可通过以下方式切换：
+
+```bash
+# 切换到 Kiri
+docker context use kiri
+
+# 查看当前上下文
+docker context ls
+docker info
+
+# 切回 Docker Desktop
+docker context use desktop-linux
+```
+
+- `kiri setup --use` 或窗口中的 “Switch to Kiri” 可完成等效操作。
+- 单次命令使用 Kiri：`docker --context kiri ps` 或 `kiri ps`。
+
+## 并排运行
+
+Kiri 与 Docker Desktop 可同时安装并运行，Kiri 会尽量避免接管对方资源：
+
+- 不主动占用 Docker Desktop 的 `/var/run/docker.sock` 与 `/usr/local/bin/docker`（在无其他引擎时才可能提供兼容链接）。
+- Kiri 的 `docker` 通常位于 `~/.kiri/bin` 且追加到 PATH 末尾，已有 `docker` 保持优先。
+- 镜像、卷与磁盘数据相互独立。
+
+注意事项：
+- **端口冲突**：两侧容器发布相同宿主机端口时只有先启动的一方能绑定。
+- **资源占用**：两者各自运行 VM/组件时会叠加占用内存；Kiri 在空闲时可休眠以回收 VM 资源。
+- **构建去向**：`docker build` 默认可能仍指向 Docker Desktop，可在设置或通过 `kiri build-with` 调整。
+
+## 可能遇到的差异
+
+| 领域 | Kiri 的行为 |
+| --- | --- |
+| Socket 路径 | `~/.kiri/run/docker.sock`；若 `/var/run/docker.sock` 被占用，部分工具需设置 `DOCKER_HOST` |
+| 构建 | BuildKit 由 Kiri 管理并按需运行，见 [构建](/docker/builds/) |
+| Kubernetes | `kiri k8s start` 提供单节点 k3s 集群（`kiri` kube context），见 [Kubernetes](/guide/kubernetes/) |
+| 本地域名 | `<name>.kiri.localhost` / `.kiri.local`，见 [域名](/features/domains/) |
+| amd64 镜像 | 通过 Rosetta 运行，支持 `--platform`，见 [镜像](/docker/images/) |
+| 网络/挂载/GPU | 支持常见网络与挂载类型；部分驱动、挂载类型或 GPU（`--gpus`）可能不支持 |
+| 未实现 API | 返回明确的“不支持”错误 |
+
+如缺少关键能力，可通过应用内反馈渠道向官方反馈。
+
+## 相关文档
+
+- [与 Docker Desktop 对比](/compare/docker-desktop/)
+- [命令行与 CI](/guide/cli/)
+- [Compose](/docker/compose/)

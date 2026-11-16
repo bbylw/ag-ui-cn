@@ -1,0 +1,87 @@
+---
+title: 命令行与 CI
+description: Kiri 的命令行用法、Docker 兼容命令、上下文与常用子命令参考。
+---
+
+# 命令行与 CI
+
+Kiri 提供 Docker Engine API，并可与标准 `docker` CLI、Docker Compose、buildx 配合使用。`kiri` 命令本身也封装了一组常用操作。
+
+## Docker 命令与上下文
+
+- Kiri 的 Docker socket：`~/.kiri/run/docker.sock`
+- Kiri 的 Docker context 名称：`kiri`
+- 在未安装其他引擎占用 `/var/run/docker.sock` 的场景下，Kiri 可提供该路径的兼容链接；若 Docker Desktop 等已占用，则以 context 或 `DOCKER_HOST` 指向 Kiri。
+
+常用操作：
+
+```bash
+# 查看上下文
+docker context ls
+
+# 切换到 Kiri
+docker context use kiri
+
+# 单次命令指定上下文
+docker --context kiri ps
+
+# 直接指定 socket
+DOCKER_HOST=unix://$HOME/.kiri/run/docker.sock docker ps
+```
+
+`kiri <docker 子命令>` 会将 Docker 命令转发到 Kiri（等价于通过 Kiri 上下文执行），例如 `kiri ps`、`kiri run`、`kiri compose up -d`。
+
+## 常用 `kiri` 命令
+
+> 具体可用子命令可能随版本变化，可通过 `kiri --help` 与 `kiri <subcommand> --help` 查看。
+
+### 容器与 Docker 兼容
+
+- `kiri run ...`、`kiri ps`、`kiri logs`、`kiri exec`、`kiri compose ...` 等：与 Docker CLI 对应。
+- `kiri build-with docker|kiri`：设置普通 `docker build` 使用的构建器偏好（视平台/安装情况而定）。
+
+### 分享（Share）
+
+- `kiri share PORT|CONTAINER`：为本地端口或容器创建公网 HTTPS 地址（需要 Kiri Cloud 登录）。
+- `kiri share login` / `kiri share logout`：登录/退出。
+- `kiri share status`：查看计划与用量。
+- `kiri share names` / `reserve` / `release`：管理保留名称。
+
+详见 [Kiri Share](/features/share/) 与 [Kiri Cloud](/features/kiri-cloud/)。
+
+### Kubernetes
+
+- `kiri k8s start|stop|status|delete|set`：管理内置单节点 k3s 集群并配置 kubeconfig 的 `kiri` 上下文。
+
+详见 [Kubernetes](/guide/kubernetes/)。
+
+### Linux 机器（Machines）
+
+- `kiri machine create|ls|shell|stop|start|rm ...`：管理长生命周期 Linux 环境（视平台支持情况）。
+
+详见 [Linux 机器](/guide/machines/)。
+
+### USB（测试版，按平台）
+
+- `kiri usb list|attach|detach`：查看与附加 USB 设备到 Kiri 环境。
+
+详见 [USB 设备](/features/usb/)。
+
+### 诊断与更新
+
+- `kiri diag logs`、`kiri diag report`：查看日志与生成诊断报告。
+- `kiri setup ...`、`kiri update ...`、`kiri import ...` 等：部分命令为 macOS 特有（以实际版本为准）。
+
+## 在 CI 中使用
+
+- 在支持 Kiri 的环境中，将 Docker 上下文或 `DOCKER_HOST` 指向 Kiri 的 socket，即可复用现有 `docker` / `docker compose` / `buildx` 流程。
+- 确保 CI 运行用户对 socket 有访问权限（Linux 上通常需要属于 `kiri` 组或等效权限）。
+- 对需要特定引擎行为的步骤（如不支持的 API/驱动），应提前在目标环境验证。
+
+## 平台差异提示
+
+- **macOS**：包含菜单栏/窗口、自动更新、导入等能力；VM 按需启动与休眠。
+- **Linux**：以 systemd 服务运行，无 VM；socket 通常为 `/run/kiri/docker.sock`（或由 `KIRI_SOCKET` 指定）；部分 macOS 专属命令不可用。
+- **Windows**：通过 WSL2 运行引擎，Windows 侧提供 named pipe 与 GUI/托盘；CLI 与上下文行为以 Windows 文档为准。
+
+更多安装与环境说明见 [安装](/install/)、[macOS 之外的 Linux](/platforms/linux/) 与 [Windows](/platforms/windows/)。

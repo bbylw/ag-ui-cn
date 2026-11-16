@@ -1,0 +1,58 @@
+---
+title: Kiri 与 Docker Desktop 对比
+description: 从架构、性能、功能与兼容性角度对比 Kiri 与 Docker Desktop。
+---
+
+# Kiri 与 Docker Desktop 对比
+
+Docker Desktop 与 Kiri 都能在 Mac 上通过 Linux VM 运行容器，并提供 Docker Engine API，因此 `docker` CLI、Compose 与 buildx 可在两者间复用。差异主要在 API 背后的实现、资源占用与产品能力。
+
+## 相同之处
+
+- **API 与工具**：Kiri 提供 Docker Engine API，镜像、`compose.yaml` 与脚本通常无需修改。
+- **Docker context**：Kiri 添加 `kiri` context；在检测到其他引擎时尽量不接管其 `docker` 与 socket，可通过 `docker context use` 切换并并存。
+- **常用能力**：端口发布、绑定挂载、命名卷、用户网络与 DNS、`host.docker.internal`、SSH agent 转发、Rosetta 下 amd64 镜像、BuildKit 构建、单节点 Kubernetes 等。
+- **迁移**：`kiri import desktop-linux` 可从 Docker Desktop 复制镜像、卷与容器（只读源侧）。见 [迁移](/docker/migrate/)。
+
+## API 背后的实现
+
+- **Docker Desktop**：在 VM 内运行 `dockerd`、`containerd`、每容器 shim 与 `runc` 等组件。
+- **Kiri**：宿主机守护进程 + VM/主机内代理，通过 vsock/本地通道通信；每个容器由代理直接 `clone3` 创建，无每容器 shim 与 runc 调用链。
+
+架构细节见 [工作原理](/guide/how-it-works/)。
+
+## 速度（示例）
+
+官方在特定 Apple Silicon Mac 上测量 `docker run --rm alpine true`（已有镜像、bridge 网络、30 次取中位数）的示例结果：
+
+| 路径 | Kiri | Docker Desktop（示例） |
+| --- | --- | --- |
+| Engine API | ~2.55 ms | ~213 ms |
+| docker CLI | ~14 ms | ~243 ms |
+
+CLI 时间包含客户端启动开销；不同环境与网络模式结果不同。详见 [基准测试](/guide/benchmarks/)。
+
+## Kiri 的差异化特点
+
+- **内存回收与休眠**：VM 使用气球贴近实际用量，无容器运行约 60 秒后可关机，唤醒快；守护进程占用小且无每容器常驻 shim。见 [内存与休眠](/guide/memory/)。
+- **本地域名**：`http://<name>.kiri.localhost`（免配置）与 `.kiri.local`，Compose 服务可用 `<service>.<project>.kiri.local`，支持本地 HTTPS。见 [域名](/features/domains/)。
+- **容器文件可见**：macOS 上可在 `~/Kiri` 查看容器文件（只读）。见 [容器文件](/features/files/)。
+- **Linux 机器**：`kiri machine` 提供持久 Linux 环境。见 [Linux 机器](/guide/machines/)。
+- **体积与开源**：宿主机二进制较小；项目以 Apache-2.0 或 MIT 双许可开源（以仓库声明为准）。
+
+## Docker Desktop 具备而 Kiri 尚不具备/不同的方面
+
+- **Windows 容器**：Kiri 在 Windows 上运行 Linux 容器（WSL2，Beta），不提供 Windows 容器。
+- **引擎实现**：Kiri 自行实现 Engine API，未实现的能力会返回明确错误，行为可能与 dockerd 存在差异。
+- **生态与企业功能**：Docker Desktop 提供扩展、集成工具与组织管理能力；Kiri 产品范围不同。
+- **商业支持与许可**：Docker Desktop 由 Docker, Inc. 提供并受其许可条款约束；Kiri 的许可与支持模式不同，请以各自官方说明为准。
+
+## 并行试用
+
+```bash
+docker context use kiri
+# 切回
+docker context use desktop-linux
+```
+
+可在保留 Docker Desktop 的同时试用 Kiri，按需选择默认构建器与上下文。

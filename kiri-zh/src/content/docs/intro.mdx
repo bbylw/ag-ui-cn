@@ -1,0 +1,57 @@
+---
+title: 什么是 Kiri？
+description: Kiri 是一个小巧、快速的容器运行时，在 Mac、Windows 和 Linux 上运行你的 Docker 镜像，并与现有 docker CLI、Compose 和 buildx 无缝协作。
+sidebar:
+  order: 1
+  label: 什么是 Kiri
+---
+
+[Kiri](https://runkiri.com/) 是一个**小巧、快速**的容器运行时。它用 Rust 编写，可作为 Docker Desktop 和 OrbStack 的轻量替代方案。
+
+- 在 **macOS** 和 **Windows** 上，Kiri 在一个精简的 Linux 虚拟机中运行容器。
+- 在 **Linux** 上，Kiri 直接在宿主机内核上运行容器，无需虚拟机。
+- Kiri 实现了 **Docker Engine API**，因此你现有的 `docker` CLI、Docker Compose 和 buildx 可以照常使用。
+
+<Aside type="note" title="名字的由来">
+  Kiri 来自伊博语单词 <em>ntakịrị</em>，意为“小”。
+</Aside>
+
+## 为什么选择 Kiri？
+
+<CardGrid>
+  <Card title="快速">
+    通过 Docker Engine API 启动并移除一个容器约需 <strong>2.55 ms</strong>。在相同测试环境下，相比 Docker Desktop 可快约 80 倍量级。
+  </Card>
+  <Card title="轻量">
+    引擎进程占用很小，虚拟机在空闲约 60 秒后休眠并归还内存，唤醒约需 0.15 秒。
+  </Card>
+  <Card title="兼容">
+    支持 <code>docker</code>、Compose、buildx、<code>docker login</code>，并可通过 Rosetta 运行 amd64 镜像。
+  </Card>
+  <Card title="简单好用">
+    容器可通过本地域名访问（如 <code>http://&lt;name&gt;.kiri.localhost</code>），支持 HTTPS、本机文件挂载与 SSH agent 转发等能力。
+  </Card>
+</CardGrid>
+
+## 它能做什么？
+
+除了容器与 Compose，Kiri 还提供：
+
+- **Kubernetes**：一条命令启动单节点 k3s 集群（`kiri k8s start`）。
+- **Linux 机器**：创建长期运行的 Linux 开发环境（如 `kiri machine create dev --distro ubuntu`）。
+- **Kiri Share**：将任意容器一键发布为公网 HTTPS 地址。
+- **原生界面**：管理容器、镜像、卷、网络与 Compose 项目，并查看日志、终端与文件。
+
+## 下一步
+
+<Steps>
+  <Step title="快速上手">
+    按照 [快速开始](/quick-start/) 在几分钟内运行你的第一个容器。
+  </Step>
+  <Step title="安装 Kiri">
+    查看 [安装指南](/install/) 了解 macOS、Windows 与 Linux 的安装方式。
+  </Step>
+  <Step title="探索功能">
+    在 [功能特性](/features/) 中查看 Kiri 当前支持的能力。
+  </Step>
+</Steps>

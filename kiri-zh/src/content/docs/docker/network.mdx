@@ -1,0 +1,52 @@
+---
+title: 网络
+description: Kiri 中的容器网络、端口发布与服务发现。
+---
+
+# 网络
+
+Kiri 支持 Docker 常见的网络能力，用于容器间通信与对外暴露服务。
+
+## 默认与用户自定义网络
+
+- **bridge（默认）**：容器获得私有 IP，可通过 NAT 访问外部网络；需使用 `-p` 发布端口供宿主机访问。
+- **用户自定义 bridge 网络**：同一网络内的容器可通过容器名或网络别名互相解析与访问，推荐用于多容器应用。
+
+```bash
+docker network create mynet
+docker run -d --name api --network mynet myapi
+docker run --rm --network mynet alpine ping -c1 api
+```
+
+## 端口发布
+
+```bash
+docker run -d -p 8080:80 nginx
+```
+
+- 将容器端口映射到宿主机 `localhost`（及平台相关监听行为）。
+- 多引擎并存时，同一宿主机端口只能被一方占用；如冲突需停止另一侧容器或更换端口。
+
+## 特殊网络模式与能力
+
+- 支持 `host`、`none`、`container:<name>` 等模式（以当前版本支持范围为准）。
+- 提供 `host.docker.internal` 以便容器访问宿主机服务（平台实现细节可能不同）。
+- 支持在需要时启用 IPv6（如 `--ipv6` 创建网络，视版本支持）。
+
+## 本地域名
+
+启用 Kiri 域名功能后，可通过 `http://<name>.kiri.localhost` 或 `.kiri.local` 访问容器，无需手动记忆端口映射（HTTP 场景）。详见 [域名](/features/domains/)。
+
+## DNS 与解析
+
+- 容器内 DNS 解析由 Kiri 提供的网络栈处理，支持容器名解析与上游转发。
+- 在网络环境变化或代理/VPN 场景下，若解析异常可结合 [设置](/guide/settings/) 与诊断日志排查。
+
+## 限制说明
+
+- 非 bridge 类的自定义网络驱动可能不支持。
+- 高级网络选项、策略与防火墙集成能力以实际版本为准；不支持的功能会返回明确错误。
+
+## 窗口管理
+
+Kiri 窗口的 Networks 视图可查看网络列表及关联信息，便于与 CLI 配合使用。

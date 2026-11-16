@@ -1,0 +1,60 @@
+---
+title: 常见问题
+description: 关于 Kiri 的安装、兼容性、资源占用、隐私与卸载等常见问题解答。
+sidebar:
+  order: 5
+  label: 常见问题
+---
+
+## Kiri 可以替代 Docker Desktop 吗？
+
+对于基于 Docker Engine API 的常见工作流（`docker` CLI、Compose、buildx 等），**通常可以**。Kiri 提供兼容的 API 与工具链支持，你的命令与 Compose 文件一般无需修改。是否完全替代取决于你对特定功能或集成的依赖，建议先并行试用。
+
+## 可以和 Docker Desktop / OrbStack 同时安装吗？
+
+可以。Kiri 会创建自己的 `kiri` Docker context，并尽量不破坏现有环境：
+
+- 可用 `docker context use kiri` 切换到 Kiri，或用 `kiri ...` 命令始终指向 Kiri。
+- 如果系统中已有其他 Docker 引擎，Kiri 通常不会强行接管默认上下文。
+
+## 支持运行 amd64（x86）镜像吗？
+
+在 Apple silicon Mac 上，Kiri 可通过 **Rosetta** 运行 `linux/amd64` 镜像（需系统已安装 Rosetta）。在 Intel Mac 上，amd64 镜像可原生运行。
+
+## Kiri 为什么会“休眠”？会影响使用吗？
+
+在 macOS/Windows（虚拟机场景）下，Kiri 会在一段时间无活动后让 VM 休眠，以归还内存给系统。下一次容器或 Docker 命令会快速唤醒它，通常只需很短时间。运行中的容器或执行中的任务会阻止休眠。
+
+## Kiri 会收集遥测数据吗？
+
+根据项目说明，Kiri 的应用与引擎本身不内置使用分析/遥测上报。它只会在你使用相关功能时进行必要的网络访问，例如：
+
+- 检查更新（如启用自动更新检查）
+- 从镜像仓库拉取/推送镜像
+- 首次漏洞扫描时下载扫描器与数据库（如使用该功能）
+- 你主动提交反馈或诊断报告时
+
+## 数据存储在哪里？（macOS）
+
+常见路径包括：
+
+| 路径 | 用途 |
+| --- | --- |
+| `~/Library/Application Support/Kiri` | 镜像、卷、容器记录与 VM 磁盘等数据 |
+| `~/.kiri` | socket、设置、证书、日志与命令链接等 |
+| `~/Kiri` | 运行中容器文件在 Finder 中的挂载视图（只读） |
+
+（实际路径与行为可能随版本变化，请以官方文档为准。）
+
+## 如何卸载 Kiri？
+
+- **macOS**：可运行 `kiri setup --uninstall` 清理配置与集成，退出应用后删除 `Kiri.app`；如需删除数据，再移除数据目录。
+- **Linux**：通过包管理器卸载（如 `apt remove` / `dnf remove`）；是否删除数据取决于命令与发行版（如 `apt purge`）。
+- **Windows**：在系统“应用”设置中卸载，会清理 WSL 中的引擎及相关配置。
+
+## 在哪里获取更多帮助？
+
+- 官网：[runkiri.com](https://runkiri.com/)
+- 英文文档：[docs.runkiri.com](https://docs.runkiri.com/)
+- 社区讨论：[GitHub Discussions](https://github.com/libracoder/kiri/discussions)
+- 问题反馈：[GitHub Issues](https://github.com/libracoder/kiri/issues)

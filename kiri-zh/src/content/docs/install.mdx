@@ -1,0 +1,95 @@
+---
+title: 安装
+description: 在 macOS、Windows 和 Linux 上安装 Kiri，并了解各平台的安装方式与卸载说明。
+sidebar:
+  order: 3
+  label: 安装
+---
+
+Kiri 支持 macOS、Windows 和 Linux。所有官方下载文件见 [下载页面](https://runkiri.com/download/)。安装包通常包含引擎以及 `docker` CLI、Compose 和 buildx。
+
+## 平台概览
+
+| 平台 | 获取方式 | 说明 |
+| --- | --- | --- |
+| macOS 14+（Apple silicon / Intel） | `.dmg` 或安装脚本 | `Kiri.app`，包含引擎、图形界面、菜单栏和 Docker 工具；支持自动更新 |
+| Linux（x86-64 / ARM，systemd） | `.deb` / `.rpm` 或安装脚本 | 以 systemd 服务运行；`kiri` 包含 Docker 工具，`kiri-lite` 仅引擎 |
+| Windows 10/11（x64 / ARM） | `.msi` | Beta：引擎运行在 WSL2 中，提供图形界面与 `kiri` Docker context |
+
+## macOS
+
+1. 从 [下载页面](https://runkiri.com/download/) 下载对应芯片的 `.dmg`，将 **Kiri** 拖入 **Applications**。
+2. 打开 Kiri，首次启动会自动完成环境设置（创建 Docker context、配置命令行工具等）。
+3. 根据提示选择容器访问方式（`localhost` 或 `.kiri.local`）。
+4. 打开新终端并运行：
+
+```sh
+kiri run --rm hello-world
+# 或
+docker --context kiri run --rm hello-world
+```
+
+<Aside type="note">
+  在没有其他 Docker 引擎的 Mac 上，Kiri 可能会将自己设为默认 Docker 上下文；若检测到其他引擎，则会保留现有默认设置，你可通过 <code>docker context use kiri</code> 切换。
+</Aside>
+
+### 安装脚本（macOS / Linux）
+
+```sh
+curl -fsSL https://runkiri.com/install.sh | bash
+```
+
+脚本会校验下载内容并完成安装。在 Linux 上可通过 `KIRI_LITE=1` 安装仅引擎版本：
+
+```sh
+curl -fsSL https://runkiri.com/install.sh | KIRI_LITE=1 bash
+```
+
+## Windows（Beta）
+
+1. 下载并运行对应架构的 `.msi` 安装程序（当前安装包可能未签名，Windows 会提示确认）。
+2. 首次运行时，Kiri 会在需要时引导设置 WSL2、安装引擎并配置 `docker` CLI 与 `kiri` context。
+3. 打开新终端运行：
+
+```sh
+docker run --rm hello-world
+```
+
+Windows 版通过命名管道 `\\.\pipe\kiri` 提供 Docker API。
+
+## Linux
+
+在支持 systemd 的 Linux 发行版上，Kiri 直接运行在宿主机内核上（无虚拟机），并作为 `kiri.service` 提供 Docker API（通常在 `/run/kiri/docker.sock`）。
+
+安装示例：
+
+```sh
+# Debian / Ubuntu
+sudo apt install ./kiri_<version>_amd64.deb
+
+# Fedora / RHEL
+sudo dnf install ./kiri-<version>-1.x86_64.rpm
+
+# 使用非 root 用户访问 Docker socket
+sudo usermod -aG kiri $USER
+# 重新登录后生效
+```
+
+<Aside type="caution">
+  将用户加入 <code>kiri</code> 组等同于授予与 Docker 组类似的高权限，请仅对可信用户开放。
+</Aside>
+
+## 卸载
+
+### macOS
+- 如启用了 HTTPS/本地域名相关系统设置，建议先在 Kiri 设置中关闭。
+- 运行 `kiri setup --uninstall` 移除上下文、登录项和 PATH 配置等。
+- 退出 Kiri 并删除应用。
+- 如需彻底清理数据，可删除 `~/Library/Application Support/Kiri` 和 `~/.kiri`（会移除镜像、卷和设置）。
+
+### Linux
+- `sudo apt remove kiri` / `sudo dnf remove kiri` 卸载软件包（通常保留数据目录，具体行为因发行版而异）。
+- 在 Debian/Ubuntu 上可用 `sudo apt purge kiri` 同时清理数据。
+
+### Windows
+- 在 **设置 → 应用** 中卸载 Kiri，它会清理 WSL 中的引擎、PATH 与 Docker context 等配置。

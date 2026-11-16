@@ -1,0 +1,64 @@
+---
+title: 更新日志
+description: Kiri 各版本的重要变更，按时间从新到旧整理。
+---
+
+# 更新日志
+
+本文整理 Kiri 各发布版本的主要变化（基于官方 What’s new 页面内容翻译与汇总）。最新版本与详细说明请以 [官方网站](https://runkiri.com/releases/) 与 [What’s new](https://docs.runkiri.com/whats-new) 为准。
+
+## Kiri 0.2.0（2026-11-10）
+
+### 新增
+- **USB 设备支持（Beta）**：macOS/Windows/Linux 可在侧边栏 USB 视图及 `kiri usb list|attach|detach` 管理设备；Mac 上首次附加可能需要管理员密码，Windows 通过 usbipd-win，Linux 展示可用设备路径。串口适配器、Zigbee 等可用，摄像头/音频等暂不支持。
+- **15 种界面语言**：English、Bahasa Indonesia、Deutsch、Español、Français、Italiano、Polski、Português (Brasil)、Tiếng Việt、Türkçe、Русский、日本語、한국어、简体中文、繁體中文。首次启动可选语言，设置中可随时切换。
+- **域名端口可配置**：在 Settings › Domains › Ports 中设置容器名响应端口（默认 80/443），链接可带端口如 `http://web.kiri.local:8080`。
+- **容器可直接占用 80/443**：发布 `80:80`/`443:443` 的容器可获得端口；名称解析在端口被占用期间暂停，释放后恢复。
+
+### 改进
+- `docker system df` 显示镜像/容器/卷的真实大小。
+- Windows：安装中断后可继续；安装未完成时 `docker` 命令会给出明确提示。
+- Mac：关闭窗口可隐藏 Dock 图标（应用仍在菜单栏运行）。
+- Mac：Apple Silicon 上 amd64 构建可通过 Rosetta 加速并提升兼容性。
+- 容器内核能力增强（如 eBPF 相关），提升部分软件兼容性；拉取失败原因提示更明确；`docker push` 后 RepoDigests 显示正确 digest；Linux 包与 Docker 组件共存改进；移出 `kiri` 组后权限即时生效；版本信息显示真实内核等。
+
+### 修复
+- Mac：高网络负载下 VM 稳定性、休眠后时钟同步、`~/Kiri` 不遮蔽已有文件等问题。
+- Windows：通过 `127.0.0.1` 代理拉取镜像的问题与安装失败提示。
+- `docker load` 兼容性、向容器复制 gzip 归档、`docker run -i` 偶发挂起、信号/管道行为、bind mount 权限、`kiri machine shell` 连接目标等多项修复与 UI 改进。
+
+## Kiri 0.1.18（2026-11-06）
+
+- **新增**：窗口内置终端（Terminal，可多标签/分屏/搜索/固定标签），Kiri 的 `docker` 优先在 PATH 中。
+- **改进**：Kubernetes Pod 可通过 hostPath 访问宿主机目录（需重启集群生效）、容器内防火墙工具支持、低端口与 ping 无需 root、卷覆盖 bind mount 子路径时行为与 Docker 对齐、更新检查频率、设置页一致性等。
+- **修复**：Linux 上 Kubernetes 不再破坏终端、容器网络在启停其他容器时保持、DNS 回退、删除 Kiri 不再破坏 `docker build` 等。
+
+## Kiri 0.1.17（2026-11-03）
+
+- 聚焦隐私与更新：关闭自动更新设置可正确生效；开启崩溃报告仅发送新崩溃；报告内容与脱敏范围收紧（URL 密码、敏感头、私钥、令牌、JWT、邮箱等）；Windows 报告进一步隐藏用户名；更新下载保持 HTTPS 不降级；设置中明确说明崩溃报告内容。
+
+## Kiri 0.1.15（2026-11-03）
+
+- Linux：`.rpm` 与校验文件签名；计划提供签名 apt/dnf 仓库。
+- 修复：镜像层写入完整性（避免空内容导致构建/运行异常）、`kiri share` 在输出管道关闭时崩溃等。
+
+## Kiri 0.1.14（2026-11-02）
+
+- 新安装默认更安静：构建引擎按需下载；引擎卡片/设置提供启动停止控制；Linux 软件中心展示改进。
+- 引擎可在空闲时保持“就绪但休眠”状态；Linux 安装后不自动启动服务；UI 中隐藏内部构建器条目等。
+- 修复升级后版本混用、卸载清理、分享在大流量单连接场景卡住、Linux 构建与图标等问题。
+
+## Kiri 0.1.7（2026-11-01）
+
+- **Windows（Beta）**：提供 x64/ARM 安装包；下载按芯片区分命名与更新源。
+- Linux 包在 Ubuntu/Fedora 上进行安装与运行验证；`.rpm` 体积优化；下载页仅展示可用文件。
+
+## Kiri 0.1.1（2026-09-30）
+
+- 首个包含 Linux 包的版本（`.deb`/`.rpm`，x86-64/ARM，`kiri` 与 `kiri-lite`）。
+- 改进终端 PATH 集成、分享流量与时长显示、容器列表与详情展示、长距离分享性能等。
+
+## Kiri 0.1.0（2026-08-04）
+
+- 首个公开版本（Apple Silicon macOS 14+）：Docker Engine API（`kiri` context）、本地域名、Finder 文件视图、SSH agent 转发、`kiri k8s`/`kiri machine`、从 OrbStack/Docker Desktop 导入。
+- 新增 Kiri Share、窗口内 Kubernetes/Builds/镜像体验、更新机制与多项 UI/性能/兼容性改进与安全修复。

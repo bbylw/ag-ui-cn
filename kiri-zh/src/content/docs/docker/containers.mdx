@@ -1,0 +1,62 @@
+---
+title: 容器
+description: 在 Kiri 中创建、运行与管理容器。
+---
+
+# 容器
+
+Kiri 实现 Docker Engine API，支持使用标准 `docker` CLI 管理容器生命周期。
+
+## 基本操作
+
+```bash
+# 运行容器
+docker run --rm -it alpine sh
+
+# 后台运行
+docker run -d --name web -p 8080:80 nginx:alpine
+
+# 查看容器
+docker ps
+docker ps -a
+
+# 日志与进入容器
+docker logs -f web
+docker exec -it web sh
+
+# 停止/启动/重启/删除
+docker stop web
+docker start web
+docker restart web
+docker rm web
+```
+
+也可使用 `kiri ps`、`kiri run` 等等价命令（通过 Kiri 上下文执行）。
+
+## 端口、挂载与环境
+
+- **端口发布**：`-p 宿主机端口:容器端口` 将容器服务暴露到宿主机 `localhost`。
+- **绑定挂载**：`-v /host/path:/container/path` 或 `--mount type=bind,...`。
+- **命名卷**：`-v volume_name:/data`，由 Kiri 持久化管理。
+- **环境变量与工作目录**：`-e KEY=value`、`-w /path`、`--env-file` 等常见选项按 Docker 语义支持。
+
+## 网络与名称
+
+- 默认 bridge 网络下容器可访问外网并通过发布端口对外服务。
+- 用户自定义网络支持按容器名/服务名解析（在同一网络内）。
+- 启用 [域名](/features/domains/) 后，可通过 `http://<name>.kiri.localhost` 等地址访问容器。
+
+## 资源与限制
+
+- 支持常见的 CPU/内存限制参数（如 `--memory`、`--cpus`），具体支持范围以当前版本为准。
+- 在 macOS 上，VM 资源与空闲休眠行为见 [内存与休眠](/guide/memory/)。
+
+## 平台与兼容性
+
+- 支持 `--platform` 拉取/运行指定平台镜像；在 Apple Silicon 上可通过 Rosetta 运行 `linux/amd64` 镜像（性能与兼容性因场景而异）。
+- 不支持的 Engine API 功能会返回明确错误信息，提示“尚不支持”。
+- GPU 透传（`--gpus`）等特定能力可能不支持，请以实际版本行为为准。
+
+## 与窗口配合
+
+Kiri 窗口提供容器列表、详情、日志、终端与文件视图等图形化操作入口，适合与 CLI 配合使用。详见 [窗口](/features/window/)。

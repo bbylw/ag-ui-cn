@@ -1,0 +1,60 @@
+---
+title: 存储
+description: Kiri 中的命名卷、绑定挂载与数据持久化。
+---
+
+# 存储
+
+Kiri 支持 Docker 常见的存储方式：命名卷、绑定挂载与临时文件系统。
+
+## 命名卷（Volumes）
+
+```bash
+# 创建与查看
+docker volume create mydata
+docker volume ls
+docker volume inspect mydata
+
+# 使用卷
+docker run -d -v mydata:/var/lib/data myimage
+
+# 删除
+docker volume rm mydata
+docker volume prune
+```
+
+- 命名卷由 Kiri 管理并持久化，适合数据库等需要保留数据的场景。
+- 从 Docker Desktop 迁移时，可使用 `kiri import` 复制命名卷数据（见 [迁移](/docker/migrate/)）。
+
+## 绑定挂载（Bind mounts）
+
+```bash
+docker run --rm -v "$PWD":/app -w /app node:20 node -v
+```
+
+- 将宿主机目录或文件映射到容器内，适合开发时实时代码同步。
+- 在 macOS/Windows 上，宿主机路径通过虚拟化层共享到 Linux 环境；大量小文件 IO 性能可能与原生 Linux 不同。
+- 挂载权限与文件所有者行为应以目标应用需求与实际表现为准。
+
+## tmpfs
+
+```bash
+docker run --rm --tmpfs /tmp:rw,size=64m alpine sh -c 'mount | grep /tmp'
+```
+
+`tmpfs` 挂载数据仅存在于内存中，容器停止后丢失。
+
+## 卷与 bind mount 的组合
+
+- 在同一路径上叠加挂载时，行为应与 Docker 语义一致（例如在 bind mount 的子路径上挂载卷以保留镜像内目录内容，具体以版本兼容性为准）。
+- Compose 中常见的 `./:/app` 搭配 `/app/node_modules` 卷可用于隔离依赖目录。
+
+## 数据位置与清理
+
+- 卷与镜像数据存储在 Kiri 的数据目录中；删除容器不会自动删除命名卷（除非使用相应清理选项）。
+- 使用 `docker system df`、`docker volume prune` 等命令管理磁盘占用。
+- 卸载/重置 Kiri 时请注意数据目录的保留与删除策略（见各平台安装文档）。
+
+## 窗口管理
+
+Kiri 窗口的 Volumes 视图可查看卷列表与基本信息，便于与 CLI 配合管理。

@@ -1,0 +1,62 @@
+---
+title: 功能特性
+description: 了解 Kiri 当前支持的容器、镜像构建、网络、Kubernetes、Linux 机器、共享与应用界面等能力。
+sidebar:
+  order: 4
+  label: 功能特性
+---
+
+Kiri 的目标是提供与 Docker 工具链兼容、且更轻快的本地容器体验。以下按能力分组介绍其主要特性（具体支持范围以对应版本为准）。
+
+## Docker 兼容能力
+
+- **容器**：支持 `run`、`exec`、`logs`、`attach`、`stop`、`restart`、`pause`、`stats`、`cp` 等常用命令；支持资源限制与常见安全选项。
+- **镜像**：支持 `pull` / `push` / `save` / `load` / `search` 等；可使用 `docker login` 凭据；支持 `--platform`。
+- **构建**：支持 `docker build` 与 `buildx build`（通过 BuildKit）。
+- **Compose**：支持 `up`、`down`、`ps`、`logs`、`exec` 等常用工作流。
+- **存储**：支持命名卷、匿名卷、绑定挂载（bind mount）、`tmpfs` 等。
+
+<Aside type="tip">
+  Docker 命令也可以作为 <code>kiri</code> 命令使用（如 <code>kiri run</code>、<code>kiri compose up</code>），这些命令始终指向 Kiri。
+</Aside>
+
+## 网络与本地域名
+
+- 默认桥接网络、用户自定义网络与容器间按名称解析。
+- 支持端口发布（`-p`，TCP/UDP）以及 `host.docker.internal` 等常见能力。
+- **本地域名**：容器可通过 `http://<name>.kiri.localhost` 等名称访问；Compose 服务可按 `<service>.<project>...` 形式访问。
+- **HTTPS**：可为本地域名提供 HTTPS（由 Kiri 的本地证书体系支持）。
+
+## 文件与开发体验
+
+- **容器文件访问**：在 macOS 上可在 `~/Kiri` 下查看运行中容器的文件（按需读取，非预先全量复制）。
+- **SSH agent 转发**：容器可访问宿主机 SSH agent，便于在容器内使用 Git over SSH 等场景。
+- **轻量与休眠**：空闲时虚拟机可休眠并归还内存，下一次命令可快速唤醒。
+
+## Kubernetes 与 Linux 机器
+
+- **Kubernetes**：`kiri k8s start` 可快速启动单节点 k3s 集群，并提供 `kiri` kubectl 上下文。
+- **Linux 机器**：`kiri machine create dev --distro ubuntu` 可创建带用户与 sudo 的长期 Linux 环境，并挂载宿主机目录（按平台能力而异）。
+
+## Kiri Share（公网分享）
+
+通过 Kiri Share，可将本地容器暴露为公网 HTTPS 地址，便于演示、联调与在手机等设备上访问：
+
+```sh
+kiri share login
+kiri share <container-or-port>
+```
+
+分享链接通常位于 `runkiri.cloud` 域名下，可随时断开。
+
+## 图形界面与平台支持
+
+- **原生应用**：管理容器、镜像、卷、网络、构建与 Compose 项目；查看实时日志、终端与文件。
+- **跨平台**：支持 macOS（Apple silicon / Intel）、Windows（Beta，通过 WSL2）与 Linux（systemd）。
+- **迁移辅助**：可从 OrbStack 或 Docker Desktop 导入镜像、卷与容器（`kiri import`，按平台支持情况而定）。
+
+## 参考
+
+- [Kiri 官网](https://runkiri.com/)
+- [Kiri 文档（英文）](https://docs.runkiri.com/)
+- [GitHub 仓库](https://github.com/libracoder/kiri)
