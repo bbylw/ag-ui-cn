@@ -26,8 +26,13 @@ const HEIGHT = 630;
 const LEFT = 80;
 const COLUMN = WIDTH - LEFT - 200;
 
-const TITLE: CardTypography = { fontFamily: "Inter", fontWeight: 500, letterSpacing: "-0.025em", lineHeight: 1.1, color: FOREGROUND };
-const SECTION: CardTypography = { fontFamily: "Inter", fontWeight: 400, lineHeight: 1.2, color: MUTED };
+// Noto Sans SC (Noto CJK, OFL) covers the Chinese titles as well as Latin, so
+// every card uses it. The files here are subset to the characters this site
+// uses plus the 3500 most common ones, which keeps each under 800 KB.
+const FONT = "Noto Sans SC";
+
+const TITLE: CardTypography = { fontFamily: FONT, fontWeight: 500, letterSpacing: "-0.025em", lineHeight: 1.1, color: FOREGROUND };
+const SECTION: CardTypography = { fontFamily: FONT, fontWeight: 400, lineHeight: 1.2, color: MUTED };
 
 // Fonts sit beside this file, not in public/, so they never ship. Read from
 // the project so `astro build --root <site>` finds them.
@@ -36,8 +41,8 @@ const renderer = await createCardRenderer({
   width: WIDTH,
   height: HEIGHT,
   fonts: [
-    { name: "Inter", source: font("Inter-Regular.ttf"), weight: 400 },
-    { name: "Inter", source: font("Inter-Medium.ttf"), weight: 500 },
+    { name: FONT, source: font("NotoSansSC-Regular.otf"), weight: 400 },
+    { name: FONT, source: font("NotoSansSC-Medium.otf"), weight: 500 },
   ],
   emoji: "strip",
 });
