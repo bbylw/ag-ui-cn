@@ -1,6 +1,6 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
-import { platforms, howStats, QUICKSTART_URL, OFFICIAL_DOCS_URL, DOJO_URL } from "../../lib/landing";
+import { platforms, howStats } from "../../lib/landing";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
@@ -103,27 +103,6 @@ const hops = ["AG-UI 输入", "智能体推理", "标准事件流", "状态聚�
           </div>
         </div>
         <p class="k-plat-caption" data-k-plat-caption>{first.desc}（{first.badge}）</p>
-      </div>
-    </div>
-
-    <div class="k-band" style="margin-top:clamp(36px, 5vw, 56px)" data-reveal>
-      <div>
-        <h2>准备好将智能体融入用户界面了吗？</h2>
-        <p>
-          阅读 AG-UI 中文概念与 1.0 协议规范，或前往交互演练场实际运行各框架下的流式与状态同步示例。
-        </p>
-      </div>
-      <div class="k-band-actions">
-        <a href={href(QUICKSTART_URL)} class="k-btn">
-          <Icon name="ph:rocket-launch" class="h-[18px] w-[18px]" aria-hidden="true" />
-          快速开始
-        </a>
-        <a href={href("/intro/")} class="k-btn k-btn-ghost">浏览中文文档</a>
-        <a href={DOJO_URL} target="_blank" rel="noopener" class="k-btn k-btn-ghost">
-          打开 Dojo
-          <Icon name="ph:arrow-up-right" class="h-4 w-4" aria-hidden="true" />
-        </a>
-        <a href={OFFICIAL_DOCS_URL} target="_blank" rel="noopener" class="k-btn k-btn-ghost">英文官网</a>
       </div>
     </div>
   </div>

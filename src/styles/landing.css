@@ -188,10 +188,10 @@
 		content-visibility: auto;
 		contain-intrinsic-size: auto none auto var(--k-defer-h, 720px);
 	}
-	.kiri #sandbox { --k-defer-h: 813px; }
+	.kiri #sandbox { --k-defer-h: 862px; }
 	.kiri #features { --k-defer-h: 724px; }
 	.kiri #sdk { --k-defer-h: 674px; }
-	.kiri #platforms { --k-defer-h: 754px; }
+	.kiri #platforms { --k-defer-h: 535px; }
 	.kiri .k-footer { --k-defer-h: 272px; }
 }
 @supports not (content-visibility: auto) {
@@ -2112,41 +2112,6 @@
 	color: var(--k-muted);
 }
 
-.k-band {
-	position: relative;
-	z-index: 1;
-	overflow: hidden;
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: 24px;
-	align-items: center;
-	padding: clamp(24px, 3.2vw, 36px);
-	border-radius: 20px;
-	border: 1px solid color-mix(in srgb, var(--k-ember) 35%, var(--k-line));
-	background:
-		radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--k-ember) 20%, transparent), transparent 62%),
-		radial-gradient(90% 120% at 0% 100%, color-mix(in srgb, var(--k-rose) 12%, transparent), transparent 60%),
-		var(--k-surface);
-	box-shadow: var(--k-stack);
-}
-.k-band h2 {
-	font-size: clamp(1.375rem, 0.5rem + 1.9vw, 1.875rem);
-	font-weight: 800;
-	letter-spacing: -0.025em;
-}
-.k-band p {
-	margin-top: 8px;
-	max-width: 52em;
-	color: var(--k-text-2);
-	font-size: 0.9375rem;
-	line-height: 1.6;
-}
-.k-band-actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 10px;
-}
-
 /* ---------- footer ---------- */
 
 .k-footer {
@@ -2359,17 +2324,16 @@
 }
 
 @media (max-width: 60em) {
-	.kiri #sandbox { --k-defer-h: 988px; }
+	.kiri #sandbox { --k-defer-h: 1031px; }
 	.kiri #features { --k-defer-h: 877px; }
 	.kiri #sdk { --k-defer-h: 1149px; }
-	.kiri #platforms { --k-defer-h: 1098px; }
+	.kiri #platforms { --k-defer-h: 864px; }
 	.kiri .k-footer { --k-defer-h: 465px; }
 
 	.k-hero-grid,
 	.k-sb-grid,
 	.k-sdk-grid,
-	.k-how-grid,
-	.k-band {
+	.k-how-grid {
 		grid-template-columns: minmax(0, 1fr);
 	}
 	.k-hero-side {
@@ -2394,7 +2358,7 @@
 	.kiri #sandbox { --k-defer-h: 1251px; }
 	.kiri #features { --k-defer-h: 1685px; }
 	.kiri #sdk { --k-defer-h: 1347px; }
-	.kiri #platforms { --k-defer-h: 1613px; }
+	.kiri #platforms { --k-defer-h: 1275px; }
 	.kiri .k-footer { --k-defer-h: 649px; }
 
 	.k-stack-list {
