@@ -1,0 +1,161 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { sandboxScenarios, DOJO_URL } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+const first = sandboxScenarios[0];
+const firstFrame = first.frames[0];
+---
+
+<section class="k-section k-defer" id="sandbox" tabindex="-1">
+  <div class="k-wrap">
+    <header class="k-head" data-reveal>
+      <p class="k-kicker" data-code="SANDBOX-01">交互沙盒</p>
+      <h2 class="k-h2">一条标准事件流，<br />驱动完整智能体回合。</h2>
+      <p class="k-lede">
+        智能体不同于传统请求/响应 API——它会持续流式输出、调用工具、增量同步应用状态，并在关键操作前暂停等待人类确认。在下方切换场景、单步推进或直接点击审批按钮，观察协议事件如何即时映射为前端界面。
+      </p>
+    </header>
+
+    <div class="k-sb" data-k-sb data-reveal>
+      <div class="k-rc-bar">
+        <i></i><i></i><i></i>
+        <code class="k-rc-title" data-k-sb-cmd>POST /agent · SSE</code>
+        <span class="k-rc-live" data-k-sb-live><i></i><span data-k-sb-state>就绪</span></span>
+      </div>
+
+      <div class="k-sb-tools">
+        <div class="k-ctl">
+          <span class="k-ctl-k">演练场景</span>
+          <div class="k-seg" role="tablist" aria-label="选择 AG-UI 交互场景">
+            {
+              sandboxScenarios.map((sc, i) => (
+                <button
+                  type="button"
+                  role="tab"
+                  id={`k-sb-tab-${sc.id}`}
+                  class:list={["k-seg-b", i === 0 && "is-on"]}
+                  data-k-sb-tab={sc.id}
+                  aria-selected={i === 0 ? "true" : "false"}
+                  aria-controls="k-sb-stage"
+                  tabindex={i === 0 ? 0 : -1}
+                >
+                  {sc.name}
+                </button>
+              ))
+            }
+          </div>
+        </div>
+
+        <div class="k-sb-actions">
+          <button type="button" class="k-run" data-k-sb-play>
+            <Icon name="ph:play" class="k-i-play h-4 w-4" aria-hidden="true" />
+            <Icon name="ph:pause" class="k-i-pause h-4 w-4" aria-hidden="true" />
+            <span data-k-sb-play-label>播放</span>
+          </button>
+          <button type="button" class="k-run k-run-ghost" data-k-sb-step>单步 +1</button>
+          <button type="button" class="k-run k-run-ghost" data-k-sb-reset aria-label="重置演示">
+            <Icon name="ph:arrow-clockwise" class="h-4 w-4" aria-hidden="true" />
+            重置
+          </button>
+          <select id="k-sb-speed" name="sb-speed" class="k-select k-sb-speed" data-k-sb-speed aria-label="播放节奏">
+            <option value="1300">慢速精读</option>
+            <option value="850" selected>标准节奏</option>
+            <option value="450">快速演示</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="k-sb-progress-wrap">
+        <div class="k-sb-track" data-k-sb-track>
+          <div class="k-sb-track-fill" data-k-sb-fill></div>
+          {
+            first.stages.map((label, idx) => (
+              <span class:list={["k-sb-stop", idx === 0 && "is-hit"]} style={`left:${(idx / (first.stages.length - 1)) * 100}%`}>
+                <span>{label}</span>
+              </span>
+            ))
+          }
+          <span class="k-sb-token" data-k-sb-token aria-hidden="true"></span>
+        </div>
+        <div class="k-sb-caption-row">
+          <span class="k-sb-frame-badge" data-k-sb-step-label>事件 1 / {first.frames.length} · {firstFrame.type}</span>
+          <p class="k-sb-caption" data-k-sb-caption>{firstFrame.label}</p>
+        </div>
+      </div>
+
+      <div
+        class="k-sb-grid"
+        id="k-sb-stage"
+        role="tabpanel"
+        aria-labelledby={`k-sb-tab-${first.id}`}
+        data-k-sb-panel
+      >
+        <div class="k-sb-ui">
+          <div class="k-pane-k">
+            <span>客户端实景界面 · Client UI</span>
+            <span class="k-chip k-chip-moss" data-k-sb-ui-mode>Agent ↔ UI 同步中</span>
+          </div>
+
+          <div class="k-sb-chat">
+            <div class="k-chat-msg is-user">
+              <span class="k-chat-role">User</span>
+              <p data-k-sb-user>{first.userPrompt}</p>
+            </div>
+            <div class="k-chat-msg is-assistant">
+              <span class="k-chat-role">Assistant</span>
+              <p data-k-sb-assistant>{firstFrame.chatText || "已连接至 AG-UI 智能体端点…"}</p>
+            </div>
+          </div>
+
+          <div class="k-sb-slot" data-k-sb-slot hidden></div>
+
+          <div class="k-sb-interact" data-k-sb-hitl hidden>
+            <span class="k-sb-interact-k">需要人工决策（点击以发送恢复输入）</span>
+            <div class="k-sb-interact-btns">
+              <button type="button" class="k-btn k-btn-sm" data-k-sb-approve>批准改签 (¥180)</button>
+              <button type="button" class="k-btn k-btn-sm k-btn-ghost k-sb-ghost-dark" data-k-sb-reject>取消改签</button>
+            </div>
+          </div>
+
+          <div class="k-sb-interact" data-k-sb-state-ctl hidden>
+            <span class="k-sb-interact-k">客户端双向注入状态（会同步写入右侧事件流与 Shared State）</span>
+            <button type="button" class="k-run k-run-ghost" data-k-sb-state-btn>切换前端状态：接站服务</button>
+          </div>
+        </div>
+
+        <div class="k-sb-inspector">
+          <div class="k-sb-wire">
+            <div class="k-pane-k">
+              <span>标准事件帧 · Wire Log</span>
+              <span data-k-sb-tagline>{first.tagline}</span>
+            </div>
+            <ol class="k-sb-log" role="list" data-k-sb-log>
+              <li class="is-latest">
+                <code>{firstFrame.type}</code>
+                <pre>{JSON.stringify(firstFrame.wire)}</pre>
+              </li>
+            </ol>
+          </div>
+
+          <div class="k-sb-state-box">
+            <div class="k-pane-k">
+              <span>聚合后共享状态 · Shared State</span>
+              <span>随 STATE_* / 工具结果实时更新</span>
+            </div>
+            <pre class="k-sb-json" data-k-sb-json>{JSON.stringify(firstFrame.state ?? {}, null, 2)}</pre>
+          </div>
+        </div>
+      </div>
+
+      <p class="k-rc-foot">
+        以上过程展示 AG-UI 的 <b>Start → Content → End</b>（文本与工具参数流式拼接）与 <b>Snapshot → Delta</b>（RFC 6902 增量状态同步）设计模式。深入阅读：
+        <a href={href("/concepts/events/")}>事件机制</a> ·
+        <a href={href("/concepts/interrupts/")}>人机协同中断</a> ·
+        <a href={href("/reference/events/")}>事件参考</a> ·
+        <a href={DOJO_URL} target="_blank" rel="noopener">AG-UI Dojo 演练场</a>。
+      </p>
+    </div>
+  </div>
+</section>

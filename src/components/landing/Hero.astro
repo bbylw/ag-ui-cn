@@ -1,24 +1,10 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
-import { QUICKSTART_URL, OFFICIAL_DOCS_URL, DOJO_URL } from "../../lib/landing";
+import { QUICKSTART_URL, DOJO_URL, stackLayers, heroScenarios } from "../../lib/landing";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
-
-const rail = [
-  { icon: "ph:chats-circle", on: true },
-  { icon: "ph:arrows-clockwise" },
-  { icon: "ph:wrench" },
-  { icon: "ph:layout" },
-  { icon: "ph:user-switch" },
-];
-
-const rows = [
-  { name: "RUN_STARTED", img: "会话启动", state: "已接收", tone: "live" },
-  { name: "TEXT_MESSAGE_*", img: "流式输出", state: "进行中", tone: "share" },
-  { name: "TOOL_CALL_*", img: "工具调用", state: "已完成", tone: "live" },
-  { name: "STATE_SNAPSHOT", img: "状态同步", state: "已同步", tone: "idle" },
-];
+const initial = heroScenarios[0];
 ---
 
 <section class="k-hero" id="top" tabindex="-1">
@@ -29,19 +15,27 @@ const rows = [
       <h1 class="k-h1">让智能体<br /><em class="k-underline">真正融入用户界面</em>。</h1>
 
       <p class="k-hero-lede">
-        AG-UI（Agent–User Interaction Protocol）标准化 AI 智能体与前端应用之间的交互方式。
-        通过统一的事件流，你可以轻松实现流式聊天、共享状态、工具调用、生成式 UI 与人机协同。
+        AG-UI（Agent–User Interaction Protocol）标准化 AI 智能体与前端应用之间的实时事件流与状态交互，一套协议即可驱动流式对话、工具执行、生成式 UI 与人机协同。
       </p>
 
-      <div class="k-stat">
-        <p class="k-stat-k">协议定位 · Agentic Protocol Stack</p>
-        <div class="k-stat-main">
-          <span class="k-big">31<small>种</small></span>
-          <span class="k-stat-side">标准事件类型</span>
+      <div class="k-stack-card">
+        <div class="k-stack-top">
+          <span class="k-stat-k">协议栈定位 · Agentic Protocol Stack</span>
+          <span class="k-chip k-chip-ember">31 标准事件 · 8 大事件族</span>
         </div>
-        <p class="k-stat-cap">
-          <strong>MCP</strong> 提供工具，<strong>A2A</strong> 连接智能体，<strong>AG-UI</strong> 负责将智能体能力带入面向用户的应用体验。
-        </p>
+        <ul class="k-stack-list" role="list">
+          {
+            stackLayers.map((layer) => (
+              <li class:list={["k-stack-item", layer.active && "is-active"]}>
+                <div class="k-stack-head">
+                  <b>{layer.name}</b>
+                  <span>{layer.scope}</span>
+                </div>
+                <p>{layer.desc}</p>
+              </li>
+            ))
+          }
+        </ul>
       </div>
 
       <div class="k-cta">
@@ -53,104 +47,121 @@ const rows = [
           阅读文档
           <Icon name="ph:arrow-right" class="h-[18px] w-[18px]" aria-hidden="true" />
         </a>
+        <a href={DOJO_URL} target="_blank" rel="noopener" class="k-btn k-btn-ghost">
+          打开 Dojo
+          <Icon name="ph:arrow-up-right" class="h-[16px] w-[16px]" aria-hidden="true" />
+        </a>
       </div>
 
       <p class="k-proof">
         <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />开放协议 · MIT 许可</span>
-        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />传输无关（SSE / WebSocket）</span>
-        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />框架与客户端可互操作</span>
+        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />HTTP SSE / WebSocket 传输无关</span>
+        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />前后端解耦互操作</span>
       </p>
-
-      <div class="k-langs">
-        <p class="k-lang-k">
-          <Icon name="ph:globe" class="h-[17px] w-[17px]" aria-hidden="true" />
-          适用于多种语言、框架与客户端形态
-        </p>
-        <ul class="k-lang-list" role="list">
-          <li class="k-me"><a href={DOJO_URL} target="_blank" rel="noopener">AG-UI Dojo</a></li>
-          <li><a href={OFFICIAL_DOCS_URL} target="_blank" rel="noopener">官方文档</a></li>
-          <li>Web / 终端 / 聊天平台</li>
-          <li>LangGraph · CrewAI · ADK 等</li>
-        </ul>
-      </div>
     </div>
 
     <div class="k-hero-side">
-      <figure class="k-hx" data-k-window>
+      <figure class="k-hx" data-k-hero-inspector>
         <div class="k-hx-glow" aria-hidden="true"></div>
-        <div class="k-win" role="img" aria-label="AG-UI 事件流示意：消息、工具与状态同步">
+        <div class="k-win">
           <div class="k-win-bar">
             <i></i><i></i><i></i>
-            <b>AG-UI Session</b>
-            <em>event stream</em>
+            <b>AG-UI Protocol Inspector</b>
+            <em>text/event-stream</em>
           </div>
-          <div class="k-win-body">
-            <div class="k-rail">
+
+          <div class="k-h-toolbar">
+            <div class="k-seg k-seg-sm" role="tablist" aria-label="首屏协议联动场景">
               {
-                rail.map((r) => (
-                  <span class:list={["k-rail-i", r.on && "is-on"]}>
-                    <Icon name={r.icon} class="h-[18px] w-[18px]" aria-hidden="true" />
-                  </span>
+                heroScenarios.map((sc, i) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    id={`k-h-tab-${sc.id}`}
+                    class:list={["k-seg-b", i === 0 && "is-on"]}
+                    aria-selected={i === 0 ? "true" : "false"}
+                    aria-controls="k-h-panel"
+                    tabindex={i === 0 ? 0 : -1}
+                    data-k-h-tab={sc.id}
+                  >
+                    {sc.label}
+                  </button>
                 ))
               }
-              <span class="k-rail-i is-share"><Icon name="ph:plugs-connected" class="h-[18px] w-[18px]" aria-hidden="true" /></span>
             </div>
-            <div class="k-win-main">
-              <div class="k-win-head">
-                <b>事件流</b>
-                <span class="k-vm"><i></i>Agent ↔ UI 已连接</span>
-              </div>
+            <span class="k-vm"><i></i>实时联动</span>
+          </div>
 
-              <div class="k-stats">
-                <div class="k-stat-tile">
-                  <span class="k-tile-k">传输</span>
-                  <b>SSE</b>
-                  <small>或 WebSocket</small>
-                </div>
-                <div class="k-stat-tile">
-                  <span class="k-tile-k">模式</span>
-                  <b>双向</b>
-                  <small>输入 + 事件</small>
-                </div>
-                <div class="k-stat-tile">
-                  <span class="k-tile-k">能力</span>
-                  <b>可组合</b>
-                  <small>按需扩展</small>
-                </div>
+          <div
+            class="k-h-panel"
+            id="k-h-panel"
+            role="tabpanel"
+            aria-labelledby={`k-h-tab-${initial.id}`}
+            data-k-h-panel
+          >
+            <div class="k-wire-pane">
+              <div class="k-pane-k">
+                <span>协议事件流 · Wire</span>
+                <code>POST /agent</code>
               </div>
-
-              <ul class="k-list" role="list">
+              <ul class="k-list" role="list" data-k-h-wire>
                 {
-                  rows.map((r) => (
+                  initial.events.map((ev) => (
                     <li class="k-row">
-                      <span class:list={["k-row-dot", r.tone === "idle" && "is-idle", r.tone === "share" && "is-share"]} />
-                      <span class="k-row-name">{r.name}</span>
-                      <span class="k-row-img">{r.img}</span>
-                      <span class:list={["k-row-state", r.tone === "share" && "is-live"]}>
-                        {r.state}
-                      </span>
+                      <span
+                        class:list={[
+                          "k-row-dot",
+                          ev.tone === "idle" && "is-idle",
+                          ev.tone === "rose" && "is-share",
+                          ev.tone === "accent" && "is-accent",
+                        ]}
+                      />
+                      <span class="k-row-name">{ev.type}</span>
+                      <span class="k-row-img">{ev.meta}</span>
                     </li>
                   ))
                 }
               </ul>
+            </div>
 
-              <div class="k-share-row">
-                <Icon name="ph:link" class="h-4 w-4" aria-hidden="true" />
-                <code>POST /agent/run → SSE</code>
-                <span>实时</span>
+            <div class="k-ui-pane">
+              <div class="k-pane-k">
+                <span>客户端渲染 · App UI</span>
+                <span class="k-pane-pill" data-k-h-badge>{initial.widget.badge}</span>
+              </div>
+
+              <div class="k-chat-mini">
+                <p class="k-chat-u" data-k-h-prompt>{initial.prompt}</p>
+                <p class="k-chat-a" data-k-h-reply>{initial.reply}</p>
+              </div>
+
+              <div class="k-widget-mini" data-k-h-widget>
+                <div class="k-widget-head">
+                  <strong data-k-h-wtitle>{initial.widget.title}</strong>
+                  <span class="k-widget-dot" aria-hidden="true"></span>
+                </div>
+                <div class="k-widget-rows" data-k-h-wrows>
+                  {
+                    initial.widget.rows.map((r) => (
+                      <div class:list={["k-wrow", r.highlight && "is-hi"]}>
+                        <span>{r.k}</span>
+                        <b>{r.v}</b>
+                      </div>
+                    ))
+                  }
+                </div>
+                <div class="k-widget-act" data-k-h-act hidden>
+                  <button type="button" class="k-btn k-btn-xs" data-k-h-approve>批准执行</button>
+                </div>
               </div>
             </div>
           </div>
+
           <div class="k-win-foot">
-            <span>标准化交互层</span>
-            <span>Agent → AG-UI → App</span>
-            <span>可观测 · 可调试</span>
+            <span>Agent Backend → Event Stream → App UI</span>
+            <span>点击上方场景体验事件与界面联动</span>
           </div>
         </div>
-        <figcaption class="k-float">
-          <b>事件驱动</b>
-          <span>流式 · 状态 · 工具 · 中断</span>
-        </figcaption>
       </figure>
     </div>
   </div>

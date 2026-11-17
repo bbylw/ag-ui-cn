@@ -1,0 +1,130 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { platforms, howStats, QUICKSTART_URL, OFFICIAL_DOCS_URL, DOJO_URL } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+const first = platforms[0];
+const hops = ["AG-UI 输入", "智能体推理", "标准事件流", "状态聚合", "界面渲染"];
+---
+
+<section class="k-section k-alt k-defer" id="platforms" tabindex="-1">
+  <div class="k-wrap">
+    <div class="k-how-grid">
+      <div data-reveal>
+        <p class="k-kicker" data-code="ARCH-03">多端与架构</p>
+        <h2 class="k-h2">同一套交互语义，<br />适配多端客户端形态。</h2>
+        <p class="k-lede">
+          AG-UI 只约束事件模型与输入契约，完全独立于传输通道与 UI 技术栈。无论前端是浏览器工作台、Slack/Teams 协同机器人还是终端 CLI，都共用同一份智能体后端。
+        </p>
+
+        <div class="k-how-stats">
+          {
+            howStats.map((s) => (
+              <div class="k-tile">
+                <div class="k-tile-v">
+                  {s.value}
+                  <small>{s.unit}</small>
+                </div>
+                <div class="k-tile-l">{s.label}</div>
+                <p class="k-tile-d">{s.desc}</p>
+              </div>
+            ))
+          }
+        </div>
+
+        <details class="k-sh-disc">
+          <summary class="k-btn k-btn-sm k-btn-ghost k-sh-sum">
+            <span class="k-sh-sum-shut">AG-UI 与 A2UI 有什么不同？</span>
+            <span class="k-sh-sum-open">收起说明</span>
+            <Icon name="ph:caret-down" class="k-sh-caret h-4 w-4" aria-hidden="true" />
+          </summary>
+          <div class="k-sh-warn">
+            <b><Icon name="ph:info" class="h-4 w-4" aria-hidden="true" />名称相近，定位互补</b>
+            A2UI 是生成式 UI 规范，关注智能体如何描述并交付组件；AG-UI 是智能体 ↔ 用户交互协议，关注事件流、状态同步与中断控制通道。两者可以天然协同使用。
+          </div>
+        </details>
+
+        <p class="k-more">
+          <a href={href("/concepts/architecture/")}>深入阅读核心架构文档 <span aria-hidden="true">→</span></a>
+        </p>
+      </div>
+
+      <div data-k-platforms data-reveal>
+        <div class="k-tabs" role="tablist" aria-label="选择客户端形态">
+          {
+            platforms.map((p, i) => (
+              <button
+                type="button"
+                id={`k-tab-${p.id}`}
+                class:list={["k-tab", i === 0 && "is-on"]}
+                data-k-platform={p.id}
+                role="tab"
+                aria-selected={i === 0 ? "true" : "false"}
+                aria-controls="k-diagram-panel"
+                tabindex={i === 0 ? 0 : -1}
+              >
+                <Icon name={p.icon} class="h-4 w-4" aria-hidden="true" />
+                {p.name}
+              </button>
+            ))
+          }
+        </div>
+
+        <div
+          class="k-diagram"
+          id="k-diagram-panel"
+          role="tabpanel"
+          aria-labelledby={`k-tab-${first.id}`}
+          data-k-platform-panel
+        >
+          <div class="k-node">
+            <div class="k-node-k">
+              <Icon name="ph:robot" class="h-4 w-4" aria-hidden="true" />
+              智能体后端 · Agent Runtime
+            </div>
+            <div class="k-node-p">LangGraph / CrewAI / Google ADK / 自研运行时，发出标准 AG-UI 事件</div>
+          </div>
+
+          <div class="k-channel">
+            <span class="k-packet" aria-hidden="true"></span>
+            <b data-k-channel>{first.channel}</b>
+          </div>
+
+          <div class="k-node is-guest">
+            <div class="k-node-k">
+              <Icon name={first.icon} class="h-4 w-4" aria-hidden="true" />
+              <span data-k-guest>{first.guest}</span>
+            </div>
+            <div class="k-node-p" data-k-guest-note>{first.guestNote}</div>
+            <div class="k-chain" aria-hidden="true">
+              {hops.map((h, i) => <span class:list={["k-hop", i === hops.length - 1 && "is-last"]}>{h}</span>)}
+            </div>
+          </div>
+        </div>
+        <p class="k-plat-caption" data-k-plat-caption>{first.desc}（{first.badge}）</p>
+      </div>
+    </div>
+
+    <div class="k-band" style="margin-top:clamp(36px, 5vw, 56px)" data-reveal>
+      <div>
+        <h2>准备好将智能体融入用户界面了吗？</h2>
+        <p>
+          阅读 AG-UI 中文概念与 1.0 协议规范，或前往交互演练场实际运行各框架下的流式与状态同步示例。
+        </p>
+      </div>
+      <div class="k-band-actions">
+        <a href={href(QUICKSTART_URL)} class="k-btn">
+          <Icon name="ph:rocket-launch" class="h-[18px] w-[18px]" aria-hidden="true" />
+          快速开始
+        </a>
+        <a href={href("/intro/")} class="k-btn k-btn-ghost">浏览中文文档</a>
+        <a href={DOJO_URL} target="_blank" rel="noopener" class="k-btn k-btn-ghost">
+          打开 Dojo
+          <Icon name="ph:arrow-up-right" class="h-4 w-4" aria-hidden="true" />
+        </a>
+        <a href={OFFICIAL_DOCS_URL} target="_blank" rel="noopener" class="k-btn k-btn-ghost">英文官网</a>
+      </div>
+    </div>
+  </div>
+</section>

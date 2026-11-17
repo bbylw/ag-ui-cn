@@ -10,10 +10,10 @@ const accent = { rose: "var(--k-rose)", teal: "var(--k-teal)", orchid: "var(--k-
 <section class="k-section k-alt k-defer" id="features" tabindex="-1">
   <div class="k-wrap">
     <header class="k-head" data-reveal>
-      <p class="k-kicker" data-code="CORE-09">核心能力</p>
-      <h2 class="k-h2">构建智能体应用所需的交互构建块。</h2>
+      <p class="k-kicker" data-code="CORE-06">核心能力与事件族</p>
+      <h2 class="k-h2">围绕交互语义构建的 6 项核心能力。</h2>
       <p class="k-lede">
-        从流式聊天到共享状态、从工具调用到人机协同，AG-UI 将复杂的智能体交互抽象为可组合、可扩展的标准能力。
+        每项交互能力都对应一组标准化事件，使后端无需关心前端组件形态，前端也不必为每个框架重复编写解析胶水。
       </p>
     </header>
 
@@ -26,18 +26,25 @@ const accent = { rose: "var(--k-rose)", teal: "var(--k-teal)", orchid: "var(--k-
             data-reveal
             data-i={i % 3}
           >
-            <span class="k-ft-ico">
-              <Icon name={f.icon} class="h-[22px] w-[22px]" aria-hidden="true" />
-            </span>
+            <div class="k-ft-top">
+              <span class="k-ft-ico">
+                <Icon name={f.icon} class="h-[22px] w-[22px]" aria-hidden="true" />
+              </span>
+              <code class="k-ft-ev">{f.eventTag}</code>
+            </div>
             <h3>{f.title}</h3>
             <p>{f.desc}</p>
             <a href={href(f.href)} class="k-ft-link">
-              查看说明
+              查看规范与概念
               <Icon name="ph:arrow-right" class="h-3.5 w-3.5" aria-hidden="true" />
             </a>
           </li>
         ))
       }
     </ul>
+
+    <p class="k-more">
+      <a href={href("/reference/events/")}>查阅全部 31 种标准事件类型与 8 大事件族参考 <span aria-hidden="true">→</span></a>
+    </p>
   </div>
 </section>

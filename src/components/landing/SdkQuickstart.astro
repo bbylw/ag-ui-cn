@@ -1,0 +1,99 @@
+---
+import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { quickPaths, sdkSnippets, QUICKSTART_URL } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
+const first = sdkSnippets[0];
+const scaffoldCmd = "npx create-ag-ui-app@latest";
+---
+
+<section class="k-section k-defer" id="sdk" tabindex="-1">
+  <div class="k-wrap k-sdk-grid">
+    <div data-reveal>
+      <p class="k-kicker" data-code="DEV-02">快速接入</p>
+      <h2 class="k-h2">十行代码，<br />接入标准事件流。</h2>
+      <p class="k-lede">
+        无论你在构建前端 Copilot 应用、为既有智能体后端发射事件，还是编写多端自定义客户端，AG-UI 都提供一致的事件订阅模型与多语言 SDK。
+      </p>
+
+      <ul class="k-path-list" role="list">
+        {
+          quickPaths.map((p) => (
+            <li>
+              <a href={href(p.href)} class="k-path-item">
+                <span class="k-path-ico">
+                  <Icon name={p.icon} class="h-[18px] w-[18px]" aria-hidden="true" />
+                </span>
+                <span class="k-path-body">
+                  <b>{p.title}</b>
+                  <small>{p.desc}</small>
+                </span>
+                <Icon name="ph:arrow-right" class="k-path-arr h-4 w-4" aria-hidden="true" />
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+
+      <div class="k-scaffold-bar">
+        <span class="k-scaffold-k">一行脚手架体验</span>
+        <div class="k-cmd k-scaffold-cmd">
+          <code>{scaffoldCmd}</code>
+          <button type="button" class="k-copy" data-copy={scaffoldCmd} aria-label={`复制：${scaffoldCmd}`}>
+            <Icon name="ph:copy" class="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+        <a href={href(QUICKSTART_URL)} class="k-btn k-btn-sm">完整快速开始</a>
+      </div>
+    </div>
+
+    <div class="k-sdk-right" data-k-sdk data-reveal>
+      <div class="k-sdk-tabs" role="tablist" aria-label="选择 SDK 语言或协议格式">
+        {
+          sdkSnippets.map((s, i) => (
+            <button
+              type="button"
+              role="tab"
+              id={`k-sdk-tab-${s.id}`}
+              class:list={["k-tab", i === 0 && "is-on"]}
+              aria-selected={i === 0 ? "true" : "false"}
+              aria-controls="k-sdk-panel"
+              tabindex={i === 0 ? 0 : -1}
+              data-k-sdk-tab={s.id}
+            >
+              {s.label}
+            </button>
+          ))
+        }
+      </div>
+
+      <figure
+        class="k-term k-sdk-term"
+        id="k-sdk-panel"
+        role="tabpanel"
+        aria-labelledby={`k-sdk-tab-${first.id}`}
+        data-k-sdk-panel
+      >
+        <div class="k-term-bar">
+          <i></i><i></i><i></i>
+          <b data-k-sdk-file>{first.filename}</b>
+          <span class="k-term-stack" aria-hidden="true"><b></b><b></b><b></b></span>
+        </div>
+        <pre class="k-sdk-pre"><code data-k-sdk-code>{first.code}</code></pre>
+        <figcaption class="k-term-foot">
+          <code class="k-sdk-install" data-k-sdk-install>{first.install}</code>
+          <button type="button" class="k-run k-run-ghost" data-k-sdk-copy data-copy={first.code}>
+            <Icon name="ph:copy" class="h-3.5 w-3.5" aria-hidden="true" />
+            复制代码
+          </button>
+          <a href={href(first.docHref)} class="k-run k-sdk-doc" data-k-sdk-link>查看文档</a>
+        </figcaption>
+      </figure>
+
+      <p class="k-more">
+        <a href={href("/sdk/")}>浏览 TypeScript / Python / .NET / Go 等多语言 SDK 文档 <span aria-hidden="true">→</span></a>
+      </p>
+    </div>
+  </div>
+</section>

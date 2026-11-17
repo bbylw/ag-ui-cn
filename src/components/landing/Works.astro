@@ -1,17 +1,28 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
-import { tools } from "../../lib/landing";
+import { ecosystems } from "../../lib/landing";
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const href = (path: string) => `${base}${path}`;
 ---
 
-<section class="k-works" aria-label="AG-UI 支持的能力">
+<section class="k-works" aria-label="主流智能体框架与协议集成">
   <div class="k-wrap k-works-in">
-    <p class="k-works-k">一套协议覆盖<br />智能体交互关键能力</p>
+    <div class="k-works-lead">
+      <span class="k-works-k">同一协议，适配主流框架</span>
+      <a href={href("/integrations/")} class="k-works-more">
+        全部生态集成
+        <Icon name="ph:arrow-right" class="h-3.5 w-3.5" aria-hidden="true" />
+      </a>
+    </div>
     <ul class="k-works-list" role="list">
       {
-        tools.map((t) => (
-          <li class="k-tool">
-            <Icon name="ph:check" class="h-3.5 w-3.5" aria-hidden="true" />
-            {t}
+        ecosystems.map((item) => (
+          <li>
+            <a href={href(item.href)} class="k-tool">
+              <span>{item.name}</span>
+              <em>{item.tag}</em>
+            </a>
           </li>
         ))
       }
