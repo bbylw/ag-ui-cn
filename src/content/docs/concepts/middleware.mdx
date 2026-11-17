@@ -125,7 +125,7 @@ agent.use(allowedFilter)
 
 ## 常见模式
 
-常见模式包括日志、通过 `forwardedProps` 鉴权，以及限流。具体实现见 [JS 中间件参考](https://docs.ag-ui.com/sdk/js/client/middleware)。
+常见模式包括日志、通过 `forwardedProps` 鉴权，以及限流。具体实现见 [JS 中间件参考](/sdk/js/client/middleware/)。
 
 ## 组合中间件
 
@@ -160,7 +160,7 @@ agent.use(middleware1, middleware2, middleware3)
 
 ## `RUN_STARTED` 上的协议版本
 
-每次运行的 `RUN_STARTED.protocolVersion` 表示该运行流所使用的版本，而不是谁在转发它（见 [Versioning](https://docs.ag-ui.com/spec/1-0/basic/versioning#version-negotiation)）。对中间件而言，这由**谁生产了该运行**决定，只有一条规则：
+每次运行的 `RUN_STARTED.protocolVersion` 表示该运行流所使用的版本，而不是谁在转发它（见[版本协商](/spec/1-0/basic/versioning/#版本协商)）。对中间件而言，这由**谁生产了该运行**决定，只有一条规则：
 
 - **转发运行**：当 `RUN_STARTED` 来自链中的下一个智能体时，原样传递其 `protocolVersion`。不要添加、覆盖或移除。若下游智能体早于该字段，缺失的声明就是真实情况。
 - **合成运行**：当中间件自己响应请求并发射自己的 `RUN_STARTED`（没有下游智能体运行）时，中间件就是该运行的生产者。使用 SDK 的 `PROTOCOL_VERSION` 常量声明它所基于的版本；不要镜像客户端的 `RunAgentInput.protocolVersion`，也不要省略该字段。
@@ -203,7 +203,7 @@ const conditionalMiddleware: MiddlewareFunction = (input, next) => {
 }
 ```
 
-事件转换与流控制变体见 [JS 中间件参考](https://docs.ag-ui.com/sdk/js/client/middleware)。
+事件转换与流控制变体见 [JS 中间件参考](/sdk/js/client/middleware/)。
 
 ## 结论
 

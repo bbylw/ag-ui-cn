@@ -9,6 +9,7 @@ function initPageActions(root: HTMLElement): () => void {
 
   if (!copyBtn || !mdUrl) return () => {};
 
+  const idleLabel = label?.textContent ?? "复制页面";
   let resetTimer: number | undefined;
 
   function showState(state: "copied" | "error") {
@@ -16,18 +17,18 @@ function initPageActions(root: HTMLElement): () => void {
     if (state === "copied") {
       copyIcon.classList.add("hidden");
       checkIcon.classList.remove("hidden");
-      label.textContent = "Copied";
+      label.textContent = "已复制";
     } else {
       // An error after a recent success shows the copy icon again, not the check.
       copyIcon.classList.remove("hidden");
       checkIcon.classList.add("hidden");
-      label.textContent = "Couldn't copy";
+      label.textContent = "复制失败";
     }
     if (resetTimer) window.clearTimeout(resetTimer);
     resetTimer = window.setTimeout(() => {
       copyIcon.classList.remove("hidden");
       checkIcon.classList.add("hidden");
-      label.textContent = "Copy page";
+      label.textContent = idleLabel;
     }, 1500);
   }
 

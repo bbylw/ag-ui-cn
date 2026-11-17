@@ -41,8 +41,10 @@ const hops = ["AG-UI 输入", "智能体执行", "标准事件", "客户端状�
           platforms.map((p, i) => (
             <button
               type="button"
+              id={`k-tab-${p.id}`}
               class:list={["k-tab", i === 0 && "is-on"]}
               role="tab"
+              tabindex={i === 0 ? 0 : -1}
               aria-selected={i === 0 ? "true" : "false"}
               data-k-platform={p.id}
             >
@@ -53,7 +55,7 @@ const hops = ["AG-UI 输入", "智能体执行", "标准事件", "客户端状�
         }
       </div>
 
-      <div class="k-diagram" data-k-diagram>
+      <div class="k-diagram" role="tabpanel" aria-labelledby={`k-tab-${first.id}`} tabindex="0" data-k-diagram>
         <div class="k-node">
           <div class="k-node-h">
             <Icon name="ph:robot" class="h-[18px] w-[18px]" aria-hidden="true" />

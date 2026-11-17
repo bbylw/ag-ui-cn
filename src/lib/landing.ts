@@ -148,19 +148,6 @@ export const features: Feature[] = [
   },
 ];
 
-export const languages = [
-  "简体中文",
-  "English",
-  "日本語",
-  "한국어",
-  "Español",
-  "Français",
-  "Deutsch",
-  "Português",
-  "Русский",
-  "العربية",
-];
-
 export interface TermLine {
   cmd: string;
   out: { text: string; tone?: "ok" | "dim" | "brand" }[];
@@ -168,7 +155,7 @@ export interface TermLine {
 
 export const termSession: TermLine[] = [
   {
-    cmd: "npx create-ag-ui-app my-agent-app",
+    cmd: "npx create-ag-ui-app@latest my-agent-app",
     out: [
       { text: "✔ Creating AG-UI application...", tone: "dim" },
       { text: "✔ Ready: my-agent-app", tone: "ok" },
@@ -223,7 +210,7 @@ export const steps = [
     n: "01",
     title: "创建应用",
     desc: "使用官方脚手架初始化项目，获得 AG-UI 应用的基础结构与示例。",
-    code: "npx create-ag-ui-app my-agent-app",
+    code: "npx create-ag-ui-app@latest my-agent-app",
     cta: { label: "查看快速开始", href: QUICKSTART_URL, external: false },
   },
   {
@@ -297,7 +284,7 @@ export const platforms: Platform[] = [
 ];
 
 export const howStats = [
-  { value: "~16", unit: "类", label: "标准事件类型", desc: "覆盖消息、状态、工具、控制等核心交互语义。" },
+  { value: "31", unit: "种", label: "标准事件类型", desc: "归属 8 个事件族，覆盖生命周期、消息、状态、工具与推理。" },
   { value: "3", unit: "层", label: "协议栈协同", desc: "MCP 提供工具，A2A 连接智能体，AG-UI 连接用户。" },
   { value: "∞", unit: "", label: "可扩展能力", desc: "通过自定义事件与中间件适配不同框架与业务场景。" },
 ];

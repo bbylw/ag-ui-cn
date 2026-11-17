@@ -162,7 +162,7 @@ const compacted = compactEvents(restored)
 
 持久化时需了解两点：
 
-- **压缩会折叠它**：折叠增量会合并其元数据，最后写入胜出。排序注意事项见[事件压缩](#事件压缩)与[压缩参考](https://docs.ag-ui.com/sdk/js/client/compaction)。
+- **压缩会折叠它**：折叠增量会合并其元数据，最后写入胜出。排序注意事项见[事件压缩](#事件压缩)与[压缩参考](/sdk/js/client/compaction/)。
 - **二进制比 JSON 更窄**：通过 protobuf，元数据是 `google.protobuf.Struct`，null、数组与嵌套对象可保留——但数字是 IEEE-754 double，超过 2^53 的整数会丢失精度，且若干事件类型根本没有 protobuf 表示。JSON 可精确往返一切。**归档存储优先使用 JSON。**
 
 ## 实现说明

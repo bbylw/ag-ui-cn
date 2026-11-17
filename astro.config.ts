@@ -9,7 +9,7 @@ const nimbusConfig = defineNimbusConfig({
   site: "https://ag-ui.ndjp.net",
   title: "AG-UI 中文文档",
   description:
-    "AG-UI（Agent–User Interaction Protocol）中文站点：开放、轻量、事件驱动的智能体与用户交互协议，包含落地页与完整中文文档。",
+    "AG-UI（Agent-User Interaction Protocol）中文站点：开放、轻量、事件驱动的智能体与用户交互协议，包含落地页与完整中文文档。",
   locale: "zh-CN",
   github: "https://github.com/ag-ui-protocol/ag-ui",
   socialImageAlt: "AG-UI 中文文档预览",

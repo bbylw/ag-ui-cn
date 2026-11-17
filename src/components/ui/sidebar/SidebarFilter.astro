@@ -10,7 +10,7 @@ interface Props extends HTMLAttributes<"div"> {
   placeholder?: string;
 }
 
-const { class: className, placeholder = "Filter…", ...attrs } = Astro.props;
+const { class: className, placeholder = "筛选目录…", ...attrs } = Astro.props;
 const key = shortcuts.filterSidebar;
 ---
 
@@ -20,7 +20,7 @@ const key = shortcuts.filterSidebar;
     type="search"
     placeholder={placeholder}
     class:list={["peer w-full rounded-md border border-border bg-card py-1.5 ps-3 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-brand focus-visible:outline-2 focus-visible:outline-ring", key ? "pe-9 [&:not(:placeholder-shown)]:pe-2" : "pe-2"]}
-    aria-label="Filter navigation"
+    aria-label="筛选导航"
     data-nb-shortcut-for={key || undefined}
     autocomplete="off"
   />

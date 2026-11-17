@@ -2773,12 +2773,6 @@ html[data-mode="dark"]:has(.kiri) {
 	background: var(--k-bg-alt);
 	border-top: 1px solid var(--k-line);
 }
-.k-skyline {
-	display: block;
-	width: 100%;
-	height: 96px;
-	color: var(--k-line-strong);
-}
 .k-foot-grid {
 	display: grid;
 	grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
@@ -2991,14 +2985,6 @@ html[data-mode="dark"]:has(.kiri) {
 				translate: 0 -26px;
 			}
 		}
-		@keyframes k-skyline-drift {
-			from {
-				translate: 0 22px;
-			}
-			to {
-				translate: 0 -6px;
-			}
-		}
 		[data-reveal] {
 			animation: k-rise auto linear both;
 		}
@@ -3013,9 +2999,6 @@ html[data-mode="dark"]:has(.kiri) {
 			inset: -30px 0;
 			animation: k-tile-drift auto linear both;
 		}
-		.k-skyline {
-			animation: k-skyline-drift auto linear both;
-		}
 
 		.kiri {
 			timeline-scope: --k-hero;
@@ -3024,8 +3007,7 @@ html[data-mode="dark"]:has(.kiri) {
 			view-timeline: --k-hero;
 		}
 		.kiri [data-reveal],
-		.kiri .k-alt::after,
-		.kiri .k-skyline {
+		.kiri .k-alt::after {
 			animation-timeline: view();
 		}
 		.kiri [data-reveal] {
@@ -3042,9 +3024,6 @@ html[data-mode="dark"]:has(.kiri) {
 		}
 		.kiri .k-alt::after {
 			animation-range: cover 0% cover 100%;
-		}
-		.kiri .k-skyline {
-			animation-range: entry 0% cover 60%;
 		}
 		/* cards in a grid stagger off their own position, not a hand-set index */
 		@supports (animation-range: entry calc(1% * sibling-index())) {

@@ -1,9 +1,7 @@
 ---
-title: 类型
+title: "@ag-ui/core 类型"
 description: "@ag-ui/core 的核心类型：RunAgentInput、消息、内容片段、工具与状态。"
 ---
-
-# 核心类型
 
 Agent User Interaction Protocol SDK 建立在一组核心类型之上，它们构成系统中使用的基础结构。本页记录这些类型及其属性。
 
@@ -41,7 +39,7 @@ type RunAgentInput = {
 
 ## ResumeEntry
 
-`RunAgentInput.resume` 中每个中断对应一条，用于回应上一个运行留下的[中断](/concepts/interrupts/#恢复运行)。
+`RunAgentInput.resume` 中每个中断对应一条，用于回应上一个运行留下的[中断](/concepts/interrupts/#中断与运行生命周期)。
 
 ```typescript
 type ResumeEntry = {

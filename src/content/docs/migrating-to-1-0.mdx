@@ -3,9 +3,9 @@ title: 迁移到 1.0
 description: 应用或集成迁移到 AG-UI 1.0 时各 SDK 的变化，以及哪些无需改动。
 ---
 
-AG-UI 1.0 是第一个有规范支撑的版本：[schema](https://docs.ag-ui.com/spec/1-0/schema) 是唯一事实来源，每个 SDK 的协议类型都由它生成，过去只存在于 TypeScript 客户端中的行为规则也被[写了下来](https://docs.ag-ui.com/spec/1-0)。大多数变化是**增量式**的。本页讲的是需要你动手的部分——各 SDK 要改什么，以及什么可以继续工作。
+AG-UI 1.0 是第一个有规范支撑的版本：[schema](/spec/1-0/schema/) 是唯一事实来源，每个 SDK 的协议类型都由它生成，过去只存在于 TypeScript 客户端中的行为规则也被[写了下来](/spec/1-0/)。大多数变化是**增量式**的。本页讲的是需要你动手的部分——各 SDK 要改什么，以及什么可以继续工作。
 
-协议级变更见规范的 [Key Changes](https://docs.ag-ui.com/spec/1-0/changelog)；本页只说明它们对你已有代码意味着什么。
+协议级变更见规范的[关键变更（Key Changes）](/spec/1-0/changelog/)；本页只说明它们对你已有代码意味着什么。
 
 ## 哪些继续有效
 
@@ -15,7 +15,7 @@ AG-UI 1.0 是第一个有规范支撑的版本：[schema](https://docs.ag-ui.com
 
 ## 生产者：声明你的版本
 
-1.0 生产者**必须**在 `RUN_STARTED` 上声明它所使用的协议版本（见 [Versioning](https://docs.ag-ui.com/spec/1-0/basic/versioning)）。该字段在 schema 中是可选的——因为“缺失”正是识别 1.0 之前生产者的方式。因此当你自己构建事件时，没有 SDK 会替你添加。
+1.0 生产者**必须**在 `RUN_STARTED` 上声明它所使用的协议版本（见[版本与兼容](/spec/1-0/basic/versioning/)）。该字段在 schema 中是可选的——因为“缺失”正是识别 1.0 之前生产者的方式。因此当你自己构建事件时，没有 SDK 会替你添加。
 
 使用 SDK 的常量，不要手写字符串，也不要回显 `RunAgentInput.protocolVersion`：声明表达的是**生产者自己的版本**。
 
@@ -165,6 +165,6 @@ patches = [operation.model_dump(by_alias=True) for operation in event.delta]
 
 ## 下一步
 
-- 协议级差异：[Key Changes](https://docs.ag-ui.com/spec/1-0/changelog)
-- 能力声明现在的要求：[Capabilities](https://docs.ag-ui.com/spec/1-0/basic/capabilities)
-- 1.0 与旧版本如何对话：[Versioning and compatibility](https://docs.ag-ui.com/spec/1-0/basic/versioning)
+- 协议级差异：[关键变更（Key Changes）](/spec/1-0/changelog/)
+- 能力声明现在的要求：[能力（Capabilities）](/spec/1-0/basic/capabilities/)
+- 1.0 与旧版本如何对话：[版本与兼容](/spec/1-0/basic/versioning/)

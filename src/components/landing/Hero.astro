@@ -14,10 +14,10 @@ const rail = [
 ];
 
 const rows = [
-  { name: "RUN_STARTED", img: "会话启动", state: "已接收", tone: "live", up: 1 },
-  { name: "TEXT_MESSAGE_*", img: "流式输出", state: "进行中", tone: "share", up: 128 },
-  { name: "TOOL_CALL_*", img: "工具调用", state: "已完成", tone: "live", up: 42 },
-  { name: "STATE_SNAPSHOT", img: "状态同步", state: "已同步", tone: "idle", up: 0 },
+  { name: "RUN_STARTED", img: "会话启动", state: "已接收", tone: "live" },
+  { name: "TEXT_MESSAGE_*", img: "流式输出", state: "进行中", tone: "share" },
+  { name: "TOOL_CALL_*", img: "工具调用", state: "已完成", tone: "live" },
+  { name: "STATE_SNAPSHOT", img: "状态同步", state: "已同步", tone: "idle" },
 ];
 ---
 
@@ -36,7 +36,7 @@ const rows = [
       <div class="k-stat">
         <p class="k-stat-k">协议定位 · Agentic Protocol Stack</p>
         <div class="k-stat-main">
-          <span class="k-big">~16<small>类</small></span>
+          <span class="k-big">31<small>种</small></span>
           <span class="k-stat-side">标准事件类型</span>
         </div>
         <p class="k-stat-cap">
@@ -126,7 +126,7 @@ const rows = [
                       <span class:list={["k-row-dot", r.tone === "idle" && "is-idle", r.tone === "share" && "is-share"]} />
                       <span class="k-row-name">{r.name}</span>
                       <span class="k-row-img">{r.img}</span>
-                      <span class:list={["k-row-state", r.tone === "share" && "is-live"]} data-k-up={r.up || undefined}>
+                      <span class:list={["k-row-state", r.tone === "share" && "is-live"]}>
                         {r.state}
                       </span>
                     </li>

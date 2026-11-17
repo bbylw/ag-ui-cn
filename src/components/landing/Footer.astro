@@ -6,7 +6,13 @@ import { GITHUB_URL, OFFICIAL_DOCS_URL, DOJO_URL, DISCORD_URL } from "../../lib/
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
 
-const columns = [
+interface FooterLink {
+  label: string;
+  href: string;
+  external?: boolean;
+}
+
+const columns: { title: string; links: FooterLink[] }[] = [
   {
     title: "文档",
     links: [

@@ -22,7 +22,7 @@ const baseBtn =
 const extra = Astro.slots.has("default") ? (await Astro.slots.render("default")).trim() : "";
 
 const formattedDate = lastUpdated
-  ? new Intl.DateTimeFormat(undefined, { year: "numeric", month: "short", day: "numeric" }).format(lastUpdated)
+  ? new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "short", day: "numeric" }).format(lastUpdated)
   : null;
 ---
 
@@ -30,7 +30,7 @@ const formattedDate = lastUpdated
     they skip the sidebar, while its controls stay in the tab order. */}
 {(markdownUrl || lastUpdated || extra) && (
   <nav
-    aria-label="Page actions"
+    aria-label="页面操作"
     data-nb-page-actions
     data-slot="page-actions"
     data-pagefind-ignore
@@ -42,7 +42,7 @@ const formattedDate = lastUpdated
     {lastUpdated && (
       <span class="inline-flex items-center gap-1.5 px-2 py-1 text-muted-foreground">
         <Icon name="ph:clock" class="w-3.5 h-3.5" />
-        <span class="sr-only sm:not-sr-only">Updated</span> <time datetime={lastUpdated.toISOString()}>{formattedDate}</time>
+        <span class="sr-only sm:not-sr-only">更新于</span> <time datetime={lastUpdated.toISOString()}>{formattedDate}</time>
       </span>
     )}
 
@@ -55,7 +55,7 @@ const formattedDate = lastUpdated
         <button type="button" data-nb-page-actions-copy class={baseBtn}>
           <Icon name="ph:copy" class="w-3.5 h-3.5" data-nb-page-actions-copy-icon />
           <Icon name="ph:check" class="hidden w-3.5 h-3.5 text-success" data-nb-page-actions-check-icon />
-          <span data-nb-page-actions-label aria-live="polite">Copy page</span>
+          <span data-nb-page-actions-label aria-live="polite">复制页面</span>
         </button>
 
         <span aria-hidden="true" data-slot="page-actions-separator" class="hidden select-none text-muted-foreground/40 sm:inline">|</span>
@@ -64,12 +64,12 @@ const formattedDate = lastUpdated
           href={resolvedMarkdownUrl}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label="View as Markdown"
+          aria-label="查看 Markdown"
           class={baseBtn}
         >
           <Icon name="ph:markdown-logo" class="w-3.5 h-3.5" />
           <span class="sm:hidden" aria-hidden="true">Markdown</span>
-          <span class="hidden sm:inline" aria-hidden="true">View as Markdown</span>
+          <span class="hidden sm:inline" aria-hidden="true">查看 Markdown</span>
         </a>
       </>
     )}

@@ -45,6 +45,8 @@ const homeHref = withBase("/", import.meta.env.BASE_URL);
 const resolveSectionHref = (href: string): string => withBase(href, import.meta.env.BASE_URL);
 const docsHref = withBase("/intro/", import.meta.env.BASE_URL);
 const quickstartHref = withBase("/quickstart/", import.meta.env.BASE_URL);
+const isQuickstart = currentSlug === "/quickstart" || currentSlug.startsWith("/quickstart/");
+const isDocs = currentSlug !== "/" && currentSlug !== "/404" && !isQuickstart;
 ---
 
 <header class="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-lg">
@@ -58,8 +60,8 @@ const quickstartHref = withBase("/quickstart/", import.meta.env.BASE_URL);
       </slot>
 
       <nav aria-label="主导航" class="hidden md:flex items-center gap-1 ms-4 ps-4 border-s border-border h-6 min-w-0">
-        <a href={docsHref} class:list={["px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors whitespace-nowrap", currentSlug !== "/" ? "text-foreground bg-accent" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"]}>文档</a>
-        <a href={quickstartHref} class="px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-accent/60">快速开始</a>
+        <a href={docsHref} class:list={["px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors whitespace-nowrap", isDocs ? "text-foreground bg-accent" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"]}>文档</a>
+        <a href={quickstartHref} class:list={["px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors whitespace-nowrap", isQuickstart ? "text-foreground bg-accent" : "text-muted-foreground hover:text-foreground hover:bg-accent/60"]}>快速开始</a>
         <a href="https://docs.ag-ui.com/" target="_blank" rel="noopener" class="px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors whitespace-nowrap text-muted-foreground hover:text-foreground hover:bg-accent/60">官方文档</a>
       </nav>
 
@@ -115,9 +117,9 @@ const quickstartHref = withBase("/quickstart/", import.meta.env.BASE_URL);
       )}
     </div>
   </div>
-  <nav aria-label="移动导航" class="md:hidden flex items-center gap-1 h-10 px-4 overflow-x-auto border-t border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  <nav aria-label="移动导航" data-nb-header-tabs class="md:hidden flex items-center gap-1 h-10 px-4 overflow-x-auto border-t border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     <a href={homeHref} class:list={["px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline whitespace-nowrap", currentSlug === "/" ? "text-foreground bg-accent" : "text-muted-foreground"]}>首页</a>
-    <a href={docsHref} class:list={["px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline whitespace-nowrap", currentSlug !== "/" ? "text-foreground bg-accent" : "text-muted-foreground"]}>文档</a>
-    <a href={quickstartHref} class="px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline whitespace-nowrap text-muted-foreground">快速开始</a>
+    <a href={docsHref} class:list={["px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline whitespace-nowrap", isDocs ? "text-foreground bg-accent" : "text-muted-foreground"]}>文档</a>
+    <a href={quickstartHref} class:list={["px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline whitespace-nowrap", isQuickstart ? "text-foreground bg-accent" : "text-muted-foreground"]}>快速开始</a>
   </nav>
 </header>

@@ -27,14 +27,14 @@ const singles = Object.values(shortcuts).filter(isSingleKey).map(shortcutLabel);
     checked
     data-nb-shortcuts-toggle
     data-slot="shortcuts-toggle"
-    title={compact ? "Single-key shortcuts" : undefined}
+    title={compact ? "单键快捷键" : undefined}
     class={cn(
       "rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground",
       className,
     )}
     {...attrs}
   >
-    <span class={compact ? "sr-only" : undefined}>Single-key shortcuts</span>
+    <span class={compact ? "sr-only" : undefined}>单键快捷键</span>
     <span class={cn("font-mono", compact && "hidden md:inline")} dir="ltr" aria-hidden="true">{singles.join(" ")}</span>
   </Switch>
 )}

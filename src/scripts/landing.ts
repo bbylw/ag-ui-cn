@@ -1,7 +1,7 @@
 /**
- * Landing page behaviour: the race, the terminal, the share card, the memory
- * lab, the platform diagram and the chrome around them. Everything is torn
- * down on `astro:before-swap` so client-side navigation never doubles a loop.
+ * Landing page behaviour: the protocol comparison race, interactive terminal,
+ * event-stream observability lab, platform architecture tabs and page chrome.
+ * Everything is torn down on `astro:before-swap` so client-side navigation never doubles a loop.
  */
 import {
   raceEngines,
@@ -170,13 +170,16 @@ function initChrome(root: HTMLElement) {
     listen(themeBtn, "click", () => {
       const dark = document.documentElement.getAttribute("data-mode") === "dark";
       const next = dark ? "light" : "dark";
+      let persisted = false;
       try {
         localStorage.setItem("ui-mode", next);
+        persisted = true;
       } catch {
         /* storage refused: the layout keeps the choice for this page */
       }
-      const apply = (window as unknown as { __nbApplyTheme?: (m: string) => void }).__nbApplyTheme;
-      if (apply) apply(next);
+      const apply = (window as unknown as { __nbApplyTheme?: (m?: string) => void }).__nbApplyTheme;
+      // Only pass `next` when storage refused it; passing it unconditionally locks BaseLayout's `unsaved` override.
+      if (apply) apply(persisted ? undefined : next);
       else document.documentElement.setAttribute("data-mode", next);
       sync();
     });
@@ -278,52 +281,6 @@ function initChrome(root: HTMLElement) {
     });
     teardowns.push(() => window.clearTimeout(timer));
   });
-}
-
-/* -------------------------------------------------------------- hero window */
-
-function initWindow(root: HTMLElement) {
-  const win = q<HTMLElement>(root, "[data-k-window]");
-  if (!win) return;
-  const cpu = q<HTMLElement>(win, "[data-k-cpu]");
-  const mem = q<HTMLElement>(win, "[data-k-mem]");
-  const footMem = q<HTMLElement>(win, "[data-k-foot-mem]");
-  const cpuBars = every<HTMLElement>(win, '[data-k-spark="cpu"] i');
-  const memBars = every<HTMLElement>(win, '[data-k-spark="mem"] i');
-  const ups = every<HTMLElement>(win, "[data-k-up]");
-  const upStart = ups.map((el) => Number(el.dataset.kUp ?? 0));
-
-  let memory = 657;
-  let visible = false;
-  const shift = (bars: HTMLElement[], value: number) => {
-    for (let i = 0; i < bars.length - 1; i++) bars[i].style.height = bars[i + 1].style.height;
-    bars[bars.length - 1].style.height = `${Math.max(8, Math.min(100, value))}%`;
-  };
-
-  const tick = () => {
-    if (!visible || document.hidden) return;
-    const load = 0.2 + Math.random() * 0.9;
-    memory = Math.max(560, Math.min(760, memory + Math.round((Math.random() - 0.5) * 26)));
-    if (cpu) cpu.textContent = `${load.toFixed(1)}%`;
-    if (mem) mem.textContent = `${memory} MB`;
-    if (footMem) footMem.textContent = `${memory} MB / 4 GB`;
-    shift(cpuBars, load * 55 + Math.random() * 12);
-    shift(memBars, (memory / 1024) * 100);
-    ups.forEach((el, i) => {
-      upStart[i] += 2;
-      const m = Math.floor(upStart[i] / 60);
-      el.textContent = m >= 1 ? `运行 ${m} 分钟` : `运行 ${upStart[i]} 秒`;
-    });
-  };
-
-  cpuBars.forEach((b, i) => (b.style.height = `${18 + ((i * 13) % 40)}%`));
-  memBars.forEach((b, i) => (b.style.height = `${40 + ((i * 7) % 25)}%`));
-
-  if (!reduced()) {
-    const id = window.setInterval(tick, 2000);
-    teardowns.push(() => window.clearInterval(id));
-    whileVisible(win, () => (visible = true), () => (visible = false));
-  }
 }
 
 /* -------------------------------------------------------------------- race */
@@ -677,68 +634,31 @@ function initTerminal(root: HTMLElement) {
   teardowns.push(clear);
 }
 
-/* ------------------------------------------------------------------- share */
-
-function initShare(root: HTMLElement) {
-  const card = q<HTMLElement>(root, "[data-k-share]");
-  if (!card) return;
-  const state = q<HTMLElement>(card, "[data-k-share-state]");
-  const toggle = q<HTMLButtonElement>(card, "[data-k-share-toggle]");
-  const copy = q<HTMLButtonElement>(card, "[data-k-share-copy]");
-  const hits = q<HTMLElement>(card, "[data-k-share-hits]");
-
-  let connected = true;
-  let count = 14;
-  let visible = false;
-
-  const paint = () => {
-    card.classList.toggle("is-off", !connected);
-    if (state) state.textContent = connected ? "已连接" : "已断开";
-    if (toggle) toggle.textContent = connected ? "断开" : "重新连接";
-    if (copy) copy.disabled = !connected;
-  };
-
-  if (toggle)
-    listen(toggle, "click", () => {
-      connected = !connected;
-      paint();
-    });
-
-  const id = window.setInterval(() => {
-    if (!connected || !visible || document.hidden || reduced()) return;
-    count += 1;
-    if (hits) hits.textContent = String(count);
-  }, 5200);
-  teardowns.push(() => window.clearInterval(id));
-  whileVisible(card, () => (visible = true), () => (visible = false));
-  paint();
-}
-
-/* ------------------------------------------------------------ memory lab */
+/* ------------------------------------------------------- event stream lab */
 
 function initResource(root: HTMLElement) {
   const lab = q<HTMLElement>(root, "[data-k-rl]");
   if (!lab) return;
 
-  const containersIn = q<HTMLInputElement>(lab, "[data-k-rl-containers]");
+  const streamsIn = q<HTMLInputElement>(lab, "[data-k-rl-containers]");
   const perIn = q<HTMLInputElement>(lab, "[data-k-rl-per]");
   const speedIn = q<HTMLInputElement>(lab, "[data-k-rl-speed]");
   const idleIn = q<HTMLSelectElement>(lab, "[data-k-rl-idle]");
   const autoIn = q<HTMLInputElement>(lab, "[data-k-rl-auto]");
   const playBtn = q<HTMLButtonElement>(lab, "[data-k-rl-play]");
   const playLabel = q<HTMLElement>(lab, "[data-k-rl-play-label]");
-  const wakeBtn = q<HTMLButtonElement>(lab, "[data-k-rl-wake]");
+  const refreshBtn = q<HTMLButtonElement>(lab, "[data-k-rl-wake]");
   const resetBtn = q<HTMLButtonElement>(lab, "[data-k-rl-reset]");
 
-  const containersVal = q<HTMLElement>(lab, "[data-k-rl-containers-val]");
+  const streamsVal = q<HTMLElement>(lab, "[data-k-rl-containers-val]");
   const perVal = q<HTMLElement>(lab, "[data-k-rl-per-val]");
   const speedVal = q<HTMLElement>(lab, "[data-k-rl-speed-val]");
   const stateEl = q<HTMLElement>(lab, "[data-k-rl-state]");
   const stateText = q<HTMLElement>(lab, "[data-k-rl-state-text]");
   const clockEl = q<HTMLElement>(lab, "[data-k-rl-clock]");
-  const vmFill = q<HTMLElement>(lab, "[data-k-rl-vm-fill]");
-  const vmVal = q<HTMLElement>(lab, "[data-k-rl-vm-val]");
-  const daemonFill = q<HTMLElement>(lab, "[data-k-rl-daemon-fill]");
+  const throughputFill = q<HTMLElement>(lab, "[data-k-rl-vm-fill]");
+  const throughputVal = q<HTMLElement>(lab, "[data-k-rl-vm-val]");
+  const baseFill = q<HTMLElement>(lab, "[data-k-rl-daemon-fill]");
   const idleFill = q<HTMLElement>(lab, "[data-k-rl-idle-fill]");
   const idleVal = q<HTMLElement>(lab, "[data-k-rl-idle-val]");
   const peakEl = q<HTMLElement>(lab, "[data-k-rl-peak]");
@@ -746,11 +666,10 @@ function initResource(root: HTMLElement) {
   const area = q<SVGPathElement>(lab, "[data-k-rl-area]");
   const log = q<HTMLElement>(lab, "[data-k-rl-log]");
 
-  const BASE = 120;
-  const DAEMON = 15;
-  const WAKE = 0.15;
+  const BASE_OVERHEAD = 15;
+  const SYNC_PULSE_SEC = 0.4;
 
-  let containers = 4;
+  let streams = 4;
   let per = 128;
   let speed = 6;
   let idleLimit = 60;
@@ -758,17 +677,17 @@ function initResource(root: HTMLElement) {
   let visible = false;
   let t = 0;
   let idle = 0;
-  let mem = BASE + containers * per;
+  let throughput = streams * per;
   let mode: "run" | "idle" | "sleep" | "wake" = "run";
-  let wakeLeft = 0;
-  let peak = mem;
-  let history: number[] = [mem];
+  let syncLeft = 0;
+  let peak = throughput;
+  let history: number[] = [throughput];
   let sampleAt = 0;
   let autoAt = 0;
   let raf = 0;
   let last = 0;
 
-  const target = () => (mode === "sleep" ? 0 : BASE + containers * per);
+  const target = () => (mode === "sleep" ? 0 : streams * per);
 
   function addLog(text: string) {
     if (!log) return;
@@ -783,29 +702,28 @@ function initResource(root: HTMLElement) {
   }
 
   function paintControls() {
-    if (containersVal) containersVal.textContent = String(containers);
-    if (perVal) perVal.textContent = `${per} MB`;
+    if (streamsVal) streamsVal.textContent = String(streams);
+    if (perVal) perVal.textContent = String(per);
     if (speedVal) speedVal.textContent = `${speed}×`;
-    [containersIn, perIn, speedIn].forEach((i) => i && paintRange(i));
+    [streamsIn, perIn, speedIn].forEach((i) => i && paintRange(i));
     if (playBtn) playBtn.classList.toggle("is-playing", playing);
     if (playLabel) playLabel.textContent = playing ? "暂停" : "继续";
-    if (wakeBtn) {
-      const asleep = mode === "sleep";
-      wakeBtn.textContent = asleep ? "立即唤醒" : "立即休眠";
-      wakeBtn.disabled = !asleep && containers > 0;
-      wakeBtn.title = wakeBtn.disabled ? "还有容器在运行，VM 不会休眠" : "";
+    if (refreshBtn) {
+      refreshBtn.textContent = mode === "sleep" ? "恢复连接" : "刷新状态";
+      refreshBtn.disabled = false;
+      refreshBtn.title = "";
     }
   }
 
   function paint() {
     const scale = Math.max(512, peak) * 1.16;
-    if (vmFill) vmFill.style.width = `${Math.min(100, (mem / scale) * 100)}%`;
-    if (vmVal) vmVal.textContent = `${Math.round(mem)} MB`;
-    if (daemonFill) daemonFill.style.width = `${(DAEMON / scale) * 100}%`;
+    if (throughputFill) throughputFill.style.width = `${Math.min(100, (throughput / scale) * 100)}%`;
+    if (throughputVal) throughputVal.textContent = String(Math.round(throughput));
+    if (baseFill) baseFill.style.width = `${(BASE_OVERHEAD / scale) * 100}%`;
     if (idleFill) idleFill.style.width = `${Math.min(100, (idle / idleLimit) * 100)}%`;
     if (idleVal) idleVal.textContent = `${Math.floor(idle)} / ${idleLimit} s`;
     if (clockEl) clockEl.textContent = clock(t);
-    if (peakEl) peakEl.textContent = `峰值 ${Math.round(peak)} MB`;
+    if (peakEl) peakEl.textContent = `峰值 ${Math.round(peak)}`;
     if (stateEl) {
       stateEl.classList.toggle("is-idle", mode === "idle");
       stateEl.classList.toggle("is-sleep", mode === "sleep");
@@ -814,12 +732,12 @@ function initResource(root: HTMLElement) {
     if (stateText)
       stateText.textContent =
         mode === "run"
-          ? `运行中 · ${containers} 个容器`
+          ? `会话进行中 · ${streams} 路并发`
           : mode === "idle"
-            ? `空闲 · ${Math.max(0, Math.ceil(idleLimit - idle))} 秒后休眠`
+            ? `空闲等待 · ${Math.max(0, Math.ceil(idleLimit - idle))} 秒后挂起`
             : mode === "wake"
-              ? "唤醒中 · 0.15 秒"
-              : "已休眠 · 内存已归还";
+              ? "状态同步中 · STATE_SNAPSHOT"
+              : "连接已挂起 · 等待新事件";
 
     if (line && area) {
       const n = history.length;
@@ -836,16 +754,16 @@ function initResource(root: HTMLElement) {
   function step(dt: number) {
     t += dt;
     if (mode === "wake") {
-      wakeLeft -= dt;
-      if (wakeLeft <= 0) {
-        mode = containers > 0 ? "run" : "idle";
-        addLog(`VM 已唤醒（约 ${WAKE} 秒）`);
+      syncLeft -= dt;
+      if (syncLeft <= 0) {
+        mode = streams > 0 ? "run" : "idle";
+        addLog("已接收 STATE_SNAPSHOT，状态同步完成");
       }
-    } else if (containers > 0) {
+    } else if (streams > 0) {
       if (mode === "sleep") {
         mode = "wake";
-        wakeLeft = WAKE;
-        addLog("收到请求，正在唤醒 VM…");
+        syncLeft = SYNC_PULSE_SEC;
+        addLog("收到新运行请求（RUN_STARTED），正在恢复事件流…");
       } else {
         mode = "run";
         idle = 0;
@@ -856,26 +774,26 @@ function initResource(root: HTMLElement) {
       if (idle >= idleLimit) {
         mode = "sleep";
         idle = idleLimit;
-        addLog(`空闲 ${idleLimit} 秒，VM 休眠，内存归还系统`);
+        addLog(`空闲 ${idleLimit} 秒，挂起 SSE 连接并保留会话快照`);
       }
     }
 
     const goal = target();
-    mem += (goal - mem) * Math.min(1, dt * 3.2);
-    if (Math.abs(goal - mem) < 0.6) mem = goal;
-    peak = Math.max(peak, mem);
+    throughput += (goal - throughput) * Math.min(1, dt * 3.2);
+    if (Math.abs(goal - throughput) < 0.6) throughput = goal;
+    peak = Math.max(peak, throughput);
 
     if (t - sampleAt >= 1) {
       sampleAt = t;
-      history.push(mem);
+      history.push(throughput);
       if (history.length > 120) history.shift();
     }
 
     if (autoIn?.checked && t - autoAt >= 9) {
       autoAt = t;
-      containers = containers === 0 ? 2 + Math.floor(Math.random() * 5) : 0;
-      if (containersIn) containersIn.value = String(containers);
-      addLog(containers === 0 ? "所有容器已停止" : `启动了 ${containers} 个容器`);
+      streams = streams === 0 ? 2 + Math.floor(Math.random() * 5) : 0;
+      if (streamsIn) streamsIn.value = String(streams);
+      addLog(streams === 0 ? "当前任务完成（RUN_FINISHED），进入空闲窗口" : `并行开启 ${streams} 路事件流（TEXT_MESSAGE / TOOL_CALL）`);
       paintControls();
     }
   }
@@ -891,44 +809,46 @@ function initResource(root: HTMLElement) {
   }
 
   function reset() {
-    containers = 4;
+    streams = 4;
     per = 128;
     speed = 6;
     idleLimit = 60;
     t = 0;
     idle = 0;
     mode = "run";
-    mem = BASE + containers * per;
-    peak = mem;
-    history = [mem];
+    throughput = streams * per;
+    peak = throughput;
+    history = [throughput];
     sampleAt = 0;
     autoAt = 0;
     playing = true;
-    if (containersIn) containersIn.value = "4";
+    if (streamsIn) streamsIn.value = "4";
     if (perIn) perIn.value = "128";
     if (speedIn) speedIn.value = "6";
     if (idleIn) idleIn.value = "60";
     if (autoIn) autoIn.checked = false;
     if (log) log.replaceChildren();
-    addLog("引擎就绪，4 个容器运行中");
+    addLog("会话已建立，等待用户输入与智能体事件");
     paintControls();
     paint();
   }
 
-  if (containersIn)
-    listen(containersIn, "input", () => {
-      const next = Number(containersIn.value);
-      if (next !== containers) {
-        containers = next;
-        if (containers === 0) addLog("所有容器已停止，开始空闲计时");
-        else if (mode === "sleep") addLog(`启动 ${containers} 个容器`);
+  if (streamsIn)
+    listen(streamsIn, "input", () => {
+      const next = Number(streamsIn.value);
+      if (next !== streams) {
+        streams = next;
+        if (streams === 0) addLog("并发流降为 0，开始计算空闲窗口");
+        else if (mode === "sleep") addLog(`恢复 ${streams} 路并发事件流`);
       }
+      if (reduced()) throughput = target();
       paintControls();
       paint();
     });
   if (perIn)
     listen(perIn, "input", () => {
       per = Number(perIn.value);
+      if (reduced()) throughput = target();
       paintControls();
       paint();
     });
@@ -948,18 +868,12 @@ function initResource(root: HTMLElement) {
       playing = !playing;
       paintControls();
     });
-  if (wakeBtn)
-    listen(wakeBtn, "click", () => {
-      if (mode === "sleep") {
-        mode = "wake";
-        wakeLeft = WAKE;
-        idle = 0;
-        addLog("手动唤醒 VM…");
-      } else if (containers === 0) {
-        mode = "sleep";
-        idle = idleLimit;
-        addLog("手动让 VM 休眠");
-      }
+  if (refreshBtn)
+    listen(refreshBtn, "click", () => {
+      mode = "wake";
+      syncLeft = SYNC_PULSE_SEC;
+      idle = 0;
+      addLog("手动触发 STATE_SNAPSHOT 全量状态刷新");
       paintControls();
       paint();
     });
@@ -967,17 +881,19 @@ function initResource(root: HTMLElement) {
 
   paintControls();
   paint();
-  whileVisible(
-    lab,
-    () => (visible = true),
-    () => (visible = false),
-    { threshold: 0, rootMargin: "160px 0px" },
-  );
-  raf = requestAnimationFrame((ts) => {
-    last = ts;
-    frame(ts);
-  });
-  teardowns.push(() => cancelAnimationFrame(raf));
+  if (!reduced()) {
+    whileVisible(
+      lab,
+      () => (visible = true),
+      () => (visible = false),
+      { threshold: 0, rootMargin: "160px 0px" },
+    );
+    raf = requestAnimationFrame((ts) => {
+      last = ts;
+      frame(ts);
+    });
+    teardowns.push(() => cancelAnimationFrame(raf));
+  }
 }
 
 /* --------------------------------------------------------------- platforms */
@@ -986,24 +902,41 @@ function initPlatforms(root: HTMLElement) {
   const tabs = every<HTMLButtonElement>(root, "[data-k-platform]");
   const diagram = q<HTMLElement>(root, "[data-k-diagram]");
   if (!tabs.length || !diagram) return;
-  const channel = q<HTMLElement>(diagram, "[data-k-channel]");
-  const guest = q<HTMLElement>(diagram, "[data-k-guest]");
-  const note = q<HTMLElement>(diagram, "[data-k-guest-note]");
+  const panel: HTMLElement = diagram;
+  const channel = q<HTMLElement>(panel, "[data-k-channel]");
+  const guest = q<HTMLElement>(panel, "[data-k-guest]");
+  const note = q<HTMLElement>(panel, "[data-k-guest-note]");
 
-  tabs.forEach((tab) =>
-    listen(tab, "click", () => {
-      const p = platforms.find((x) => x.id === tab.dataset.kPlatform);
-      if (!p) return;
-      tabs.forEach((t) => {
-        const on = t === tab;
-        t.classList.toggle("is-on", on);
-        t.setAttribute("aria-selected", String(on));
-      });
-      if (channel) channel.textContent = p.channel;
-      if (guest) guest.textContent = `${p.guest} · kiri-init（PID 1）`;
-      if (note) note.textContent = p.guestNote;
-    }),
-  );
+  function selectTab(tab: HTMLButtonElement) {
+    const p = platforms.find((x) => x.id === tab.dataset.kPlatform);
+    if (!p) return;
+    tabs.forEach((t) => {
+      const on = t === tab;
+      t.classList.toggle("is-on", on);
+      t.setAttribute("aria-selected", String(on));
+      t.tabIndex = on ? 0 : -1;
+    });
+    if (tab.id) panel.setAttribute("aria-labelledby", tab.id);
+    if (channel) channel.textContent = p.channel;
+    if (guest) guest.textContent = p.guest;
+    if (note) note.textContent = p.guestNote;
+  }
+
+  tabs.forEach((tab, index) => {
+    listen(tab, "click", () => selectTab(tab));
+    listen(tab, "keydown", (ev: KeyboardEvent) => {
+      let nextIdx = -1;
+      if (ev.key === "ArrowRight") nextIdx = (index + 1) % tabs.length;
+      else if (ev.key === "ArrowLeft") nextIdx = (index - 1 + tabs.length) % tabs.length;
+      else if (ev.key === "Home") nextIdx = 0;
+      else if (ev.key === "End") nextIdx = tabs.length - 1;
+      if (nextIdx >= 0) {
+        ev.preventDefault();
+        tabs[nextIdx].focus();
+        selectTab(tabs[nextIdx]);
+      }
+    });
+  });
 }
 
 /* -------------------------------------------------------------------- boot */
@@ -1013,10 +946,8 @@ function init() {
   if (!root || root.dataset.kReady === "1") return;
   root.dataset.kReady = "1";
   initChrome(root);
-  initWindow(root);
   initRace(root);
   initTerminal(root);
-  initShare(root);
   initResource(root);
   initPlatforms(root);
 }
