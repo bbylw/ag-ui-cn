@@ -37,7 +37,7 @@ const toneVar = { kiri: "var(--k-ember)", dd: "var(--k-teal)", orb: "var(--k-orc
         <div class="k-ctl">
           <span class="k-ctl-k">慢放 <b data-k-speed-val>40×</b></span>
           <div class="k-ctl-row">
-            <input type="range" class="k-range" data-k-speed min="1" max="120" step="1" value="40" aria-label="慢放倍数" />
+            <input type="range" id="k-race-speed" name="race-speed" class="k-range" data-k-speed min="1" max="120" step="1" value="40" aria-label="慢放倍数" />
           </div>
         </div>
 
@@ -62,7 +62,7 @@ const toneVar = { kiri: "var(--k-ember)", dd: "var(--k-teal)", orb: "var(--k-orc
             {
               raceEngines.map((e) => (
                 <label class="k-switch">
-                  <input type="checkbox" data-k-engine={e.id} checked />
+                  <input type="checkbox" id={`k-race-engine-${e.id}`} name="race-engine" data-k-engine={e.id} checked />
                   <i />
                   {e.name}
                 </label>
@@ -74,8 +74,8 @@ const toneVar = { kiri: "var(--k-ember)", dd: "var(--k-teal)", orb: "var(--k-orc
         <div class="k-ctl">
           <span class="k-ctl-k">显示</span>
           <div class="k-ctl-row">
-            <label class="k-switch"><input type="checkbox" data-k-loop checked /><i />循环</label>
-            <label class="k-switch"><input type="checkbox" data-k-residue checked /><i />额外适配</label>
+            <label class="k-switch"><input type="checkbox" id="k-race-loop" name="race-loop" data-k-loop checked /><i />循环</label>
+            <label class="k-switch"><input type="checkbox" id="k-race-residue" name="race-residue" data-k-residue checked /><i />额外适配</label>
             <button type="button" class="k-run k-run-ghost" data-k-reset>重置</button>
           </div>
         </div>
@@ -102,7 +102,7 @@ const toneVar = { kiri: "var(--k-ember)", dd: "var(--k-teal)", orb: "var(--k-orc
               <p class="k-lane-note">{e.note}</p>
               <p class:list={["k-residue", e.residue === 0 && "is-zero"]} data-k-residue-row>
                 <Icon name="ph:stack" class="h-3.5 w-3.5" aria-hidden="true" />
-                额外适配层 <b>{e.residue === 0 ? "0" : "多"}</b> 个
+                <span>额外适配层 <b>{e.residue === 0 ? "0" : "多"}</b> 个</span>
               </p>
             </div>
           ))

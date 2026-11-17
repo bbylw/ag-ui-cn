@@ -63,8 +63,8 @@ export const raceEngines: RaceEngine[] = [
 ];
 
 export const raceCommand: Record<RacePath, string> = {
-  events: "agent.run() → AG-UI events → UI 实时更新",
-  state: "shared state → diff events → 客户端同步渲染",
+  events: "agent.run() → AG-UI → 实时 UI",
+  state: "state → diff events → 同步 UI",
 };
 
 export const tools = [
@@ -290,9 +290,9 @@ export const howStats = [
 ];
 
 export const navLinks = [
-  { href: "#features", label: "核心能力" },
   { href: "#race", label: "对比" },
+  { href: "#features", label: "核心能力" },
   { href: "#resource", label: "场景" },
-  { href: "#how", label: "架构" },
   { href: "#start", label: "上手" },
+  { href: "#how", label: "架构" },
 ];

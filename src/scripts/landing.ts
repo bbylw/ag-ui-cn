@@ -131,6 +131,7 @@ function initChrome(root: HTMLElement) {
       nav?.classList.toggle("is-scrolled", y > 8);
       if (progress && !nativeScroll) progress.style.setProperty("--k-p", String(Math.min(1, y / max)));
       top?.classList.toggle("is-on", y > 700);
+      if (y <= 8) setCurrent(null);
     });
   };
   listen(window, "scroll", onScroll, { passive: true });
@@ -335,7 +336,7 @@ function initRace(root: HTMLElement) {
 
   function buildStops() {
     for (const l of lanes) {
-      l.stops.forEach((s) => s.remove());
+      every(l.track, ".k-stop").forEach((s) => s.remove());
       const names = l.engine.stops[path];
       l.stops = names.map((name, i) => {
         const stop = document.createElement("span");

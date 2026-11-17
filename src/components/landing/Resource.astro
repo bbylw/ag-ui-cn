@@ -22,22 +22,22 @@ const href = (path: string) => `${base}${path}`;
 
         <div class="k-ctl">
           <span class="k-ctl-k">并发事件流 <b data-k-rl-containers-val>4</b></span>
-          <input type="range" class="k-range" data-k-rl-containers min="0" max="12" step="1" value="4" aria-label="并发事件流数量" />
+          <input type="range" id="k-rl-containers" name="rl-containers" class="k-range" data-k-rl-containers min="0" max="12" step="1" value="4" aria-label="并发事件流数量" />
         </div>
 
         <div class="k-ctl">
           <span class="k-ctl-k">每流负载 <b data-k-rl-per-val>128</b></span>
-          <input type="range" class="k-range" data-k-rl-per min="32" max="512" step="16" value="128" aria-label="每个事件流负载" />
+          <input type="range" id="k-rl-per" name="rl-per" class="k-range" data-k-rl-per min="32" max="512" step="16" value="128" aria-label="每个事件流负载" />
         </div>
 
         <div class="k-ctl">
           <span class="k-ctl-k">时间流速 <b data-k-rl-speed-val>6×</b></span>
-          <input type="range" class="k-range" data-k-rl-speed min="1" max="20" step="1" value="6" aria-label="模拟时间流速" />
+          <input type="range" id="k-rl-speed" name="rl-speed" class="k-range" data-k-rl-speed min="1" max="20" step="1" value="6" aria-label="模拟时间流速" />
         </div>
 
         <div class="k-ctl">
           <span class="k-ctl-k">空闲窗口</span>
-          <select class="k-select" data-k-rl-idle aria-label="空闲窗口">
+          <select id="k-rl-idle" name="rl-idle" class="k-select" data-k-rl-idle aria-label="空闲窗口">
             <option value="30">30 秒</option>
             <option value="60" selected>60 秒</option>
             <option value="120">120 秒</option>
@@ -58,7 +58,7 @@ const href = (path: string) => `${base}${path}`;
         </div>
 
         <label class="k-switch">
-          <input type="checkbox" data-k-rl-auto />
+          <input type="checkbox" id="k-rl-auto" name="rl-auto" data-k-rl-auto />
           <i />
           自动演示：事件波动
         </label>

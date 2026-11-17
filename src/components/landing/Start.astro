@@ -22,7 +22,19 @@ const href = (path: string) => `${base}${path}`;
             <h3>{s.title}</h3>
             <p>{s.desc}</p>
             <div class="k-cmd">
-              <code>{s.code}</code>
+              <code>
+                {
+                  s.code.includes(").") ? (
+                    <>
+                      {s.code.slice(0, s.code.indexOf(").") + 2)}
+                      <wbr />
+                      {s.code.slice(s.code.indexOf(").") + 2)}
+                    </>
+                  ) : (
+                    s.code
+                  )
+                }
+              </code>
               <button type="button" class="k-copy" data-copy={s.code} aria-label={`复制：${s.code}`}>
                 <Icon name="ph:copy" class="h-3.5 w-3.5" aria-hidden="true" />
               </button>
