@@ -8,6 +8,7 @@ import {
   heroScenarios,
   sandboxScenarios,
   sdkSnippets,
+  highlightSdkCode,
   platforms,
   navLinks,
   type SandboxFrame,
@@ -296,7 +297,10 @@ function initHeroInspector(root: HTMLElement) {
         )
         .join("");
     }
-    if (badge) badge.textContent = sc.widget.badge;
+    if (badge) {
+      badge.textContent = sc.widget.badge;
+      badge.classList.toggle("is-wait", Boolean(sc.widget.actionLabel));
+    }
     if (promptEl) promptEl.textContent = sc.prompt;
     if (replyEl) replyEl.textContent = sc.reply;
     if (wTitle) wTitle.textContent = sc.widget.title;
@@ -327,7 +331,10 @@ function initHeroInspector(root: HTMLElement) {
       resolved = true;
       approveBtn.disabled = true;
       approveBtn.textContent = "已授权执行";
-      if (badge) badge.textContent = "运行已恢复 · 完成";
+      if (badge) {
+        badge.textContent = "运行已恢复 · 完成";
+        badge.classList.remove("is-wait");
+      }
       if (replyEl && current.widget.resolvedReply) replyEl.textContent = current.widget.resolvedReply;
       if (wireList) {
         const ev = current.widget.resolvedEvent;
@@ -392,6 +399,7 @@ function initSandbox(root: HTMLElement) {
     if (liveEl) {
       liveEl.classList.toggle("is-running", mode === "running");
       liveEl.classList.toggle("is-wait", mode === "wait");
+      liveEl.classList.toggle("is-done", mode === "done");
     }
     if (playBtn) playBtn.classList.toggle("is-playing", mode === "running");
     if (playLabel) {
@@ -493,7 +501,7 @@ function initSandbox(root: HTMLElement) {
         .map(
           (f, idx) => `<li class="${idx === visible.length - 1 ? "is-latest" : ""}">
             <code>${esc(f.type)}</code>
-            <pre>${esc(JSON.stringify(f.wire))}</pre>
+            <pre>${esc(JSON.stringify(f.wire).replace(/,"/g, ', "').replace(/":/g, '": '))}</pre>
           </li>`,
         )
         .join("");
@@ -551,6 +559,7 @@ function initSandbox(root: HTMLElement) {
     clearTimer();
     playing = false;
     pickupToggled = false;
+    if (stateBtn) stateBtn.setAttribute("aria-pressed", "false");
     scenario = sandboxScenarios.find((s) => s.id === id) ?? sandboxScenarios[0];
     timeline = [...scenario.frames];
     if (userEl) userEl.textContent = scenario.userPrompt;
@@ -624,6 +633,7 @@ function initSandbox(root: HTMLElement) {
     listen(stateBtn, "click", () => {
       if (!scenario.stateToggleKey) return;
       pickupToggled = !pickupToggled;
+      stateBtn.setAttribute("aria-pressed", String(pickupToggled));
       const nextVal = scenario.stateToggleKey.values[pickupToggled ? 1 : 0];
       const baseState = { ...(timeline[index].state ?? {}) };
       baseState.pickup = nextVal;
@@ -668,7 +678,7 @@ function initSdkTabs(root: HTMLElement) {
     const id = btn.dataset.kSdkTab;
     const item = sdkSnippets.find((s) => s.id === id) ?? sdkSnippets[0];
     if (fileEl) fileEl.textContent = item.filename;
-    if (codeEl) codeEl.textContent = item.code;
+    if (codeEl) codeEl.innerHTML = highlightSdkCode(item.code, item.id);
     if (installEl) installEl.textContent = item.install;
     if (copyBtn) copyBtn.dataset.copy = item.code;
     if (docLink) docLink.setAttribute("href", withBase(item.docHref));
@@ -686,6 +696,7 @@ function initPlatforms(root: HTMLElement) {
   const channel = q<HTMLElement>(box, "[data-k-channel]");
   const guest = q<HTMLElement>(box, "[data-k-guest]");
   const note = q<HTMLElement>(box, "[data-k-guest-note]");
+  const badgeEl = q<HTMLElement>(box, "[data-k-plat-badge]");
   const caption = q<HTMLElement>(box, "[data-k-plat-caption]");
 
   bindTablist(tabs, panel, (btn) => {
@@ -693,7 +704,8 @@ function initPlatforms(root: HTMLElement) {
     if (channel) channel.textContent = item.channel;
     if (guest) guest.textContent = item.guest;
     if (note) note.textContent = item.guestNote;
-    if (caption) caption.textContent = `${item.desc}（${item.badge}）`;
+    if (badgeEl) badgeEl.textContent = item.badge;
+    if (caption) caption.textContent = item.desc;
   });
 }
 

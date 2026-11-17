@@ -119,9 +119,12 @@ const firstFrame = first.frames[0];
             </div>
           </div>
 
-          <div class="k-sb-interact" data-k-sb-state-ctl hidden>
+          <div class="k-sb-interact is-state" data-k-sb-state-ctl hidden>
             <span class="k-sb-interact-k">客户端双向注入状态（会同步写入右侧事件流与 Shared State）</span>
-            <button type="button" class="k-run k-run-ghost" data-k-sb-state-btn>切换前端状态：接站服务</button>
+            <button type="button" class="k-run k-run-ghost k-sb-state-btn" data-k-sb-state-btn aria-pressed="false">
+              <span class="k-sb-switch" aria-hidden="true"><i></i></span>
+              <span>切换前端状态：接站服务</span>
+            </button>
           </div>
         </div>
 

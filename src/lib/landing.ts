@@ -25,9 +25,9 @@ export interface ProtocolStackLayer {
 }
 
 export const stackLayers: ProtocolStackLayer[] = [
-  { name: "MCP", scope: "智能体 ↔ 工具", desc: "连接数据源、API 与外部工具能力" },
-  { name: "A2A", scope: "智能体 ↔ 智能体", desc: "协调分布式多智能体间的任务委派" },
-  { name: "AG-UI", scope: "智能体 ↔ 用户", desc: "31 种标准事件 · 8 大事件族 · 实时双向界面通信", active: true },
+  { name: "MCP", scope: "智能体 ↔ 工具", desc: "连接工具、API 与外部数据源" },
+  { name: "A2A", scope: "智能体 ↔ 智能体", desc: "协调多智能体间任务委派" },
+  { name: "AG-UI", scope: "智能体 ↔ 用户", desc: "覆盖 31 类事件 · 双向通信", active: true },
 ];
 
 export interface HeroScenario {
@@ -603,6 +603,67 @@ data: {"type":"RUN_FINISHED","runId":"run_01","outcome":"success"}`,
   },
 ];
 
+function escHtml(s: string): string {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+/**
+ * Lightweight single-pass syntax highlighter shared between SSR and client SDK tab switches.
+ */
+export function highlightSdkCode(code: string, lang: SdkSnippet["id"]): string {
+  if (lang === "wire") {
+    const wireRx = /^(data:)|("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null|\d+)\b/gm;
+    let out = "";
+    let last = 0;
+    for (const m of code.matchAll(wireRx)) {
+      const idx = m.index ?? 0;
+      if (idx > last) out += escHtml(code.slice(last, idx));
+      if (m[1]) {
+        out += `<span class="k-tok-kw">${escHtml(m[1])}</span>`;
+      } else if (m[2]) {
+        if (m[3]) {
+          out += `<span class="k-tok-prop">${escHtml(m[2])}</span>${escHtml(m[3])}`;
+        } else if (/^"[A-Z0-9_]{4,}"$/.test(m[2])) {
+          out += `<span class="k-tok-ev">${escHtml(m[2])}</span>`;
+        } else {
+          out += `<span class="k-tok-str">${escHtml(m[2])}</span>`;
+        }
+      } else if (m[4]) {
+        out += `<span class="k-tok-num">${escHtml(m[4])}</span>`;
+      }
+      last = idx + m[0].length;
+    }
+    if (last < code.length) out += escHtml(code.slice(last));
+    return out;
+  }
+
+  const tokenRx =
+    /(\/\/[^\n]*|#[^\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(@[A-Za-z_][A-Za-z0-9_.]*)|\b(import|from|export|const|let|var|await|async|def|return|yield|new|using|foreach|in|for|if|else|true|false|null|None|True|False)\b|\b([A-Z][A-Z0-9_]{3,})\b|\b([A-Z][A-Za-z0-9_]*)\b|\b(\d+)\b/g;
+
+  let out = "";
+  let last = 0;
+  for (const m of code.matchAll(tokenRx)) {
+    const idx = m.index ?? 0;
+    if (idx > last) out += escHtml(code.slice(last, idx));
+    const [raw, cmt, str, dec, kw, ev, ty, num] = m;
+    if (cmt) out += `<span class="k-tok-cmt">${escHtml(cmt)}</span>`;
+    else if (str) out += `<span class="k-tok-str">${escHtml(str)}</span>`;
+    else if (dec) out += `<span class="k-tok-dec">${escHtml(dec)}</span>`;
+    else if (kw) out += `<span class="k-tok-kw">${escHtml(kw)}</span>`;
+    else if (ev) out += `<span class="k-tok-ev">${escHtml(ev)}</span>`;
+    else if (ty) out += `<span class="k-tok-ty">${escHtml(ty)}</span>`;
+    else if (num) out += `<span class="k-tok-num">${escHtml(num)}</span>`;
+    else out += escHtml(raw);
+    last = idx + raw.length;
+  }
+  if (last < code.length) out += escHtml(code.slice(last));
+  return out;
+}
+
 export type PlatformId = "web" | "chat" | "terminal";
 
 export interface Platform {
@@ -654,7 +715,7 @@ export const platforms: Platform[] = [
 ];
 
 export const howStats = [
-  { value: "31", unit: "种", label: "标准事件类型", desc: "归属 8 个事件族，覆盖生命周期、消息、状态、工具与推理。" },
+  { value: "31", unit: "种", label: "标准事件类型", desc: "归属 8 个事件族，贯穿消息、状态与工具。" },
   { value: "3", unit: "层", label: "协议栈协同", desc: "MCP 提供工具，A2A 连接智能体，AG-UI 连接用户界面。" },
   { value: "∞", unit: "", label: "传输与扩展", desc: "独立于 HTTP SSE / WebSocket，并可通过 CUSTOM 事件扩展。" },
 ];

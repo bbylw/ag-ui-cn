@@ -1,6 +1,6 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
-import { quickPaths, sdkSnippets, QUICKSTART_URL } from "../../lib/landing";
+import { quickPaths, sdkSnippets, highlightSdkCode, QUICKSTART_URL } from "../../lib/landing";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
@@ -80,7 +80,7 @@ const scaffoldCmd = "npx create-ag-ui-app@latest";
           <b data-k-sdk-file>{first.filename}</b>
           <span class="k-term-stack" aria-hidden="true"><b></b><b></b><b></b></span>
         </div>
-        <pre class="k-sdk-pre"><code data-k-sdk-code>{first.code}</code></pre>
+        <pre class="k-sdk-pre"><code data-k-sdk-code set:html={highlightSdkCode(first.code, first.id)}></code></pre>
         <figcaption class="k-term-foot">
           <code class="k-sdk-install" data-k-sdk-install>{first.install}</code>
           <button type="button" class="k-run k-run-ghost" data-k-sdk-copy data-copy={first.code}>
