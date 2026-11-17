@@ -1,0 +1,245 @@
+---
+title: 类型
+description: ag_ui.core 的核心类型：RunAgentInput、消息、内容片段、工具与状态。
+---
+
+# 核心类型
+
+AG-UI Python SDK 建立在一组核心类型之上。所有模型都由 Pydantic 定义，序列化到线路时使用 camelCase。
+
+## RunAgentInput
+
+```python
+from ag_ui.core import RunAgentInput
+
+class RunAgentInput(ConfiguredBaseModel):
+    thread_id: str
+    run_id: str
+    parent_run_id: Optional[str] = None
+    state: Any = None  # 可缺省：缺省表示“无状态”；裸 null 也读作缺省
+    messages: List[Message]
+    tools: List[Tool]
+    context: List[Context]
+    forwarded_props: Any
+    resume: Optional[List[ResumeEntry]] = None
+```
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `thread_id` | `str` | 会话线程 ID |
+| `run_id` | `str` | 当前运行 ID |
+| `parent_run_id` | `Optional[str]` | 派生出本次运行的运行 ID |
+| `state` | `Any` | 智能体当前状态；缺省表示“无状态” |
+| `messages` | `List[Message]` | 会话消息 |
+| `tools` | `List[Tool]` | 本次运行可用的客户端工具 |
+| `context` | `List[Context]` | 上下文对象 |
+| `forwarded_props` | `Any` | 转发给智能体的附加属性 |
+| `resume` | `Optional[List[ResumeEntry]]` | 针对上个运行中断结果的逐中断响应 |
+
+## ResumeEntry
+
+```python
+from ag_ui.core import ResumeEntry
+
+class ResumeEntry(GeneratedBaseModel):
+    interrupt_id: str
+    status: ResumeStatus  # "resolved" | "cancelled"
+    payload: Optional[Any] = None
+    metadata: Optional[Metadata] = None
+```
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `interrupt_id` | `str` | 本条响应对应的中断 ID |
+| `status` | `ResumeStatus` | 用户已作答为 `resolved`，放弃为 `cancelled` |
+| `payload` | `Optional[Any]` | 响应本身，按中断的 `response_schema` 校验 |
+| `metadata` | `Optional[Dict[str, Any]]` | 信封数据：签名、路由键；绝不是答案本身 |
+
+`metadata` 遵循协议各处的约定：按 key 开放，任意 JSON 值（含 `None`），对象可缺省但线上永不为 `null`，`ag-ui` 键保留。resume 条目是请求字段，不参与合并。
+
+## 消息类型
+
+> **说明：** 每种消息类型都携带可选 `metadata`（`Optional[Dict[str, Any]]`），`ToolCall` 亦然；下表省略。它按 key 开放（含 `None`），对象可缺省但永不为 `None`。`ag-ui` 键保留给 AG-UI 自用。合并规则见 [Metadata](/concepts/metadata/)。
+
+### Role
+
+```python
+Role = Literal["developer", "system", "assistant", "user", "tool", "activity", "reasoning"]
+```
+
+### DeveloperMessage / SystemMessage
+
+```python
+class DeveloperMessage(BaseMessage):
+    role: Literal["developer"]
+    content: str
+
+class SystemMessage(BaseMessage):
+    role: Literal["system"]
+    content: str
+```
+
+两者都继承 `BaseMessage`（含 `id`、可选 `name`）。
+
+### AssistantMessage
+
+```python
+class AssistantMessage(BaseMessage):
+    role: Literal["assistant"]
+    content: Optional[str] = None
+    tool_calls: Optional[List[ToolCall]] = None
+```
+
+### UserMessage
+
+```python
+class UserMessage(BaseMessage):
+    role: Literal["user"]
+    content: Union[str, List["ContentPart"]]
+```
+
+`content` 是纯文本或按序排列的多模态片段列表。
+
+### PartSource
+
+```python
+PartSource = Annotated[
+    Union[DataSource, UrlSource, FileSource],
+    Field(discriminator="type"),
+]
+
+class DataSource(ConfiguredBaseModel):
+    type: Literal["data"]
+    value: str
+    mime_type: str
+
+class UrlSource(ConfiguredBaseModel):
+    type: Literal["url"]
+    value: str
+    mime_type: Optional[str] = None
+
+class FileSource(ConfiguredBaseModel):
+    type: Literal["file"]
+    value: str                  # 句柄，与提供方签发的完全一致
+    provider: Optional[str] = None  # "openai"、"anthropic"、"google"
+    mime_type: Optional[str] = None
+```
+
+`FileSource` 指向模型提供方一侧已存在的字节——OpenAI 或 Anthropic 的文件 id、Gemini 文件 URI。不会拉取任何内容，`value` 对协议不透明。
+
+### TextPart
+
+```python
+class TextPart(ConfiguredBaseModel):
+    type: Literal["text"]
+    id: Optional[str] = None
+    text: str
+    metadata: Optional[Any] = None
+```
+
+### ImagePart / AudioPart / VideoPart / DocumentPart
+
+```python
+class ImagePart(ConfiguredBaseModel):
+    type: Literal["image"]
+    id: Optional[str] = None
+    source: PartSource
+    metadata: Optional[Any] = None
+```
+
+`AudioPart`、`VideoPart`、`DocumentPart` 结构相同，仅 `type` 不同。
+
+### BinaryInputContent（已弃用）
+
+```python
+class BinaryInputContent(ConfiguredBaseModel):
+    type: Literal["binary"]
+    mime_type: str
+    id: Optional[str] = None
+    url: Optional[str] = None
+    data: Optional[str] = None
+    filename: Optional[str] = None
+```
+
+`id`、`url`、`data` 至少提供一项。该模型仅为临时兼容保留，请优先使用上面的模态专属片段。
+
+### ToolMessage
+
+```python
+class ToolMessage(ConfiguredBaseModel):
+    id: str
+    role: Literal["tool"]
+    content: Union[str, List[ContentPart]]
+    tool_call_id: str
+    error: Optional[str] = None
+    encrypted_value: Optional[str] = None
+```
+
+### ActivityMessage
+
+```python
+class ActivityMessage(ConfiguredBaseModel):
+    id: str
+    role: Literal["activity"]
+    activity_type: str
+    content: Dict[str, Any]
+```
+
+### ReasoningMessage
+
+```python
+class ReasoningMessage(ConfiguredBaseModel):
+    id: str
+    role: Literal["reasoning"]
+    content: str
+    encrypted_value: Optional[str] = None
+```
+
+### Message
+
+```python
+Message = Annotated[
+    Union[
+        DeveloperMessage, SystemMessage, AssistantMessage,
+        UserMessage, ToolMessage, ActivityMessage, ReasoningMessage,
+    ],
+    Field(discriminator="role"),
+]
+```
+
+### ToolCall / FunctionCall
+
+```python
+class ToolCall(ConfiguredBaseModel):
+    id: str
+    type: Literal["function"]
+    function: FunctionCall
+    encrypted_value: Optional[str] = None
+
+class FunctionCall(ConfiguredBaseModel):
+    name: str
+    arguments: str  # JSON 编码的参数字符串
+```
+
+## Context
+
+```python
+class Context(ConfiguredBaseModel):
+    description: str
+    value: str
+```
+
+## Tool
+
+```python
+class Tool(ConfiguredBaseModel):
+    name: str
+    description: str
+    parameters: Any  # JSON Schema
+```
+
+## State
+
+```python
+State = Any
+```

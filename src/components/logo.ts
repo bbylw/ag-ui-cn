@@ -1,63 +1,47 @@
 /**
- * Kiri's official brand artwork, inlined once here so the header, the docs
- * layout and the social cards all draw the same mark.
+ * AG-UI brand artwork for the Chinese site (header, docs layout, social cards).
  *
- * Source: github.com/libracoder/kiri — `brand/logo/` (kiri-horizontal-*.svg,
- * kiri-mark-*.svg). The horizontal wordmark has a light and a dark variant;
- * the mark is the square face used on share cards.
+ * The mark: the "A" of AG-UI, whose crossbar is a two-headed arrow threaded
+ * through it. The letter names the protocol; the arrow is the thing the
+ * protocol actually is — one stream of events leaving the agent, another
+ * coming back from the interface, in both directions at once. The artwork
+ * keeps the official logo's language (stroke-only, geometric, no fills).
+ *
+ * It is the same geometry as `public/favicon.svg`, so the tab icon and the
+ * header are one drawing at two sizes. In the wordmark, "-UI" takes the brand
+ * violet: the name itself names the two ends the protocol joins.
  */
+
+/** The square mark, 64 × 64. `id` must be unique per rendered SVG. */
+const shape = (id: string, top: string, bottom: string) => `<defs>
+    <linearGradient id="${id}" x1="10" y1="4" x2="54" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="${top}"/>
+      <stop offset="1" stop-color="${bottom}"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="17" fill="url(#${id})"/>
+  <rect x="5.1" y="5.1" width="53.8" height="53.8" rx="16" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="1.2"/>
+  <g fill="#fff">
+    <path d="M18.5 47.5 32 17 45.5 47.5" fill="none" stroke="#fff" stroke-width="6.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M20.5 32.8 11.5 37l9 4.2v-2.6h23v2.6l9-4.2-9-4.2v2.6h-23z"/>
+  </g>`;
+
+/** Wordmark: the mark, then the name with its violet second half. */
+const wordmark = (id: string, top: string, bottom: string, ink: string, accent: string) => `<g fill="none" fill-rule="evenodd">
+    <g transform="translate(2 6) scale(.59375)">${shape(id, top, bottom)}</g>
+    <text x="55" y="32.5" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="27" font-weight="700" letter-spacing="-1" fill="${ink}">AG<tspan fill="${accent}">-UI</tspan></text>
+  </g>`;
+
 export const logo = {
-  width: 150.4,
-  height: 64,
-  light: `<g transform="translate(6 0) skewX(-10)">
-    <clipPath id="klight-clip"><rect x="22" y="12" width="34" height="40" rx="10"/></clipPath>
-    <g fill="#E0B420"><rect x="22" y="12" width="34" height="40" rx="10"/></g>
-    <g clip-path="url(#klight-clip)" fill="#F2CF5B"><rect x="10" y="0" width="60" height="21.5"/></g>
-    <g fill="#0F1419"><ellipse cx="41.5" cy="29" rx="3.1" ry="3.6"/><ellipse cx="50.5" cy="29" rx="3.1" ry="3.6"/></g>
-  </g>
-  <g fill="#0F1419"><rect x="5" y="21.5" width="13" height="5" rx="2.5"/><rect x="1" y="32" width="15" height="5" rx="2.5"/><rect x="7" y="42.5" width="7" height="5" rx="2.5"/></g>
-  <g transform="translate(76 7.2) scale(0.8)"><g fill="none" stroke="#0F1419" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M4.5 14.5V51.5"/>
-    <path d="M29 30.5L8 46"/>
-    <path d="M16.5 40.5L29.5 51.5"/>
-    <path d="M45 30.5V51.5"/>
-    <path d="M61 51.5V41C61 34 66 30.5 74 30.5"/>
-    <path d="M88.5 30.5V51.5"/>
-  </g>
-  <g fill="#E0B420">
-    <rect x="40.5" y="10.5" width="9" height="9" rx="2.4" transform="rotate(-10 45 15)"/>
-    <rect x="84" y="10.5" width="9" height="9" rx="2.4" transform="rotate(-10 88.5 15)"/>
-  </g></g>`,
-  dark: `<g transform="translate(6 0) skewX(-10)">
-    <clipPath id="kdark-clip"><rect x="22" y="12" width="34" height="40" rx="10"/></clipPath>
-    <g fill="#E0B420"><rect x="22" y="12" width="34" height="40" rx="10"/></g>
-    <g clip-path="url(#kdark-clip)" fill="#F2CF5B"><rect x="10" y="0" width="60" height="21.5"/></g>
-    <g fill="#0F1419"><ellipse cx="41.5" cy="29" rx="3.1" ry="3.6"/><ellipse cx="50.5" cy="29" rx="3.1" ry="3.6"/></g>
-  </g>
-  <g fill="#F6F2EA"><rect x="5" y="21.5" width="13" height="5" rx="2.5"/><rect x="1" y="32" width="15" height="5" rx="2.5"/><rect x="7" y="42.5" width="7" height="5" rx="2.5"/></g>
-  <g transform="translate(76 7.2) scale(0.8)"><g fill="none" stroke="#F6F2EA" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M4.5 14.5V51.5"/>
-    <path d="M29 30.5L8 46"/>
-    <path d="M16.5 40.5L29.5 51.5"/>
-    <path d="M45 30.5V51.5"/>
-    <path d="M61 51.5V41C61 34 66 30.5 74 30.5"/>
-    <path d="M88.5 30.5V51.5"/>
-  </g>
-  <g fill="#E0B420">
-    <rect x="40.5" y="10.5" width="9" height="9" rx="2.4" transform="rotate(-10 45 15)"/>
-    <rect x="84" y="10.5" width="9" height="9" rx="2.4" transform="rotate(-10 88.5 15)"/>
-  </g></g>`,
+  width: 148,
+  height: 48,
+  light: wordmark("agMarkLight", "#8b84ff", "#5a52e8", "#0f1419", "#5751d9"),
+  dark: wordmark("agMarkDark", "#9a94ff", "#6b62f0", "#f6f2ea", "#b0acff"),
 };
 
-/** The square mark alone, used by the social cards. */
+/** The square mark alone, used by social cards. */
 export const mark = {
   width: 64,
   height: 64,
-  svg: `<g transform="translate(6 0) skewX(-10)">
-    <clipPath id="kmark-clip"><rect x="22" y="12" width="34" height="40" rx="10"/></clipPath>
-    <g fill="#E0B420"><rect x="22" y="12" width="34" height="40" rx="10"/></g>
-    <g clip-path="url(#kmark-clip)" fill="#F2CF5B"><rect x="10" y="0" width="60" height="21.5"/></g>
-    <g fill="#0F1419"><ellipse cx="41.5" cy="29" rx="3.1" ry="3.6"/><ellipse cx="50.5" cy="29" rx="3.1" ry="3.6"/></g>
-  </g>
-  <g fill="#0F1419"><rect x="5" y="21.5" width="13" height="5" rx="2.5"/><rect x="1" y="32" width="15" height="5" rx="2.5"/><rect x="7" y="42.5" width="7" height="5" rx="2.5"/></g>`,
+  svg: `<g fill="none" fill-rule="evenodd">${shape("agMarkCard", "#8b84ff", "#5a52e8")}</g>`,
 };

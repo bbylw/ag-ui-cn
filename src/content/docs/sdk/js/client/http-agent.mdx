@@ -1,0 +1,130 @@
+---
+title: HttpAgent
+description: 通过 HTTP+SSE 连接远程智能体。
+---
+
+# HttpAgent
+
+`HttpAgent` 继承 `AbstractAgent`，提供基于 HTTP 的远程智能体连接。它处理请求／响应周期，并把 HTTP 事件流转换为标准 AG-UI 事件。
+
+```typescript
+import { HttpAgent } from "@ag-ui/client"
+```
+
+## 配置
+
+创建 HTTP 智能体时需要提供 `HttpAgentConfig`：
+
+```typescript
+interface HttpAgentConfig extends AgentConfig {
+  url: string                   // 智能体服务的端点 URL
+  headers?: Record<string, string> // 可选 HTTP 请求头
+}
+```
+
+## 创建 HttpAgent
+
+```typescript
+const agent = new HttpAgent({
+  url: "https://api.example.com/v1/agent",
+  headers: {
+    Authorization: "Bearer your-api-key",
+  },
+})
+```
+
+## 方法
+
+### runAgent()
+
+向配置的端点发起 HTTP 请求以执行智能体。
+
+```typescript
+runAgent(parameters?: RunAgentParameters, subscriber?: AgentSubscriber): Promise<RunAgentResult>
+```
+
+`parameters` 遵循标准 `RunAgentParameters`；可选 `subscriber` 可为本次运行单独提供[订阅者](/sdk/js/client/subscriber/)。
+
+#### 返回值
+
+```typescript
+interface RunAgentResult {
+  result: any            // 智能体返回的最终结果
+  newMessages: Message[] // 本次运行新增的消息
+}
+```
+
+### subscribe()
+
+添加跨多次运行生效的[订阅者](/sdk/js/client/subscriber/)。
+
+```typescript
+subscribe(subscriber: AgentSubscriber): { unsubscribe: () => void }
+```
+
+### abortRun()
+
+通过 `AbortController` 取消当前 HTTP 请求。
+
+```typescript
+abortRun(): void
+```
+
+## 受保护方法
+
+### requestInit()
+
+配置 HTTP 请求。覆盖此方法可自定义请求方式。
+
+```typescript
+protected requestInit(input: RunAgentInput): RequestInit
+```
+
+默认实现：
+
+```typescript
+{
+  method: "POST",
+  headers: {
+    ...this.headers,
+    "Content-Type": "application/json",
+    Accept: "text/event-stream",
+  },
+  body: JSON.stringify(input),
+  signal: this.abortController.signal,
+}
+```
+
+### run()
+
+用 HTTP 请求实现 `AbstractAgent` 的抽象 `run()`。
+
+```typescript
+run(input: RunAgentInput): RunAgent
+```
+
+## 属性
+
+- `url`：智能体服务端点 URL
+- `headers`：随请求发送的 HTTP 头
+- `abortController`：用于取消请求的 `AbortController`
+
+## 自定义请求
+
+常见需求是动态注入鉴权令牌或追踪头：
+
+```typescript
+class AuthedHttpAgent extends HttpAgent {
+  protected requestInit(input: RunAgentInput): RequestInit {
+    return {
+      ...super.requestInit(input),
+      headers: {
+        ...(super.requestInit(input).headers as Record<string, string>),
+        "X-Request-Id": crypto.randomUUID(),
+      },
+    }
+  }
+}
+```
+
+服务端应返回 `text/event-stream`，并按[流式模式](/spec/1-0/basic/patterns/streaming/)逐个发出事件。

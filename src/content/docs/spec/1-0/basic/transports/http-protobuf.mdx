@@ -1,0 +1,36 @@
+---
+title: HTTP + Protobuf
+description: 1.0 二进制绑定：同样的 POST，返回长度前缀 protobuf 帧流。
+---
+
+二进制绑定，面向想要紧凑 wire 的消费者。它完全共享 [SSE 绑定](/spec/1-0/basic/transports/http-sse/)的请求部分——运行输入是同样的 JSON POST——仅在响应上不同。
+
+## 协商
+
+- 想要本绑定的客户端在 `Accept` 头中包含 `application/vnd.ag-ui.event+proto`，同时包含 `text/event-stream`。**准入即选择加入**——通配范围（`*/*`、`application/*`）也准入该媒体类型——因此无法消费 protobuf 的客户端 MUST 发送明确的 `Accept` 列出它能消费的内容，而不是通配或降权条目：两种媒体类型之间的相对 quality 值不被参考。
+- 支持该绑定的生产者 SHOULD 在客户端 `Accept` 以正 quality 准入该媒体类型时用它作答，否则 MUST 用 SSE 作答。不支持它的生产者会忽略该媒体类型——这就是客户端 MUST 始终准备接收 SSE 的原因。
+- 响应的 `Content-Type` 精确为 `application/vnd.ag-ui.event+proto`；消费者按此头选择解析器。
+
+## 成帧
+
+响应体是帧序列，每帧一个协议事件：
+
+- 帧是 4 字节长度头——无符号 32 位大端整数——后跟恰好该字节数的一个编码事件。
+- 帧紧邻，没有分隔符。消费者 MUST 容忍帧跨传输 chunk 分割，以及一个 chunk 内包含多帧。
+- 在帧中途结束的主体是[截断运行](/spec/1-0/basic/transports/#截断)。
+
+## wire schema
+
+protobuf 消息定义由生成 SDK 所用的同一 [JSON Schema](/spec/1-0/schema-files/) 生成；wire schema **不是**第二个事实来源。跨实现一致性属于一致性范围：一组规范事件的语料固定编码字节，每个一方编码器 MUST 逐字节复现该语料。（语料才是保证——两个编码器拿到相同的**语义**值，仍可能以不同顺序排列开放 JSON 对象的条目，protobuf map 编码会让这一点可见。）
+
+语义尽可能接近 SSE 绑定：
+
+- 从帧解码的事件进入与从 SSE 解析的事件相同的[处理管道](/spec/1-0/basic/processing/)——中间件在前，执行在后，完全一致。
+- wire schema 作为开放载荷携带的内容——`RUN_FINISHED.outcome`、metadata、state、`rawEvent`——在解码后存活并到达该管道：在此绑定上到达的未识别 outcome 会被执行阶段剥离并警告，与 SSE 完全一致，绑定 MUST NOT 在解码时拒绝它。
+- 其余部分二进制 wire 天生更窄。本构建的 wire schema 早于的**字段**会被 protobuf 解码本身静默跳过——带警告的剥离行为只有在 JSON wire 上才完全可观察。同样的收窄覆盖 wire schema 未建模的协议合法开放成员：JSON Patch 操作的扩展成员，JSON wire MUST 保留，而这里不会存活。
+- 本构建早于的**事件**，其信封分支不携带可传下去的类型字符串，因此绑定丢弃该帧并警告——与执行阶段给出的答案相同，只是在传输处表述。
+- 字节无法解码为消息的帧是格式错误的传输内容，对流派生致命。主体恰好在帧中途结束则不是：那是[截断运行](/spec/1-0/basic/transports/#截断)。
+
+## 错误
+
+与 [SSE 绑定](/spec/1-0/basic/transports/http-sse/#错误)相同：流之前的拒绝是 HTTP 错误状态；流内失败是 `RUN_ERROR`，作为普通帧传输。

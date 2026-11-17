@@ -1,0 +1,196 @@
+---
+title: 构建服务端
+description: 直接从智能体或服务端发射 AG-UI 事件，实现兼容的 HTTP 端点。
+---
+
+## 简介
+
+服务端实现允许你**直接从智能体或服务端发射 AG-UI 事件**。当你从零构建新智能体，或希望为智能体能力提供独立服务时，这是理想方式。
+
+### 何时使用服务端实现
+
+- 从零构建**新的智能体框架**
+- 需要对发射哪些事件、如何发射拥有**最大控制权**
+- 将智能体暴露为**独立 API**
+- 尚未使用智能体框架，也还没有为其定义协议
+
+## 你将构建什么
+
+一个独立的 HTTP 服务端，它：
+
+1. 接收 AG-UI 协议请求
+2. 连接 OpenAI 的 GPT-4o 模型
+3. 以 AG-UI 事件流式返回响应
+4. 处理工具调用与状态管理
+
+## 前置条件
+
+- **Python 3.12+**
+- **Poetry**（依赖管理）
+- 一个 **OpenAI API Key**
+
+```bash
+export OPENAI_API_KEY=your-api-key-here
+```
+
+构建工具（按需）：
+
+```bash
+brew install protobuf
+npm i nx
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+```
+
+## 第 1 步 — 脚手架
+
+克隆仓库并复制服务端起始模板：
+
+```bash
+git clone git@github.com:ag-ui-protocol/ag-ui.git
+cd ag-ui
+cp -r integrations/server-starter integrations/openai-server
+```
+
+更新 `integrations/openai-server/package.json` 的元数据，并在 `src/index.ts` 中修改类名：
+
+```ts
+export class OpenAIServerAgent extends HttpAgent {}
+```
+
+将该集成注册到 Dojo（`apps/dojo/src/menu.ts` 与 `agents.ts`），便于本地验证。
+
+## 第 2 步 — 添加到 Dojo 依赖
+
+在 `apps/dojo/package.json` 的 `dependencies` 中加入：
+
+```json
+"@ag-ui/openai-server": "workspace:*"
+```
+
+## 第 3 步 — 启动 Dojo 与服务端
+
+```bash
+cd integrations/openai-server/server/python
+poetry install && poetry run dev
+```
+
+另一个终端：
+
+```bash
+pnpm install
+pnpm dev
+```
+
+打开 `http://localhost:3000`，选择 OpenAI。此时 stub 服务端只会返回 “Hello world!”。
+
+其核心是一个基于 FastAPI 的端点，创建 `EventEncoder` 并返回 `text/event-stream`：
+
+```python
+@app.post("/")
+async def agentic_chat_endpoint(input_data: RunAgentInput, request: Request):
+    accept_header = request.headers.get("accept")
+    encoder = EventEncoder(accept=accept_header)
+
+    async def event_generator():
+        yield encoder.encode(
+            RunStartedEvent(
+                type=EventType.RUN_STARTED,
+                thread_id=input_data.thread_id,
+                run_id=input_data.run_id,
+            ),
+        )
+        # ...后续事件
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+```
+
+## 第 4 步 — 打通 OpenAI 与 AG-UI
+
+安装 SDK：
+
+```bash
+poetry add openai
+```
+
+### AG-UI 回顾
+
+一个 AG-UI 服务端实现端点并发射一系列事件来表达：
+
+- **生命周期事件**：`RUN_STARTED`、`RUN_FINISHED`、`RUN_ERROR`
+- **内容事件**：`TEXT_MESSAGE_*`、`TOOL_CALL_*` 等
+
+### 实现流式服务端
+
+关键变化：不再返回硬编码消息，而是调用 OpenAI API 并通过 AG-UI 事件流式转发。使用 `TEXT_MESSAGE_CHUNK` 与 `TOOL_CALL_CHUNK` 便捷事件可以自动管理消息生命周期：
+
+```python
+stream = client.chat.completions.create(
+    model="gpt-4o",
+    stream=True,
+    tools=[...] if input_data.tools else None,
+    messages=[...],
+)
+
+message_id = str(uuid.uuid4())
+
+for chunk in stream:
+    if chunk.choices[0].delta.content:
+        yield encoder.encode(
+            TextMessageChunkEvent(
+                type=EventType.TEXT_MESSAGE_CHUNK,
+                message_id=message_id,
+                delta=chunk.choices[0].delta.content,
+            )
+        )
+    elif chunk.choices[0].delta.tool_calls:
+        tool_call = chunk.choices[0].delta.tool_calls[0]
+        yield encoder.encode(
+            ToolCallChunkEvent(
+                type=EventType.TOOL_CALL_CHUNK,
+                tool_call_id=tool_call.id,
+                tool_call_name=tool_call.function.name if tool_call.function else None,
+                parent_message_id=message_id,
+                delta=tool_call.function.arguments if tool_call.function else None,
+            )
+        )
+```
+
+### 底层发生了什么
+
+1. **初始化**：创建 OpenAI 客户端并发射 `RUN_STARTED`
+2. **请求**：以 `stream=True` 将用户消息发送给 `chat.completions`
+3. **流式转发**：每个分片作为 `TEXT_MESSAGE_CHUNK` 或 `TOOL_CALL_CHUNK` 转发
+4. **结束**：发射 `RUN_FINISHED`（出错则 `RUN_ERROR`）
+
+测试端点：
+
+```bash
+curl -X POST http://localhost:8000/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: text/event-stream" \
+  -d '{
+    "threadId": "thread_123",
+    "runId": "run_456",
+    "state": {},
+    "messages": [
+      { "id": "msg_1", "role": "user", "content": "Hello, how are you?" }
+    ],
+    "tools": [],
+    "context": [],
+    "forwardedProps": {}
+  }'
+```
+
+## 第 5 步 — 与你的服务端聊天
+
+刷新 Dojo 页面并开始输入，你会看到 GPT-4o 逐词流式返回。像 CopilotKit 这样的工具已经理解 AG-UI，将端点指向它即可获得开箱即用的完整聊天 UI。
+
+## 分享你的集成
+
+1. Fork [AG-UI 仓库](https://github.com/ag-ui-protocol/ag-ui)
+2. 在 `integrations/` 下添加包（参见[参与贡献](/development/contributing/)）
+3. 提交 PR 说明用例与设计决策
+
+## 结论
+
+你现在拥有了一个可运行的 AG-UI 服务端与本地演练环境。接下来可以：添加工具调用、部署到生产、将 AG-UI 接入其他模型或服务。

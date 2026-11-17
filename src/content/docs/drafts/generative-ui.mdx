@@ -1,0 +1,302 @@
+---
+title: 草案：生成式用户界面
+description: 无需自定义工具渲染器，由 AI 直接生成用户界面的 AG-UI 扩展提案。
+---
+
+## 摘要
+
+### 问题陈述
+
+目前，为智能体交互创建自定义用户界面需要程序员定义特定的**工具渲染器**。这限制了智能体驱动应用的灵活性与适应性。
+
+### 动机
+
+本草案描述一个 AG-UI 扩展，针对**生成式用户界面**——由人工智能直接生成界面，而无需程序员定义自定义工具渲染器。核心思路是利用“向智能体发送客户端工具”的能力，从而在所有 AG-UI 支持的智能体框架上启用该能力。
+
+## 状态
+
+- **状态**：Draft
+- **作者**：Markus Ecker（[mail@mme.xyz](mailto:mail@mme.xyz)）
+
+## 挑战与限制
+
+### 工具描述长度
+
+OpenAI 对工具描述强制 1024 字符上限；Gemini 与 Anthropic 没有该限制。
+
+### 参数 JSON Schema 约束
+
+类、嵌套、`$ref` 与 `oneOf` 在各 LLM 提供商之间无法可靠支持。
+
+### 上下文窗口考量
+
+把庞大的 UI 描述语言注入智能体可能降低其性能。专门用于 UI 生成的智能体比同时承担其他任务的智能体表现更好。
+
+## 详细规范
+
+### 两步生成流程
+
+```text
+智能体需要 UI
+  → 第 1 步：生成什么？
+     智能体调用 generateUserInterface（description、data、output）
+  → 第 2 步：如何生成？
+     次级生成器构建实际 UI（JSON Schema、React 等）
+  → 向用户展示渲染后的 UI
+  → 校验用户输入并返回给智能体
+```
+
+### 第 1 步：生成什么？
+
+向智能体注入一个轻量工具：
+
+**工具定义：**
+
+- **名称**：`generateUserInterface`
+- **参数**：
+  - **description**：UI 的高层描述（例如“用于输入用户地址的表单”）
+  - **data**：用于生成 UI 的任意预填充数据
+  - **output**：智能体期望用户回传数据的描述或 schema（字段、必填/可选、类型、约束）
+
+**示例工具调用：**
+
+```json
+{
+  "tool": "generateUserInterface",
+  "arguments": {
+    "description": "A form that collects a user's shipping address.",
+    "data": {
+      "firstName": "Ada",
+      "lastName": "Lovelace",
+      "city": "London"
+    },
+    "output": {
+      "type": "object",
+      "required": ["firstName", "lastName", "street", "city", "postalCode", "country"],
+      "properties": {
+        "firstName": { "type": "string", "title": "First Name" },
+        "lastName": { "type": "string", "title": "Last Name" },
+        "street": { "type": "string", "title": "Street Address" },
+        "city": { "type": "string", "title": "City" },
+        "postalCode": { "type": "string", "title": "Postal Code" },
+        "country": {
+          "type": "string",
+          "title": "Country",
+          "enum": ["GB", "US", "DE", "AT"]
+        }
+      }
+    }
+  }
+}
+```
+
+### 第 2 步：如何生成？
+
+把 UI 生成委托给次级 LLM 或智能体：
+
+- CopilotKit 用户保持控制权：可自定义生成器、添加自定义库、包含额外提示等
+- 工具调用时，次级模型消费 `description`、`data` 与 `output` 生成用户界面
+- 该模型专注于 UI 生成，确保最高保真度与一致性
+- 生成方式可以替换（如 JSON、HTML 或其他可渲染格式）
+- UI 格式描述不受结构或长度约束，允许任意复杂的规范
+
+## 实现示例
+
+### 示例输出：UISchemaGenerator
+
+```json
+{
+  "jsonSchema": {
+    "title": "Shipping Address",
+    "type": "object",
+    "required": ["firstName", "lastName", "street", "city", "postalCode", "country"],
+    "properties": {
+      "firstName": { "type": "string", "title": "First name" },
+      "lastName": { "type": "string", "title": "Last name" },
+      "street": { "type": "string", "title": "Street address" },
+      "city": { "type": "string", "title": "City" },
+      "postalCode": { "type": "string", "title": "Postal code" },
+      "country": {
+        "type": "string",
+        "title": "Country",
+        "enum": ["GB", "US", "DE", "AT"]
+      }
+    }
+  },
+  "uiSchema": {
+    "type": "VerticalLayout",
+    "elements": [
+      {
+        "type": "Group",
+        "label": "Personal Information",
+        "elements": [
+          { "type": "Control", "scope": "#/properties/firstName" },
+          { "type": "Control", "scope": "#/properties/lastName" }
+        ]
+      },
+      {
+        "type": "Group",
+        "label": "Address",
+        "elements": [
+          { "type": "Control", "scope": "#/properties/street" },
+          { "type": "Control", "scope": "#/properties/city" },
+          { "type": "Control", "scope": "#/properties/postalCode" },
+          { "type": "Control", "scope": "#/properties/country" }
+        ]
+      }
+    ]
+  },
+  "initialData": {
+    "firstName": "Ada",
+    "lastName": "Lovelace",
+    "city": "London",
+    "country": "GB"
+  }
+}
+```
+
+### 示例输出：ReactFormHookGenerator
+
+```tsx
+import React from "react"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+
+// ----- Schema（契约） -----
+const AddressSchema = z.object({
+  firstName: z.string().min(1, "Required"),
+  lastName: z.string().min(1, "Required"),
+  street: z.string().min(1, "Required"),
+  city: z.string().min(1, "Required"),
+  postalCode: z.string().regex(/^[A-Za-z0-9\-\s]{3,10}$/, "3–10 chars"),
+  country: z.enum(["GB", "US", "DE", "AT", "FR", "IT", "ES"]),
+})
+export type Address = z.infer<typeof AddressSchema>
+
+type Props = {
+  initialData?: Partial<Address>
+  meta?: { title?: string; submitLabel?: string }
+  respond: (data: Address) => void
+}
+
+const COUNTRIES: Address["country"][] = ["GB", "US", "DE", "AT", "FR", "IT", "ES"]
+
+export default function AddressForm({ initialData, meta, respond }: Props) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<Address>({
+    resolver: zodResolver(AddressSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      street: "",
+      city: "",
+      postalCode: "",
+      country: "GB",
+      ...initialData,
+    },
+  })
+
+  const onSubmit = (data: Address) => respond(data)
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      {meta?.title && <h2>{meta.title}</h2>}
+
+      <fieldset>
+        <legend>Personal Information</legend>
+        <div>
+          <label>First name</label>
+          <input {...register("firstName")} placeholder="Ada" autoFocus />
+          {errors.firstName && <small>{errors.firstName.message}</small>}
+        </div>
+        <div>
+          <label>Last name</label>
+          <input {...register("lastName")} placeholder="Lovelace" />
+          {errors.lastName && <small>{errors.lastName.message}</small>}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Address</legend>
+        <div>
+          <label>Street address</label>
+          <input {...register("street")} />
+          {errors.street && <small>{errors.street.message}</small>}
+        </div>
+        <div>
+          <label>City</label>
+          <input {...register("city")} />
+          {errors.city && <small>{errors.city.message}</small>}
+        </div>
+        <div>
+          <label>Postal code</label>
+          <input {...register("postalCode")} />
+          {errors.postalCode && <small>{errors.postalCode.message}</small>}
+        </div>
+        <div>
+          <label>Country</label>
+          <select {...register("country")}>
+            {COUNTRIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          {errors.country && <small>{errors.country.message}</small>}
+        </div>
+      </fieldset>
+
+      <div>
+        <button type="submit">{meta?.submitLabel ?? "Submit"}</button>
+      </div>
+    </form>
+  )
+}
+```
+
+## 实现考量
+
+### 客户端 SDK 变更
+
+TypeScript SDK 新增：
+
+- 新的 `generateUserInterface` 工具类型
+- 可插拔生成器的 UI 生成器注册表
+- 生成 UI schema 的验证层
+- 用户提交数据的响应处理器
+
+Python SDK 新增：
+
+- UI 生成工具调用支持
+- Schema 验证工具
+- UI 定义序列化
+
+### 集成影响
+
+- 所有 AG-UI 集成无需修改即可利用该能力
+- 框架发射标准工具调用；客户端处理 UI 生成
+- 与现有基于工具的 UI 方案向后兼容
+
+## 用例
+
+- **动态表单**：智能体根据对话上下文即时生成表单，无需预定义 schema
+- **数据可视化**：生成与所讨论数据匹配的图表、图形或表格
+- **交互式工作流**：创建多步向导或引导流程
+- **自适应界面**：根据用户偏好或设备能力生成不同布局
+
+## 测试策略
+
+- 工具注入与调用的单元测试
+- 多 UI 生成器的集成测试
+- 展示各类 UI 的端到端测试
+- 单步 vs. 两步生成的性能基准
+- 跨提供商兼容性测试
+
+## 参考
+
+- [工具调用](/concepts/tools/)
+- [JSON Schema](https://json-schema.org/)
+- [React Hook Form](https://react-hook-form.com/)
+- [JSON Forms](https://jsonforms.io/)

@@ -1,0 +1,69 @@
+---
+title: 推理
+description: 1.0：流式传输模型正在思考的内容，以及它不得揭示内容的往返。
+---
+
+推理是模型在回答之前的思考。生产者流式传输它，使 UI 能显示进行中的工作；并且在提供商把真实思维链保持私密之处，携带一个消费者只存储、无法读取、但会原样返回的加密产物。
+
+## 用户交互模型
+
+推理通常与会话分开渲染——默认折叠、以思考样式呈现。协议不强制任何呈现；消费者 MAY 完全隐藏推理。
+
+## 事件
+
+### span：`REASONING_START` 与 `REASONING_END`
+
+推理 span 括住一段思考，由 `REASONING_START` 开启、`REASONING_END` 关闭，按 `messageId` 匹配。一个 span MAY 包含多条推理消息。
+
+- 生产者 MUST NOT 开启 `messageId` 已开启的 span，MUST 在运行结束前关闭它开启的每个 span，MUST NOT 关闭它未开启的 span。
+- span 的标识符不划分命名空间：span 内的推理消息携带自己的 `messageId`。
+
+### 推理消息
+
+推理消息遵循[流式模式](/spec/1-0/basic/patterns/streaming/)：`REASONING_MESSAGE_START` 开启（其 `role` 固定为 `reasoning`），`REASONING_MESSAGE_CONTENT` 扩展，`REASONING_MESSAGE_END` 关闭，全部按 `messageId` 匹配——`REASONING_MESSAGE_CHUNK` 是紧凑拼写，其首个 chunk MUST 携带 `messageId`。该模式的规则与文本消息完全相同地适用。
+
+消费者 MUST 检测该纪律的违规并让运行失败，span 与推理消息皆然：
+
+- `REASONING_MESSAGE_CONTENT` 或 `REASONING_MESSAGE_END` 命名未被开启的消息时没有指称对象，消费者 MUST NOT 发明孤儿片段所命名的消息。同样的形状对文本消息也会被拒绝；推理不是例外。
+- `REASONING_END` 命名未被开启的 span 同样被拒绝；`REASONING_START` 重开已开启的 span 亦然。
+- `REASONING_MESSAGE_START` 命名已开启的推理消息也被拒绝——消息必须先用 `REASONING_MESSAGE_END` 关闭，才能再次使用其 `messageId`。span 与其内部消息 MAY 共享标识符，因此各自针对自己的开启集合检查。
+- 运行结束时仍开启的 span 或推理消息会使运行失败。
+
+span 与推理消息是**独立命名空间**：`REASONING_START` 开启 span 而不开启消息，因此命名 span `messageId` 的片段与其他孤儿一样无主。
+
+### `REASONING_ENCRYPTED_VALUE`
+
+携带提供商的不透明加密推理产物。`subtype` 说明 `entityId` 命名的是什么——消息或工具调用——这决定值存储在哪里。
+
+- 消费者 MUST 把 `encryptedValue` 视为不透明：永不解析、永不解释、永不假定为任何特定格式。
+- 消费者 MUST 把值与其命名的消息或工具调用一起存储，并在后续运行输入中**原样返回**，使生产者能恢复它所代表的推理上下文。该规则预设存在可承载它的目标：活动消息按 schema 不携带加密值，因此命名活动消息的事件被视为命名消费者不知道的东西——即下文未知 `entityId` 的情形。
+- 无法保留它的消费者——降级路径、无法承载它的存储——正在丢失内容，MUST 警告（[版本与兼容](/spec/1-0/basic/versioning/)）。
+- 产物随其消息：重述该消息的 [`MESSAGES_SNAPSHOT`](/spec/1-0/events/state/) 会整体替换它，包括 `encryptedValue`——因此仍需要该产物的生产者 MUST 在快照副本中重述它，省略者则是撤回自己的产物。消费者的义务是在所有事件应用后返回它所持有的内容，而不是复活快照移除的内容。
+
+该事件是独立的：不开启、不关闭任何内容，MAY 出现在开启运行内的任何位置，尽管按惯例到达于捕获其思考的 span 内。
+
+## 消息流
+
+```text
+Agent → Client: REASONING_START (span-1)
+Agent → Client: REASONING_MESSAGE_START (msg-9, reasoning)
+Agent → Client: REASONING_MESSAGE_CONTENT (delta) ×N
+Agent → Client: REASONING_MESSAGE_END (msg-9)
+Agent → Client: REASONING_ENCRYPTED_VALUE (message, msg-9)
+Agent → Client: REASONING_END (span-1)
+Client: 存储 msg-9 及其加密值，并在下一次运行输入中返回两者
+```
+
+## 数据类型
+
+事件形状由 [schema 参考](https://docs.ag-ui.com/spec/1-0/schema)定义：`ReasoningStartEvent`、`ReasoningEndEvent`、`ReasoningMessageStartEvent`、`ReasoningMessageContentEvent`、`ReasoningMessageEndEvent`、`ReasoningMessageChunkEvent`、`ReasoningEncryptedValueEvent`。会话历史中推理消息是 `ReasoningMessage`。
+
+## 错误处理
+
+`REASONING_ENCRYPTED_VALUE` 的 `entityId` 命名消费者不知道的内容时，无法存到它应在的位置；消费者 SHOULD 警告并 MAY 丢弃，MUST NOT 因此让运行失败。
+
+格式错误的推理事件——缺少必填字段、`subtype` 不是字符串——是已知值的格式错误，与其他一样致命。`subtype` 是 schema 未命名的**字符串**则不同：它是未识别内容——本消费者发布之后添加的成员——[处理模型](/spec/1-0/basic/processing/)会剥离并警告；在必填位置，这会移除携带它的事件。
+
+## 安全考量
+
+推理内容通常包含生产者选择不在回答中说出的材料。消费者 SHOULD 以与会话相同的保密级别对待它，并 MUST NOT 把 `encryptedValue` 交给除签发它的生产者之外的任何东西——它是恢复上下文的能力，不是给应用的数据。

@@ -1,0 +1,81 @@
+---
+title: 流式消息
+description: 1.0：开–内容–关纪律、chunk 形式，以及约束两者的规则。
+---
+
+三个事件族逐片流式传输长值：文本消息、工具调用与推理消息。三者都遵循同一模式，只是有两种拼写——显式的**开–内容–关**三件套，以及为否则需要缓冲的生产者准备的紧凑 **chunk** 形式。本页定义一次模式；各族页面只补充该族特有的内容。
+
+## 开、内容、关
+
+流式项由 `*_START` 开启，由零个或多个内容事件扩展，由 `*_END` 关闭，全部按项的标识符匹配（消息用 `messageId`，工具调用用 `toolCallId`）。
+
+- 生产者 MUST NOT 开启标识符已处于开启状态的项。
+- 生产者 MUST NOT 为未开启的标识符发送内容或结束事件。
+- 生产者开启的每一项都 MUST 在运行结束前关闭。
+
+开启事件携带描述该项的字段；内容事件只携带标识符与 `delta`。delta 按到达顺序拼接成项的值。
+
+```text
+Producer → Consumer: TEXT_MESSAGE_START (messageId: "msg-1")
+Producer → Consumer: TEXT_MESSAGE_CONTENT (delta: "Hello, ")
+Producer → Consumer: TEXT_MESSAGE_CONTENT (delta: "world.")
+Producer → Consumer: TEXT_MESSAGE_END (messageId: "msg-1")
+```
+
+## 交错
+
+消息、工具调用、推理消息与步骤彼此独立。生产者 MAY 自由交错——工具调用 MAY 在消息仍流式时开启——只要每一项遵守自己的开/关纪律。
+
+独立事件（`STATE_SNAPSHOT`、`STATE_DELTA`、`MESSAGES_SNAPSHOT`、`ACTIVITY_SNAPSHOT`、`ACTIVITY_DELTA`、`CUSTOM`、`RAW`、`REASONING_ENCRYPTED_VALUE`）不开启也不关闭任何项，MAY 出现在开启运行内的任何位置。在 chunk 形式下，其中一些确实会结束打开的 chunk 流——它们的到达告诉消费者简写无法继续——见[关闭 chunk 流](#关闭-chunk-流)。
+
+## chunk 形式
+
+`TEXT_MESSAGE_CHUNK`、`TOOL_CALL_CHUNK` 与 `REASONING_MESSAGE_CHUNK` 是三件套的紧凑拼写。消费者 MUST 在验证之前、应用代码之前把它们展开为 start/content/end 形式，使三件套的每条规则适用于展开后的事件。展开相对执行与中间件的位置在[处理模型](/spec/1-0/basic/processing/)中规定；每条路径都成立的不变式是：**chunk 按其代表的事件判定**——无论哪个阶段先遇到格式错误的 chunk，都拒绝而非修复。
+
+```text
+Producer → Expansion: TOOL_CALL_CHUNK (toolCallId, toolCallName, delta)
+Expansion → Consumer: TOOL_CALL_START
+Expansion → Consumer: TOOL_CALL_ARGS
+Producer → Expansion: TOOL_CALL_CHUNK (delta)
+Expansion → Consumer: TOOL_CALL_ARGS
+Producer → Expansion: RUN_FINISHED
+Expansion → Consumer: TOOL_CALL_END
+Expansion → Consumer: RUN_FINISHED
+```
+
+**两种拼写不能在同一项内混用。** 由 chunk 开启的项以 chunk 形式延续与关闭——其 `*_END` 是合成的，永不发送；由 `*_START` 开启的项显式延续与关闭。携带 chunk 流正在组装的标识符的显式事件不是它的延续：它会结束简写，随后的内容按三件套规则判定——这使在同一项内混用形式成为生产者 MUST NOT 发射的格式错误序列。
+
+### 首个 chunk
+
+项的首个 chunk 携带开启它所需的内容；后续 chunk MAY 省略这些字段并延续已开启的内容。
+
+- 一条消息的首个 `TEXT_MESSAGE_CHUNK` MUST 携带 `messageId`。它 MAY 携带 `role`；缺省 role 表示 `assistant`，与 `TEXT_MESSAGE_START` 完全一致。
+- 一条消息的首个 `REASONING_MESSAGE_CHUNK` MUST 携带 `messageId`。
+- 一次调用的首个 `TOOL_CALL_CHUNK` MUST 同时携带 `toolCallId` 与 `toolCallName`。
+
+消费者 MUST 把缺少必填字段的首个 chunk 视为协议违规，而不是自行发明标识符。
+
+### 延续 chunk
+
+- 携带标识符的后续 chunk MUST 携带它正在延续的同一标识符。命名不同标识符的 chunk 会开启新项，前一项先关闭。
+- 延续 chunk MAY 重复开启者已确立的字段——文本消息的 `role` 或 `name`，工具调用的 `toolCallName` 或 `parentMessageId`——但只能使用相同值。消费者 MUST 把冲突的重复视为协议违规。
+
+这也包括与开启者**通过省略**确立的值冲突：未携带 role 开启的消息是一条 `assistant` 消息，后续 chunk 声称另一 role 就是与之矛盾。
+
+> 冲突重复规则与[子智能体归因规则](/spec/1-0/events/subagents/)对延续 chunk 在 `subagentRunId` 上不一致的判定相同：生产者对同一项说了两件互不兼容的事，没有正确的选择方式。
+
+### 关闭 chunk 流
+
+chunk 形式没有显式结束事件，因此消费者在流无法继续时合成 `*_END`：
+
+- 当同一 lane 中的 chunk 开启不同项时；
+- 当该项 lane 中到达消息、工具调用、步骤、状态、custom 或推理事件时——但有四个例外不参与组装也不关闭任何东西：`RAW`、`ACTIVITY_SNAPSHOT`、`ACTIVITY_DELTA`、`REASONING_ENCRYPTED_VALUE`（以及 `SUBAGENT_STARTED`，它开启新 lane 而不触碰本 lane）；
+- 当到达运行级事件——`RUN_STARTED`、`RUN_FINISHED`、`RUN_ERROR` 或 `MESSAGES_SNAPSHOT`——它关闭所有 lane；或当项所归因的子智能体终止时，关闭该子智能体的 lane。
+
+简写延续属于哪条 lane——父智能体的还是某个子智能体的——由[归因规则](/spec/1-0/events/subagents/)决定；对于既无标识符也无标签的延续，则通过解析决定：若父智能体存在该类型的开放流，则延续它；否则延续该类型唯一的开放流。当多条 lane 都持有该类型的开放流且没有一条属于父智能体时，该延续没有唯一指称对象，MUST 作为歧义被拒绝——并行运行子智能体的生产者 MUST 为其延续添加归因。
+
+chunk 流 MUST NOT 比其所有者存活更久：由子智能体开启的项最迟在该子智能体的终止事件处关闭。
+
+### chunk 元数据
+
+chunk 的 `metadata` 适用于由该 chunk 合成的事件，并按[元数据规则](/spec/1-0/basic/metadata/)合并进该项。只携带元数据的延续 chunk——例如报告用量与结束原因的最后一块——是合法的：它不添加内容，其元数据仍会到达它所延续的项。

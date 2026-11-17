@@ -1,0 +1,170 @@
+---
+title: 迁移到 1.0
+description: 应用或集成迁移到 AG-UI 1.0 时各 SDK 的变化，以及哪些无需改动。
+---
+
+AG-UI 1.0 是第一个有规范支撑的版本：[schema](https://docs.ag-ui.com/spec/1-0/schema) 是唯一事实来源，每个 SDK 的协议类型都由它生成，过去只存在于 TypeScript 客户端中的行为规则也被[写了下来](https://docs.ag-ui.com/spec/1-0)。大多数变化是**增量式**的。本页讲的是需要你动手的部分——各 SDK 要改什么，以及什么可以继续工作。
+
+协议级变更见规范的 [Key Changes](https://docs.ag-ui.com/spec/1-0/changelog)；本页只说明它们对你已有代码意味着什么。
+
+## 哪些继续有效
+
+- **0.x 智能体可继续对接 1.0 客户端**。TypeScript 客户端带有常驻兼容边界，会翻译入站流中已退役的形状：五个 `THINKING_*` 事件转为 `REASONING_*`、旧 `binary` 内容部分转为媒体类型对应的部分、历史上被接受的整字段 `null` 转为缺省字段。每次入站翻译都会告警。这些 shim 记录在 [`DEPRECATIONS.md`](https://github.com/ag-ui-protocol/ag-ui/blob/main/DEPRECATIONS.md)，并有过期时间。
+- **1.0 智能体可继续对接 0.x 客户端**。1.0 新增的一切（`RUN_FINISHED.outcome`、子智能体事件、`protocolVersion`、活动事件）要么是可选的，要么是新事件类型，旧客户端会忽略未知内容。
+- **线上格式不变**。JSON over SSE 与 protobuf 绑定的 framing 未变；你今天发送的字段名就是 1.0 读取的字段名，例外见本页。
+
+## 生产者：声明你的版本
+
+1.0 生产者**必须**在 `RUN_STARTED` 上声明它所使用的协议版本（见 [Versioning](https://docs.ag-ui.com/spec/1-0/basic/versioning)）。该字段在 schema 中是可选的——因为“缺失”正是识别 1.0 之前生产者的方式。因此当你自己构建事件时，没有 SDK 会替你添加。
+
+使用 SDK 的常量，不要手写字符串，也不要回显 `RunAgentInput.protocolVersion`：声明表达的是**生产者自己的版本**。
+
+**.NET**：`AGUI.Server` 在把 `ChatResponseUpdate` 流转换时会自动构建 `RUN_STARTED` 并携带 `AGUIProtocol.Version`；若你自行发射 `RunStartedEvent`，需自行设置：
+
+```csharp
+new RunStartedEvent
+{
+    ThreadId = threadId,
+    RunId = runId,
+    ProtocolVersion = AGUIProtocol.Version,
+};
+```
+
+**中间件与代理**转发生产者的 `RUN_STARTED` 时，必须保持其 `protocolVersion` 不变：不要添加、覆盖或移除。只有把流转译成不同版本的层才声明它发射的版本。
+
+## TypeScript
+
+TypeScript SDK 变化最大，因为协议行为过去就在这里定义。
+
+### 省略整个可选 null 字段
+
+可选协议字段必须**缺省**而不是 `null`，包括 `rawEvent`、`RUN_FINISHED.result`、`forwardedProps`。`EventEncoder` 与出站 HTTP 输入会在传输前省略这些字段；内存中的智能体也应发射规范形状。
+
+旧生产者对一组固定的整字段可选 `null` 仍保持兼容（客户端在验证前将其转为缺省并告警），覆盖 `rawEvent`、`subagentRunId`、`RUN_STARTED.parentRunId`、`RUN_STARTED.input`、`RUN_FINISHED.result`、`RUN_FINISHED.outcome.pendingToolCallIds`、`RUN_FINISHED.usage[]` 中的 `provider`/`reasoningTokens`/`cachedInputTokens`/`cacheWriteInputTokens`、`RUN_ERROR.usage`、`SUBAGENT_FINISHED.result`、`TOOL_CALL_RESULT.role`、resume-entry `payload`、媒体部分的 `metadata`、tool `parameters`、`RunAgentInput.forwardedProps` 等。
+
+这是**客户端容忍**，不是协议变更：生产者仍必须省略这些字段。
+
+直接 schema 验证仍然严格，不会触发客户端兼容边界。接受旧 `RunAgentInput` 的请求处理器需在调用 `RunAgentInputSchema.parse` 前本地省略历史上可接受的 null。
+
+### zod 成为 `@ag-ui/core` 的可选 peer 依赖
+
+所有验证器迁移（包括历史别名 `EventSchemas`、`*InputPartSchema` 名称、`OptionalMetadataSchema`）以及能力 schema。`@ag-ui/client` 不再重新导出它们；`@ag-ui/client` 自身仍依赖 zod，因为其执行阶段使用它验证，安装方式不变。
+
+### 未知内容不再到达你的代码
+
+客户端在中间件之后有统一的执行阶段，覆盖所有路径：
+
+- 类型无法识别的事件被丢弃并告警
+- 已知事件上的未知属性被剥离并告警（指明路径）
+- 协议定义字段上的**格式错误**值（例如字符串位置出现数字）会使运行失败，和以前一样
+
+如果你在订阅者中读取事件上的非标准属性，它在订阅者看到之前已被移除。额外数据的**合规通道是 `metadata`**——它在每个事件与消息上都是开放键，且永不被剥离。发送侧同理：`RunAgentInput` 上的未知键在传输前被剥离；为此存在的字段是 `forwardedProps`，可携带任意 JSON 原样传给智能体。
+
+### 1.0 中更严格的行为
+
+**推理开/闭纪律会被验证**：`REASONING_MESSAGE_CONTENT`/`END` 指向未开启的消息、关闭未开启的 span、运行结束时仍有 span 或消息未关闭，都会使运行失败。span 与推理消息是独立命名空间：推理消息不必位于 span 内，`REASONING_START` 的 id 也不会开启推理消息。
+
+**执行保证覆盖所有路径**：未知内容会被剥离并告警、已知字段的格式错误值是致命错误——现在在安装中间件时以及 protobuf 绑定上同样成立，不仅限于普通 SSE 路径。
+
+### 从公共 API 中退役
+
+- 五个 `THINKING_*` 事件（枚举成员、类型、schema、工厂）。请发射 `REASONING_*`；入站旧流仍会被兼容边界翻译。
+- `BinaryInputContent`（`{ type: "binary" }`）。请使用带 `source` 的媒体部分（`image`、`audio`、`video`、`document`）。入站旧部分仍会被翻译。
+- `@ag-ui/client` 的 `stripUnknown` 与 `StripResult`（执行阶段内部实现）。
+
+### 重命名与类型变更
+
+- `SubAgentInfo` → `SubagentInfo`；`AgentCapabilities` 上的 `multiAgent.subAgents` → `subagents`。wire key 随之改变且**没有别名**。
+- `RunAgentInput.tools` 与 `.context` 在 TypeScript 类型上变为非可选；wire 上缺省仍表示空，SDK 以 `[]` 呈现。
+- `AbstractAgent.maxVersion` 弃用，改用 `maxProtocolVersion`；旧名覆盖仍可用并告警一次。
+- 内容部分按“是什么”而非“方向”命名：`InputContent` → `ContentPart`、`TextInputContent` → `TextPart`、`ImageInputContent` → `ImagePart`（audio/video/document 同理）、`InputContentSource` → `PartSource` 等。旧名作为弃用别名导出，wire `type` 值不变。
+- `PartSource` 增加第三个分支 `FileSource`（`type: "file"`）：由模型提供商为已上传字节签发的句柄。按 `source.type` 穷举的代码需要新增分支；**永远不要把它当作 URL**。
+- `ToolMessage.content` 与 `ToolCallResultEvent.content` 变为 `string | ContentPart[]`；`contentToText()` 可拼接文本部分，`contentHasMedia()` 判断扁平化是否丢失内容。
+- 每个内容部分都有可选 `id`，`TextPart` 也有媒体部分早已具备的可选 `metadata`。
+- 能力上的 `execution.maxIterations` 与 `maxExecutionTime` 验证为非负整数且在 JS 安全范围内。
+
+### 新增且值得了解
+
+客户端在每个 `RunAgentInput` 上声明 `protocolVersion: "1.0"`，并在 `RUN_STARTED` 上读取生产者的答复，当生产者使用更新或无法解析的版本时告警。将 `maxProtocolVersion` 固定在该客户端包版本以下会省略该字段，以兼容会拒绝未知成员的 peer。
+
+Protobuf 解码会合并 singular 消息字段的重复出现（包括嵌套消息、metadata 与 run input）：后出现的标量胜出，重复列表按序追加，缺省字段保留先前值。TypeScript 与 .NET 遵循相同的 protobuf 合并规则。
+
+## Python
+
+Python SDK 是生产者侧的：它定义智能体发射的形状。变化更窄，但其中一项会影响任何解析其输出的人。
+
+### 缺省字段被省略，而非 `null`
+
+无值字段会从 JSON 中省略，而不是写成 `null`。这在 1.0 之前（`ag-ui-protocol` 0.1.20）已发布。读取方使用 `if payload["parentMessageId"] is None` 的代码需要改为 `"parentMessageId" not in payload`。作为**值**的 `null` 仍保留。
+
+### 生成模型取代手写模型
+
+`ag_ui.core` 保留其导出的所有名称（除退役/重命名项），现在从生成源代码重新导出，构造方式不变：snake_case 关键字参数、wire 上使用别名。三点行为差异：
+
+- 单值字面量（`type`、固定 `role`）默认为其唯一合法值，无需再写。
+- 带 schema 默认值的字段（文本消息的 `role`、patch 的 `replace`）在缺省时解析为 `None`，而非物化默认值。
+- JSON Patch 操作解析为类型化操作模型，wire 形式完全相同。
+
+验证仍与以前一样宽容：未知键保留，pydantic 默认强制转换适用。严格契约是规范的 fixture 语料，而非 SDK 模型。
+
+### 将 JSON Patch 条目作为对象读取
+
+```python
+from ag_ui.core import StateDeltaEvent
+
+event = StateDeltaEvent(delta=[{"op": "replace", "path": "/count", "value": 1}])
+operation = event.delta[0]
+assert operation.path == "/count"   # 以前：event.delta[0]["path"]
+assert operation.op == "replace"    # 以前：event.delta[0].get("op")
+
+patches = [operation.model_dump(by_alias=True) for operation in event.delta]
+```
+
+同时兼容旧字典与 1.0 模型的适配器，可对字典条目原样保留，仅在条目为模型时调用 `model_dump(by_alias=True)`。
+
+### 退役
+
+- `MetadataMixin`（来自 `ag_ui.core`、`ag_ui.core.types`、`ag_ui.core.events`）。生成模型已自带 metadata 字段。自定义模型可继承 `ag_ui.core.types` 的 `ConfiguredBaseModel` 并声明 `metadata: Optional[Metadata] = None`。
+- `THINKING_*` 事件。请发射 `REASONING_*`；生产者侧没有 shim，TypeScript 客户端会翻译旧流。
+- 作为**部分**的 `BinaryInputContent`：`ContentPart` 不再有 `binary` 成员，携带它的消息会在 `RunAgentInput` 验证时被拒绝。该类本身仍可导入一个版本，但 SDK 不再构造它。请使用媒体部分。
+
+### 重命名
+
+- `SubAgentInfo` → `SubagentInfo`；`MultiAgentCapabilities.sub_agents` → `subagents`（wire key `subagents`）。`SubAgentInfo` 作为别名导出一个版本；旧字段与 wire key 不保留。
+- `ExecutionCapabilities.max_iterations` 与 `max_execution_time` 现在拒绝负值。
+- 内容部分按“是什么”命名：`InputContent` → `ContentPart`、`TextInputContent` → `TextPart`、`ImageInputContent` → `ImagePart` 等；旧名作为别名导出。
+- `PartSource` 增加 `FileSource`（`type="file"`）；按来源类分支的代码需要新增分支；**永远不要把它当作 URL**。
+- `ToolMessage.content` 与 `ToolCallResultEvent.content` 变为 `Union[str, List[ContentPart]]`；每个部分有可选 `id`，`TextPart` 有可选 `metadata`。
+
+## .NET
+
+.NET SDK 跨度最大，因为它是最后一个仍在手写协议类型的 SDK，同时获得了一项另外两个 SDK 早已具备的能力。
+
+### 生成模型取代约 60 个手写类
+
+消费者看到的表面与以前相同，减去 schema 退役的部分：相同的 sealed 类、相同的 `[JsonPropertyName]` wire 名称、缺省成员写入时省略。.NET 对未识别内容的容忍不变——未知属性会被跳过（`System.Text.Json` 一贯行为）。
+
+一项行为更宽容：SDK 没有模型的**事件类型**现在会被两个流读取器跳过并给出 trace 告警，而不是结束流。单独解码单个未知事件仍会抛出 `AGUIUnknownEventTypeException`。
+
+### 退役
+
+- `AGUIBinaryInputContent`、其类型常量与转换器分支。跨 Microsoft.Extensions.AI 边界的 `DataContent`/`UriContent` 会转为媒体类型对应的部分，文件名放在该部分的 metadata 中。.NET 没有中间件层，也不翻译入站旧部分：`{ "type": "binary" }` 是未知判别符，转换器会抛出 `JsonException` 使反序列化失败。
+
+### 重命名与类型变更
+
+- `SubAgentInfo` → `SubagentInfo`；`MultiAgentCapabilities.SubAgents` → `Subagents`（wire key `subagents`）。无别名，旧 key 会被跳过。
+- `AgentCapabilities.Custom` 与 `IdentityCapabilities.Metadata` 变为 `JsonElement?`；用 `JsonSerializer.SerializeToElement(...)` 构建。
+- `ExecutionCapabilities.MaxIterations` 与 `MaxExecutionTime` 变为 `long?`。
+- `Tool.Parameters` 与 `RunAgentInput.ForwardedProperties`（wire key `forwardedProps`）为可空 `JsonElement?`；消息的 `Id` 为非空字符串且总会写入。
+- `AGUIUserContent` → `AGUIContent`：string-or-parts 联合不再只属于用户消息。`AGUIToolMessage.Content` 与 `ToolCallResultEvent.Content` 变为 `AGUIContent`。
+- `AGUIInputContentSource` 增加第三个子类 `AGUIInputContentFileSource`（`type: "file"`，常量 `AGUIInputContentSourceTypes.File`）；对来源层级 `switch` 的代码需要新增分支；**永远不要把它当作 URL**。
+
+### AOT
+
+源生成序列化上下文是 AOT 编译下唯一的解析器。工具结果按其运行时类型序列化，未在上下文中注册的类型会抛出 `NotSupportedException`。1.0 中显式注册了 `int`。
+
+## 下一步
+
+- 协议级差异：[Key Changes](https://docs.ag-ui.com/spec/1-0/changelog)
+- 能力声明现在的要求：[Capabilities](https://docs.ag-ui.com/spec/1-0/basic/capabilities)
+- 1.0 与旧版本如何对话：[Versioning and compatibility](https://docs.ag-ui.com/spec/1-0/basic/versioning)

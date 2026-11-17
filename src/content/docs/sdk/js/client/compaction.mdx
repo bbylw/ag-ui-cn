@@ -1,0 +1,77 @@
+---
+title: 流压缩
+description: compactEvents 工具，把冗长的流式序列折叠为等价事件。
+---
+
+# compactEvents
+
+`compactEvents` 在保持语义的前提下压缩事件数组中的冗长流式序列。可用它在持久化前缩小日志，或简化对 SSE 流的后处理。
+
+```typescript
+import { compactEvents, EventType, type BaseEvent } from "@ag-ui/client"
+
+const compacted: BaseEvent[] = compactEvents(events)
+```
+
+## API
+
+```typescript
+function compactEvents(events: BaseEvent[]): BaseEvent[]
+```
+
+## 它做什么
+
+- **文本消息**：把同一 `messageId` 的 `TEXT_MESSAGE_START` → `TEXT_MESSAGE_CONTENT*` → `TEXT_MESSAGE_END` 归组，所有 `delta` 拼接为单个 `TEXT_MESSAGE_CONTENT`。
+- **工具调用**：把同一 `toolCallId` 的 `TOOL_CALL_START` → `TOOL_CALL_ARGS*` → `TOOL_CALL_END` 归组，所有 `delta` 拼接为单个 `TOOL_CALL_ARGS`。
+- **交错事件**：发生在 start/end 之间的事件被移到该序列之后，使流式块保持连续。
+- **直通**：其它事件（状态、自定义等）原样保留。
+
+## 示例
+
+压缩前：
+
+```typescript
+[
+  { type: EventType.TEXT_MESSAGE_START, messageId: "m1", role: "assistant" },
+  { type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "Hello" },
+  { type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: " " },
+  { type: EventType.CUSTOM, name: "thinking" },
+  { type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "world" },
+  { type: EventType.TEXT_MESSAGE_END, messageId: "m1" },
+]
+```
+
+压缩后：
+
+```typescript
+[
+  { type: EventType.TEXT_MESSAGE_START, messageId: "m1", role: "assistant" },
+  { type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "Hello world" },
+  { type: EventType.TEXT_MESSAGE_END, messageId: "m1" },
+  { type: EventType.CUSTOM, name: "thinking" },
+]
+```
+
+工具调用的压缩对 `TOOL_CALL_ARGS` 同理。
+
+## 何时使用
+
+- 持久化事件历史（用更少的帧表达相同含义）
+- 为分析或导出准备快照
+- 降低测试与调试输出中的噪声
+
+## Metadata
+
+折叠一串 delta 事件时也会折叠它们的 [metadata](/concepts/metadata/)：按 key 逐个合并，后写覆盖先写，因此压缩后的流产生的 metadata 与原始流一致。首个 delta 之后到达的 metadata（来自后续 delta，也来自重放的 start）按到达顺序挂在折叠后的事件上，因为压缩会把 start 排在它前面。
+
+## 注意与限制
+
+压缩会重排事件以使同一流的帧相邻，而这种重排在一般情况下**不保语义**：
+
+- 两个并行工具调用的 end 若与 start 顺序相反，压缩后会在助手消息的 `toolCalls` 数组中互换位置，但各自仍携带自己的 metadata。
+- 中断某个流的事件会被移到该流之后，因此消息中途到达的 `MESSAGES_SNAPSHOT` 会在该消息自身的事件之后重放，并覆盖它们产生的效果——包括追加的内容与合并的 metadata。若依赖精确重放等价，应避免把快照与打开的流交错。
+
+此外：
+
+- 该工具只处理消息与工具调用流，不修改状态事件（`STATE_SNAPSHOT`／`STATE_DELTA`），也不生成消息快照。
+- 更广泛的模式（分支、规范化）见[序列化](/concepts/serialization/)。

@@ -1,0 +1,311 @@
+---
+title: 中间件
+description: 智能体事件流的转换与过滤。
+---
+
+# 中间件
+
+`@ag-ui/client` 的中间件系统提供转换、过滤与增强智能体事件流的强大手段。中间件可以拦截并修改事件、添加日志、实现鉴权、过滤工具调用等。
+
+```typescript
+import {
+  AbstractAgent,
+  BaseEvent,
+  EventType,
+  FilterToolCallsMiddleware,
+  Message,
+  Middleware,
+  MiddlewareFunction,
+  RunAgentInput
+} from "@ag-ui/client"
+import { Observable } from "rxjs"
+```
+
+以下示例假定已导入相关 RxJS 操作符（`map`、`tap`、`filter`、`finalize`、`catchError`、`switchMap`、`timer`、`of` 等）。
+
+## 类型
+
+### MiddlewareFunction
+
+```typescript
+type MiddlewareFunction = (
+  input: RunAgentInput,
+  next: AbstractAgent
+) => Observable<BaseEvent>
+```
+
+函数中间件接收的事件与下一个中间件或智能体发出的事件完全一致。
+
+### Middleware
+
+```typescript
+interface EventWithState {
+  event: BaseEvent
+  messages: Message[]
+  state: unknown
+}
+
+abstract class Middleware {
+  abstract run(
+    input: RunAgentInput,
+    next: AbstractAgent
+  ): Observable<BaseEvent>
+
+  protected runNext(
+    input: RunAgentInput,
+    next: AbstractAgent
+  ): Observable<BaseEvent>
+
+  protected runNextWithState(
+    input: RunAgentInput,
+    next: AbstractAgent
+  ): Observable<EventWithState>
+}
+```
+
+- `runNext()` 执行 `next.run(...)`，并把 chunk 事件规范化为完整的 `TEXT_MESSAGE_*` / `TOOL_CALL_*` 序列。
+- `runNextWithState()` 在此之上，为每个事件应用后提供累积的 `messages` 与 `state`。
+
+## 函数中间件
+
+最简单的中间件就是函数，适合无状态转换。
+
+### 基本示例
+
+```typescript
+const loggingMiddleware: MiddlewareFunction = (input, next) => {
+  console.log(`[${new Date().toISOString()}] Starting run ${input.runId}`)
+
+  return next.run(input).pipe(
+    tap(event => console.log(`Event: ${event.type}`)),
+    finalize(() => console.log(`Run ${input.runId} completed`))
+  )
+}
+
+agent.use(loggingMiddleware)
+```
+
+### 转换事件
+
+```typescript
+const timestampMiddleware: MiddlewareFunction = (input, next) => {
+  return next.run(input).pipe(
+    map(event => {
+      if (event.type === EventType.RUN_STARTED) {
+        return { ...event, timestamp: Date.now() }
+      }
+      return event
+    })
+  )
+}
+```
+
+### 错误处理
+
+```typescript
+const errorMiddleware: MiddlewareFunction = (input, next) => {
+  return next.run(input).pipe(
+    catchError(error => {
+      console.error("Agent error:", error)
+      return of({
+        type: EventType.RUN_ERROR,
+        message: error.message
+      } as BaseEvent)
+    })
+  )
+}
+```
+
+## 类中间件
+
+需要状态或复杂逻辑时，继承 `Middleware`。
+
+```typescript
+class CounterMiddleware extends Middleware {
+  private totalEvents = 0
+
+  run(input: RunAgentInput, next: AbstractAgent): Observable<BaseEvent> {
+    let runEvents = 0
+
+    return this.runNext(input, next).pipe(
+      tap(() => {
+        runEvents++
+        this.totalEvents++
+      }),
+      finalize(() => {
+        console.log(`Run events: ${runEvents}, Total: ${this.totalEvents}`)
+      })
+    )
+  }
+}
+
+agent.use(new CounterMiddleware())
+```
+
+### 带配置的中间件
+
+```typescript
+class AuthMiddleware extends Middleware {
+  constructor(
+    private apiKey: string,
+    private headerName: string = "Authorization"
+  ) {
+    super()
+  }
+
+  run(input: RunAgentInput, next: AbstractAgent): Observable<BaseEvent> {
+    const authenticatedInput: RunAgentInput = {
+      ...input,
+      forwardedProps: {
+        ...input.forwardedProps,
+        auth: {
+          headerName: this.headerName,
+          value: `Bearer ${this.apiKey}`
+        }
+      }
+    }
+
+    return this.runNext(authenticatedInput, next)
+  }
+}
+
+const apiKey = process.env.API_KEY ?? ""
+agent.use(new AuthMiddleware(apiKey))
+```
+
+## 累积器辅助
+
+### runNextWithState()
+
+```typescript
+class MetricsWithStateMiddleware extends Middleware {
+  run(input: RunAgentInput, next: AbstractAgent): Observable<BaseEvent> {
+    return this.runNextWithState(input, next).pipe(
+      tap(({ event, messages, state }) => {
+        if (event.type === EventType.RUN_FINISHED) {
+          const stateKeyCount =
+            state && typeof state === "object" ? Object.keys(state).length : 0
+
+          console.log("Assistant messages:", messages.filter(m => m.role === "assistant").length)
+          console.log("Final state keys:", stateKeyCount)
+        }
+      }),
+      map(({ event }) => event)
+    )
+  }
+}
+```
+
+## 内置中间件
+
+### FilterToolCallsMiddleware
+
+按允许或禁止列表过滤工具调用。它过滤的是已发出的 `TOOL_CALL_*` 事件（含被阻止调用的 args 与 result），并不会阻止上游模型／运行时执行工具。
+
+```typescript
+type FilterToolCallsConfig =
+  | { allowedToolCalls: string[]; disallowedToolCalls?: never }
+  | { disallowedToolCalls: string[]; allowedToolCalls?: never }
+```
+
+```typescript
+// 仅允许特定工具
+agent.use(new FilterToolCallsMiddleware({
+  allowedToolCalls: ["search", "calculate", "summarize"]
+}))
+
+// 阻止特定工具
+agent.use(new FilterToolCallsMiddleware({
+  disallowedToolCalls: ["deleteFile", "sendEmail"]
+}))
+```
+
+必须且只能指定 `allowedToolCalls` 与 `disallowedToolCalls` 之一；两者都给或都不给时构造函数抛错。
+
+## 中间件模式
+
+### 计时中间件
+
+```typescript
+const timingMiddleware: MiddlewareFunction = (input, next) => {
+  const startTime = performance.now()
+
+  return next.run(input).pipe(
+    finalize(() => {
+      console.log(`Execution time: ${(performance.now() - startTime).toFixed(2)}ms`)
+    })
+  )
+}
+```
+
+### 速率限制
+
+```typescript
+class RateLimitMiddleware extends Middleware {
+  private lastCall = 0
+
+  constructor(private minInterval: number) {
+    super()
+  }
+
+  run(input: RunAgentInput, next: AbstractAgent): Observable<BaseEvent> {
+    const now = Date.now()
+    const elapsed = now - this.lastCall
+
+    if (elapsed < this.minInterval) {
+      return timer(this.minInterval - elapsed).pipe(
+        switchMap(() => {
+          this.lastCall = Date.now()
+          return this.runNext(input, next)
+        })
+      )
+    }
+
+    this.lastCall = now
+    return this.runNext(input, next)
+  }
+}
+
+agent.use(new RateLimitMiddleware(1000))
+```
+
+其它常见模式包括重试与响应缓存。
+
+## 串联中间件
+
+```typescript
+const logger = loggingMiddleware
+const auth = new AuthMiddleware(apiKey)
+const filter = new FilterToolCallsMiddleware({ allowedToolCalls: ["search"] })
+
+agent.use(logger, auth, filter)
+
+// 执行顺序：
+// logger → auth → filter → agent → filter → auth → logger
+```
+
+### 条件中间件
+
+```typescript
+const debugMiddleware: MiddlewareFunction = (input, next) => {
+  const isDebug = input.forwardedProps?.debug === true
+  if (!isDebug) return next.run(input)
+
+  return next.run(input).pipe(
+    tap(event => console.debug("[DEBUG]", JSON.stringify(event, null, 2)))
+  )
+}
+```
+
+## 生命周期说明
+
+用 `agent.use(...)` 添加的中间件在 `runAgent()`（以及旧的桥接路径）中生效。`connectAgent()` 目前直接调用 `connect()`，不运行中间件。
+
+## 最佳实践
+
+1. **单一职责**：每个中间件只关注一件事
+2. **错误处理**：优雅处理错误，并考虑恢复策略
+3. **性能**：留意高吞吐场景下的处理开销
+4. **状态管理**：需要状态时使用类中间件
+5. **测试**：为每个中间件独立编写单元测试
+6. **文档**：记录中间件行为与副作用

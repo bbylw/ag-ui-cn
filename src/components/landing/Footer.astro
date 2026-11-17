@@ -1,7 +1,7 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import Mark from "./Mark.astro";
-import { REPO_URL, RELEASES_URL } from "../../lib/landing";
+import { GITHUB_URL, OFFICIAL_DOCS_URL, DOJO_URL, DISCORD_URL } from "../../lib/landing";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
@@ -10,57 +10,34 @@ const columns = [
   {
     title: "文档",
     links: [
-      { label: "什么是 Kiri", href: href("/intro/") },
-      { label: "快速开始", href: href("/quick-start/") },
-      { label: "安装", href: href("/install/") },
-      { label: "命令行", href: href("/guide/cli/") },
-      { label: "常见问题", href: href("/faq/") },
+      { label: "AG-UI 简介", href: href("/intro/") },
+      { label: "快速开始", href: href("/quickstart/") },
+      { label: "核心架构", href: href("/concepts/architecture/") },
+      { label: "事件机制", href: href("/concepts/events/") },
+      { label: "核心能力", href: href("/concepts/building-blocks/") },
     ],
   },
   {
-    title: "能力",
+    title: "生态",
     links: [
-      { label: "容器与 Compose", href: href("/docker/containers/") },
-      { label: "Kubernetes", href: href("/guide/kubernetes/") },
-      { label: "Linux 机器", href: href("/guide/machines/") },
-      { label: "Kiri Share", href: href("/features/share/") },
-      { label: "域名与 HTTPS", href: href("/features/domains/") },
+      { label: "生态与集成", href: href("/integrations/") },
+      { label: "SDK 与客户端", href: href("/sdk/") },
+      { label: "资源与链接", href: href("/resources/") },
     ],
   },
   {
-    title: "项目",
+    title: "官方",
     links: [
-      { label: "官方站点", href: "https://runkiri.com/", external: true },
-      { label: "英文文档", href: "https://docs.runkiri.com/", external: true },
-      { label: "GitHub", href: REPO_URL, external: true },
-      { label: "发布版本", href: RELEASES_URL, external: true },
-      { label: "基准测试", href: href("/guide/benchmarks/") },
+      { label: "官方文档", href: OFFICIAL_DOCS_URL, external: true },
+      { label: "GitHub", href: GITHUB_URL, external: true },
+      { label: "AG-UI Dojo", href: DOJO_URL, external: true },
+      { label: "Discord 社区", href: DISCORD_URL, external: true },
     ],
   },
 ];
 ---
 
 <footer class="k-footer k-defer">
-  <svg class="k-skyline" viewBox="0 0 1200 96" preserveAspectRatio="none" aria-hidden="true" fill="none">
-    <g stroke="currentColor" stroke-width="2">
-      <path d="M0 78h1200" />
-      <path d="M120 78V40h58v38M178 52h44v26M262 78V56h38v22" />
-      <path d="M420 78V28h10v50M430 34h96M526 34v14M478 34v18h22v-18" />
-      <path d="M640 78V52h52v26M692 62h40v16M760 78V44h46v34" />
-      <path d="M900 78V30h9v48M909 36h84M993 36v12M950 36v16h20v-16" />
-      <path d="M1040 78V58h44v20M1084 66h40v12" />
-    </g>
-    <g fill="currentColor" opacity=".45">
-      <rect x="126" y="60" width="20" height="8" rx="1.5" />
-      <rect x="150" y="60" width="20" height="8" rx="1.5" />
-      <rect x="268" y="64" width="24" height="8" rx="1.5" />
-      <rect x="646" y="60" width="22" height="8" rx="1.5" />
-      <rect x="766" y="54" width="22" height="8" rx="1.5" />
-      <rect x="1046" y="66" width="22" height="8" rx="1.5" />
-    </g>
-    <path d="M0 86h1200" stroke="currentColor" stroke-width="1" stroke-dasharray="10 8" opacity=".7" />
-  </svg>
-
   <div class="k-wrap">
     <div class="k-foot-grid">
       <div>
@@ -68,7 +45,7 @@ const columns = [
           <Mark class="k-logo k-foot-logo" />
         </a>
         <p class="k-foot-tag">
-          一个小巧、快速的容器运行时，适用于 Mac、Windows 与 Linux。用 Rust 编写，一条守护进程直连内核。
+          AG-UI 是一个开放、轻量、事件驱动的协议，用于连接 AI 智能体与面向用户的应用，支持实时交互、共享状态、工具调用与生成式 UI。
         </p>
       </div>
       {
@@ -93,8 +70,11 @@ const columns = [
       回到顶部
     </a>
     <p class="k-legal">
-      © 2026 Kiri contributors。Kiri 以 Apache-2.0 / MIT 双许可开源（以仓库声明为准）；名称与标志不在许可覆盖范围内。
-      Docker 是 Docker, Inc. 的商标，OrbStack 等名称属于各自所有者，此处仅用于描述测量结果。本站基于 Nimbus 与 Astro 构建。
+      本站为 AG-UI 中文介绍与文档站点，内容基于
+      <a href={GITHUB_URL} target="_blank" rel="noopener">AG-UI GitHub README</a>
+      与
+      <a href="https://docs.ag-ui.com/introduction" target="_blank" rel="noopener">官方 Introduction 文档</a>
+      整理翻译与重组。AG-UI 协议采用 MIT 许可证。本站使用 Nimbus 与 Astro 构建。
     </p>
   </div>
 </footer>

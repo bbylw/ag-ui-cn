@@ -1,0 +1,42 @@
+---
+title: Schema 参考
+description: 1.0 schema 的逐定义参考入口与常用类型索引。
+---
+
+原文的 **Schema Reference** 是由 [`schema.json`](https://docs.ag-ui.com/spec/1-0/schema.json) 生成的逐定义参考页，每个定义一个锚点，体量很大且随 schema 生成。为避免中文站与生成内容产生偏差，本页提供入口与常用类型索引，字段级细节请以下面两个来源为准：
+
+- **可读生成页**：[docs.ag-ui.com/spec/1-0/schema](https://docs.ag-ui.com/spec/1-0/schema)
+- **机器可读文件**：[schema.json](https://docs.ag-ui.com/spec/1-0/schema.json)（`https://ag-ui.com/spec/1-0/schema.json`）
+
+## 常用定义锚点
+
+| 定义 | 锚点 |
+| --- | --- |
+| `RunAgentInput` | `#RunAgentInput` |
+| `BaseEvent` | `#BaseEvent` |
+| `RunStartedEvent` | `#RunStartedEvent` |
+| `RunFinishedEvent` | `#RunFinishedEvent` |
+| `RunFinishedOutcome` | `#RunFinishedOutcome` |
+| `RunErrorEvent` | `#RunErrorEvent` |
+| `StepStartedEvent` / `StepFinishedEvent` | `#StepStartedEvent` / `#StepFinishedEvent` |
+| `TextMessageStartEvent` / `Content` / `End` / `Chunk` | `#TextMessageStartEvent` 等 |
+| `ToolCallStartEvent` / `Args` / `End` / `Chunk` / `Result` | `#ToolCallStartEvent` 等 |
+| `ReasoningStartEvent` / `End` | `#ReasoningStartEvent` / `#ReasoningEndEvent` |
+| `ReasoningMessageStartEvent` / `Content` / `End` / `Chunk` | `#ReasoningMessageStartEvent` 等 |
+| `ReasoningEncryptedValueEvent` | `#ReasoningEncryptedValueEvent` |
+| `StateSnapshotEvent` / `StateDeltaEvent` / `MessagesSnapshotEvent` | `#StateSnapshotEvent` 等 |
+| `ActivitySnapshotEvent` / `ActivityDeltaEvent` / `ActivityMessage` | `#ActivitySnapshotEvent` 等 |
+| `SubagentStartedEvent` / `Finished` / `Error` | `#SubagentStartedEvent` 等 |
+| `RawEvent` / `CustomEvent` | `#RawEvent` / `#CustomEvent` |
+| `Interrupt` / `ResumeEntry` | `#Interrupt` / `#ResumeEntry` |
+| `AgentCapabilities` | `#AgentCapabilities` |
+| `TokenUsage` | `#TokenUsage` |
+| `ContentPart` / `TextPart` / `ImagePart` / `FileSource` | `#ContentPart` 等 |
+| `JsonPatch` / `JsonPointer` | `#JsonPatch` / `#JsonPointer` |
+| `Metadata` / `State` | `#Metadata` / `#State` |
+
+## 使用注意
+
+- **结构以 schema 为准，行为以规范为准。** 两者冲突时，结构看 schema，行为看[规范](/spec/1-0/)。
+- **运行时不使用严格 schema。** 接收路径应接受未识别内容并剥离，见[处理模型](/spec/1-0/basic/processing/)。
+- schema 封闭协议自有对象，但 `metadata` 与 JSON Patch 操作按设计开放，其中的额外成员必须保留。

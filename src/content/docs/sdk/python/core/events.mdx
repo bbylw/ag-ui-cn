@@ -1,0 +1,343 @@
+---
+title: 事件
+description: ag_ui.core 的事件：EventType 枚举、事件模型与 discriminated union 校验。
+---
+
+# 事件
+
+AG-UI Python SDK 采用流式事件架构。事件是智能体与前端之间通信的基本单位。
+
+## EventType 枚举
+
+```python
+from ag_ui.core import EventType
+
+class EventType(str, Enum):
+    TEXT_MESSAGE_START = "TEXT_MESSAGE_START"
+    TEXT_MESSAGE_CONTENT = "TEXT_MESSAGE_CONTENT"
+    TEXT_MESSAGE_END = "TEXT_MESSAGE_END"
+    TOOL_CALL_START = "TOOL_CALL_START"
+    TOOL_CALL_ARGS = "TOOL_CALL_ARGS"
+    TOOL_CALL_END = "TOOL_CALL_END"
+    TOOL_CALL_RESULT = "TOOL_CALL_RESULT"
+    STATE_SNAPSHOT = "STATE_SNAPSHOT"
+    STATE_DELTA = "STATE_DELTA"
+    MESSAGES_SNAPSHOT = "MESSAGES_SNAPSHOT"
+    ACTIVITY_SNAPSHOT = "ACTIVITY_SNAPSHOT"
+    ACTIVITY_DELTA = "ACTIVITY_DELTA"
+    RAW = "RAW"
+    CUSTOM = "CUSTOM"
+    RUN_STARTED = "RUN_STARTED"
+    RUN_FINISHED = "RUN_FINISHED"
+    RUN_ERROR = "RUN_ERROR"
+    STEP_STARTED = "STEP_STARTED"
+    STEP_FINISHED = "STEP_FINISHED"
+    REASONING_START = "REASONING_START"
+    REASONING_MESSAGE_START = "REASONING_MESSAGE_START"
+    REASONING_MESSAGE_CONTENT = "REASONING_MESSAGE_CONTENT"
+    REASONING_MESSAGE_END = "REASONING_MESSAGE_END"
+    REASONING_MESSAGE_CHUNK = "REASONING_MESSAGE_CHUNK"
+    REASONING_END = "REASONING_END"
+    REASONING_ENCRYPTED_VALUE = "REASONING_ENCRYPTED_VALUE"
+    SUBAGENT_STARTED = "SUBAGENT_STARTED"
+    SUBAGENT_FINISHED = "SUBAGENT_FINISHED"
+    SUBAGENT_ERROR = "SUBAGENT_ERROR"
+```
+
+## BaseEvent
+
+```python
+from ag_ui.core import BaseEvent
+
+class BaseEvent(ConfiguredBaseModel):
+    type: EventType
+    timestamp: Optional[int] = None
+    raw_event: Optional[Any] = None
+    metadata: Optional[Dict[str, Any]] = None
+```
+
+`metadata` 按 key 开放：任意 JSON 值（含 `None`）。对象可缺省，但存在时永不为 `None`——显式 `null` 读回为缺省，因此普通 `model_dump_json()` 可往返。`EventEncoder` 使用 `exclude_none=True`，缺省的对象会从线上省略而不是输出 `null`。`ag-ui` 键保留给 AG-UI 自用。
+
+## 生命周期事件
+
+```python
+class RunStartedEvent(BaseEvent):
+    type: Literal[EventType.RUN_STARTED]
+    thread_id: str
+    run_id: str
+    parent_run_id: Optional[str] = None
+    input: Optional[RunAgentInput] = None
+```
+
+| 属性 | 说明 |
+| --- | --- |
+| `thread_id` / `run_id` | 会话线程与运行标识 |
+| `parent_run_id` | 分支／时间旅行的谱系指针；若存在，指向同一线程中更早的运行 |
+| `input` | 本次运行发给智能体的确切输入载荷；可省略历史中已有的消息 |
+
+### TokenUsage
+
+```python
+class TokenUsage(ConfiguredBaseModel):
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    input_tokens: Optional[int] = None
+    output_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
+    reasoning_tokens: Optional[int] = None
+    cached_input_tokens: Optional[int] = None
+    cache_write_input_tokens: Optional[int] = None
+```
+
+只含提供方／模型标签与计数；缓存与推理计数是输入／输出总量的一部分，绝不叠加，见[记账规则](/spec/1-0/events/lifecycle/#token-用量)。
+
+### RunFinishedEvent / RunErrorEvent
+
+```python
+class RunFinishedEvent(BaseEvent):
+    type: Literal[EventType.RUN_FINISHED]
+    thread_id: str
+    run_id: str
+    result: Optional[Any] = None
+    usage: Optional[List[TokenUsage]] = None
+
+class RunErrorEvent(BaseEvent):
+    type: Literal[EventType.RUN_ERROR]
+    message: str
+    code: Optional[str] = None
+    usage: Optional[List[TokenUsage]] = None
+```
+
+### StepStartedEvent / StepFinishedEvent
+
+```python
+class StepStartedEvent(BaseEvent):
+    type: Literal[EventType.STEP_STARTED]
+    step_name: str
+```
+
+## 文本消息事件
+
+```python
+class TextMessageStartEvent(BaseEvent):
+    type: Literal[EventType.TEXT_MESSAGE_START]
+    message_id: str
+    role: Literal["assistant"]
+
+class TextMessageContentEvent(BaseEvent):
+    type: Literal[EventType.TEXT_MESSAGE_CONTENT]
+    message_id: str
+    delta: str  # 非空字符串
+
+    def model_post_init(self, __context):
+        if len(self.delta) == 0:
+            raise ValueError("Delta must not be an empty string")
+
+class TextMessageEndEvent(BaseEvent):
+    type: Literal[EventType.TEXT_MESSAGE_END]
+    message_id: str
+```
+
+### TextMessageChunkEvent
+
+```python
+from ag_ui.core import TextMessageChunkEvent
+
+class TextMessageChunkEvent(BaseEvent):
+    type: Literal[EventType.TEXT_MESSAGE_CHUNK]
+    message_id: Optional[str] = None  # 消息的首个 chunk 必须提供
+    role: Optional[TextMessageRole] = None  # JS 客户端中默认 assistant
+    delta: Optional[str] = None
+```
+
+行为：
+
+- **便捷**：部分消费者（例如 JS/TS 客户端）会把 chunk 事件展开为标准 start/content/end 序列，因此生产者可省略显式的 start/end。
+- **首块要求**：消息的第一个 chunk 必须包含 `message_id`。
+- **流式**：同一 `message_id` 的后续 chunk 是内容片段；完成会在执行展开的客户端触发隐式结束。
+
+## 工具调用事件
+
+```python
+class ToolCallStartEvent(BaseEvent):
+    type: Literal[EventType.TOOL_CALL_START]
+    tool_call_id: str
+    tool_call_name: str
+    parent_message_id: Optional[str] = None
+
+class ToolCallArgsEvent(BaseEvent):
+    type: Literal[EventType.TOOL_CALL_ARGS]
+    tool_call_id: str
+    delta: str
+
+class ToolCallEndEvent(BaseEvent):
+    type: Literal[EventType.TOOL_CALL_END]
+    tool_call_id: str
+
+class ToolCallResultEvent(BaseEvent):
+    message_id: str
+    type: Literal[EventType.TOOL_CALL_RESULT]
+    tool_call_id: str
+    content: str
+    role: Optional[Literal["tool"]] = None
+```
+
+### ToolCallChunkEvent
+
+```python
+class ToolCallChunkEvent(BaseEvent):
+    type: Literal[EventType.TOOL_CALL_CHUNK]
+    tool_call_id: Optional[str] = None      # 首块必须提供
+    tool_call_name: Optional[str] = None    # 首块必须提供
+    parent_message_id: Optional[str] = None
+    delta: Optional[str] = None
+```
+
+首块必须同时包含 `tool_call_id` 与 `tool_call_name`；同一 `tool_call_id` 的后续 chunk 是参数片段。
+
+## 状态管理事件
+
+```python
+class StateSnapshotEvent(BaseEvent):
+    type: Literal[EventType.STATE_SNAPSHOT]
+    snapshot: State
+
+class StateDeltaEvent(BaseEvent):
+    type: Literal[EventType.STATE_DELTA]
+    delta: List[Any]  # JSON Patch (RFC 6902)
+
+class MessagesSnapshotEvent(BaseEvent):
+    type: Literal[EventType.MESSAGES_SNAPSHOT]
+    messages: List[Message]
+
+class ActivitySnapshotEvent(BaseEvent):
+    type: Literal[EventType.ACTIVITY_SNAPSHOT]
+    message_id: str
+    activity_type: str
+    content: Any
+    replace: bool = True  # 为 False 时若同 ID 消息已存在则忽略
+
+class ActivityDeltaEvent(BaseEvent):
+    type: Literal[EventType.ACTIVITY_DELTA]
+    message_id: str
+    activity_type: str
+    patch: List[Any]
+```
+
+## 推理事件
+
+```python
+class ReasoningStartEvent(BaseEvent):
+    type: Literal[EventType.REASONING_START]
+    message_id: str
+
+class ReasoningMessageStartEvent(BaseEvent):
+    type: Literal[EventType.REASONING_MESSAGE_START]
+    message_id: str
+    role: Literal["reasoning"]
+
+class ReasoningMessageContentEvent(BaseEvent):
+    type: Literal[EventType.REASONING_MESSAGE_CONTENT]
+    message_id: str
+    delta: str
+
+class ReasoningMessageEndEvent(BaseEvent):
+    type: Literal[EventType.REASONING_MESSAGE_END]
+    message_id: str
+
+class ReasoningMessageChunkEvent(BaseEvent):
+    type: Literal[EventType.REASONING_MESSAGE_CHUNK]
+    message_id: Optional[str] = None
+    delta: Optional[str] = None
+
+class ReasoningEndEvent(BaseEvent):
+    type: Literal[EventType.REASONING_END]
+    message_id: str
+```
+
+`REASONING_START` 与 `REASONING_END` 是直通事件：通知订阅者，不修改消息。
+
+### ReasoningEncryptedValueEvent
+
+```python
+class ReasoningEncryptedValueEvent(BaseEvent):
+    type: Literal[EventType.REASONING_ENCRYPTED_VALUE]
+    subtype: ReasoningEncryptedValueSubtype  # "tool-call" | "message"
+    entity_id: str
+    encrypted_value: str
+```
+
+## 子智能体事件
+
+`subagent_run_id` 标识**一次调用**，而不是可复用的定义。字段名在 Python 中为 snake_case，序列化后为 `subagentRunId`。完整模型见[子智能体](/concepts/subagents/)。
+
+```python
+class SubagentStartedEvent(BaseEvent):
+    type: Literal[EventType.SUBAGENT_STARTED]
+    subagent_run_id: str
+    name: str
+    description: Optional[str] = None
+    parent_subagent_run_id: Optional[str] = None
+    parent_tool_call_id: Optional[str] = None
+    parent_message_id: Optional[str] = None
+
+class SubagentFinishedEvent(BaseEvent):
+    type: Literal[EventType.SUBAGENT_FINISHED]
+    subagent_run_id: str
+    result: Optional[Any] = None
+    outcome: Optional[SubagentFinishedOutcome] = None
+
+class SubagentErrorEvent(BaseEvent):
+    type: Literal[EventType.SUBAGENT_ERROR]
+    subagent_run_id: str
+    message: str
+    code: Optional[str] = None
+```
+
+`outcome` 为 `SubagentFinishedSuccessOutcome` 与 `SubagentFinishedSuspendedOutcome`（可带 `interrupt_ids`）的判别联合；`None` 表示成功（旧读法）。
+
+### 其它事件上的归因
+
+大多数事件类型接受可选 `subagent_run_id`。不带该字段的事件属于父智能体。`RunStartedEvent`、`RunFinishedEvent`、`RunErrorEvent` 不可归因——它们描述整个运行。`MessagesSnapshotEvent` 改为逐消息归因。`StateSnapshotEvent` 与 `StateDeltaEvent` 可归因，但那是来源记录而非所有权：状态始终是运行级的。
+
+## 特殊事件
+
+```python
+class RawEvent(BaseEvent):
+    type: Literal[EventType.RAW]
+    event: Any
+    source: Optional[str] = None
+
+class CustomEvent(BaseEvent):
+    type: Literal[EventType.CUSTOM]
+    name: str
+    value: Any
+```
+
+## 已弃用事件
+
+> **警告：** `THINKING_*` 事件已弃用，将在 1.0.0 中移除。请改用 `REASONING_*`。迁移指引见[推理](/concepts/reasoning/#从-thinking-事件迁移)。
+
+## 事件判别
+
+```python
+from ag_ui.core import Event
+
+Event = Annotated[
+    Union[
+        TextMessageStartEvent, TextMessageContentEvent, TextMessageEndEvent,
+        ToolCallStartEvent, ToolCallArgsEvent, ToolCallEndEvent, ToolCallResultEvent,
+        StateSnapshotEvent, StateDeltaEvent, MessagesSnapshotEvent,
+        ActivitySnapshotEvent, ActivityDeltaEvent,
+        RawEvent, CustomEvent,
+        RunStartedEvent, RunFinishedEvent, RunErrorEvent,
+        StepStartedEvent, StepFinishedEvent,
+        ReasoningStartEvent, ReasoningMessageStartEvent, ReasoningMessageContentEvent,
+        ReasoningMessageEndEvent, ReasoningMessageChunkEvent, ReasoningEndEvent,
+        ReasoningEncryptedValueEvent,
+    ],
+    Field(discriminator="type"),
+]
+```
+
+Pydantic 在解析时据此选择正确的模型，同时提供静态类型检查。

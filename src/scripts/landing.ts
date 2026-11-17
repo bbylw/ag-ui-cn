@@ -149,6 +149,14 @@ function initChrome(root: HTMLElement) {
         burger.setAttribute("aria-label", "打开菜单");
       }),
     );
+    // Esc closes the menu and returns focus to its trigger, like a platform menu.
+    listen(document, "keydown", (ev: KeyboardEvent) => {
+      if (ev.key !== "Escape" || !mobile.classList.contains("is-open")) return;
+      mobile.classList.remove("is-open");
+      burger.setAttribute("aria-expanded", "false");
+      burger.setAttribute("aria-label", "打开菜单");
+      burger.focus();
+    });
   }
 
   const themeBtn = q<HTMLButtonElement>(root, "[data-k-theme]");
@@ -351,11 +359,11 @@ function initRace(root: HTMLElement) {
       track: q<HTMLElement>(el, "[data-k-track]") as HTMLElement,
       residue: q<HTMLElement>(el, "[data-k-residue-row]") as HTMLElement,
       stops: [] as HTMLElement[],
-      ms: e.ms.cli,
+      ms: e.ms.events,
     };
   });
 
-  let path: RacePath = "cli";
+  let path: RacePath = "events";
   let slow = 40;
   let playing = false;
   let started = false;
@@ -409,7 +417,7 @@ function initRace(root: HTMLElement) {
       if (val) val.textContent = fmtMs(e.ms[path]);
     }
     if (barsCaption)
-      barsCaption.textContent = `${path === "cli" ? "docker CLI" : "Docker Engine API"} 路径 · 越低越好`;
+      barsCaption.textContent = `${path === "events" ? "事件流" : "状态同步"}路径 · 越低越好`;
   }
 
   function setState(text: string, running: boolean) {
@@ -475,7 +483,7 @@ function initRace(root: HTMLElement) {
 
   pathBtns.forEach((btn) =>
     listen(btn, "click", () => {
-      path = (btn.dataset.kPath as RacePath) ?? "cli";
+      path = (btn.dataset.kPath as RacePath) ?? "events";
       pathBtns.forEach((b) => {
         const on = b === btn;
         b.classList.toggle("is-on", on);
@@ -538,7 +546,7 @@ function initRace(root: HTMLElement) {
 
   if (resetBtn)
     listen(resetBtn, "click", () => {
-      path = "cli";
+      path = "events";
       slow = 40;
       enabled.clear();
       raceEngines.forEach((e) => enabled.add(e.id));
@@ -555,11 +563,11 @@ function initRace(root: HTMLElement) {
       }
       if (speedVal) speedVal.textContent = "40×";
       pathBtns.forEach((b) => {
-        const on = b.dataset.kPath === "cli";
+        const on = b.dataset.kPath === "events";
         b.classList.toggle("is-on", on);
         b.setAttribute("aria-pressed", String(on));
       });
-      if (cmdEl) cmdEl.textContent = raceCommand.cli;
+      if (cmdEl) cmdEl.textContent = raceCommand.events;
       buildStops();
       paintBars();
       resetRun();
@@ -901,7 +909,7 @@ function initResource(root: HTMLElement) {
     if (speedIn) speedIn.value = "6";
     if (idleIn) idleIn.value = "60";
     if (autoIn) autoIn.checked = false;
-    if (log) log.innerHTML = "";
+    if (log) log.replaceChildren();
     addLog("引擎就绪，4 个容器运行中");
     paintControls();
     paint();

@@ -1,0 +1,237 @@
+---
+title: AGUIChatClient
+description: 消费 AG-UI 端点的 IChatClient 实现。
+---
+
+# AGUIChatClient
+
+`AGUIChatClient` 是 AG-UI 的 `IChatClient` 实现。它把 `ChatMessage` 与 `ChatOptions` 转换为 `RunAgentInput`，发送到 AG-UI 端点，再把返回的事件流转换为 `ChatResponseUpdate`。
+
+```csharp
+using AGUI.Client;
+using Microsoft.Extensions.AI;
+```
+
+> .NET 客户端不提供 `AbstractAgent` 的对应物，集成点是 `Microsoft.Extensions.AI.IChatClient`。
+
+## 构造
+
+从 `AGUIChatClientOptions` 创建客户端。最简单的形式用 `HttpClient` 与端点 URL 构建内置 HTTP 传输：
+
+```csharp
+using AGUI.Client;
+using Microsoft.Extensions.AI;
+
+HttpClient httpClient = new();
+IChatClient client = new AGUIChatClient(new(httpClient, "https://api.example.com/agent"));
+```
+
+`AGUIChatClient` 只有一个构造函数，接收 `AGUIChatClientOptions`：
+
+```csharp
+new AGUIChatClient(AGUIChatClientOptions options);
+```
+
+```csharp
+public sealed class AGUIChatClientOptions
+{
+    public AGUIChatClientOptions();
+    public AGUIChatClientOptions(HttpClient httpClient, string endpoint); // 构建 HTTP 传输
+    public required IAGUITransport Transport { get; init; }
+    public JsonSerializerOptions? JsonSerializerOptions { get; init; }
+}
+```
+
+测试或其它线路协议需要自定义传输时，直接设置 `Transport`。配置的 `JsonSerializerOptions` 也用于转换 MEAI 消息内容，包括 `AIContent.AdditionalProperties` 中的自定义 CLR 值。
+
+## 流式响应
+
+`GetStreamingResponseAsync` 把 AG-UI 输出流式呈现为 MEAI 的 `ChatResponseUpdate`：
+
+```csharp
+using AGUI.Client;
+using Microsoft.Extensions.AI;
+
+using HttpClient httpClient = new();
+IChatClient client = new AGUIChatClient(new(httpClient, "https://api.example.com/agent"));
+
+List<ChatMessage> messages =
+[
+    new(ChatRole.User, "用一段话解释 AG-UI"),
+];
+
+await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
+    messages,
+    options: null,
+    cancellationToken: CancellationToken.None))
+{
+    if (!string.IsNullOrEmpty(update.Text))
+    {
+        Console.Write(update.Text);
+    }
+}
+```
+
+内部把 AG-UI 事件流转换回 `ChatResponseUpdate`：文本事件变成文本增量，工具调用事件变成 MEAI 工具调用内容，生命周期事件可通过 `RawRepresentation` 获取。
+
+## 非流式响应
+
+`GetResponseAsync` 同样实现，它消费流式响应并返回最终的 `ChatResponse`：
+
+```csharp
+ChatResponse response = await client.GetResponseAsync(
+    messages,
+    cancellationToken: CancellationToken.None);
+
+Console.WriteLine(response.Text);
+```
+
+## 无状态与 ConversationId
+
+`AGUIChatClient` 是无状态的：每轮发送完整消息历史，且从不在返回的更新上暴露 `ConversationId`。
+
+这是有意的。在 `Microsoft.Extensions.AI` 中，非空的 `ConversationId` 表示由服务管理的会话，智能体包装层可能在下一轮只发送新增消息——面对无状态的 AG-UI 服务端，这会截断历史。
+
+请改用这些标识符：
+
+- `ChatResponseUpdate.ResponseId` 是 AG-UI 的运行 id
+- `update.RawRepresentation as RunStartedEvent` 暴露 `RUN_STARTED` 中的 `ThreadId` 与 `RunId`
+- `update.AdditionalProperties["agui_thread_id"]` 同样包含解析出的 AG-UI 线程 id
+
+```csharp
+using AGUI.Abstractions;
+using Microsoft.Extensions.AI;
+
+static (string? ThreadId, string? RunId) GetAGUIIds(
+    IEnumerable<ChatResponseUpdate> updates)
+{
+    RunStartedEvent? started = updates
+        .Select(update => update.RawRepresentation)
+        .OfType<RunStartedEvent>()
+        .FirstOrDefault();
+
+    return (started?.ThreadId, started?.RunId);
+}
+```
+
+> **警告：** 不要把 `ConversationId` 当作 AG-UI 会话状态。每轮传完整消息历史，用 AG-UI 的线程／运行 id 做线路级关联。
+
+## 线程连续性
+
+要维持稳定的 AG-UI 线程，跨轮复用同一个 `ChatOptions` 实例。客户端会把解析出的线程 id 固定到该选项实例上，而不设置 `ConversationId`。
+
+需要显式续接或分支时，通过 `ChatOptions.RawRepresentationFactory` 设置 `RunAgentInput.ThreadId` 与 `RunAgentInput.ParentRunId`——这是控制线路字段的 AG-UI 原生方式：
+
+```csharp
+using AGUI.Abstractions;
+using Microsoft.Extensions.AI;
+
+List<ChatResponseUpdate> firstTurn = [];
+await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
+    [new ChatMessage(ChatRole.User, "你好，介绍一下序列化")],
+    cancellationToken: CancellationToken.None))
+{
+    firstTurn.Add(update);
+    Console.Write(update.Text);
+}
+
+RunStartedEvent? runStarted = firstTurn
+    .Select(update => update.RawRepresentation)
+    .OfType<RunStartedEvent>()
+    .FirstOrDefault();
+
+ChatOptions followUpOptions = new()
+{
+    RawRepresentationFactory = _ => new RunAgentInput
+    {
+        ThreadId = runStarted?.ThreadId ?? string.Empty,
+        ParentRunId = runStarted?.RunId,
+    },
+};
+
+await foreach (ChatResponseUpdate update in client.GetStreamingResponseAsync(
+    [new ChatMessage(ChatRole.User, "再讲讲事件压缩")],
+    followUpOptions,
+    CancellationToken.None))
+{
+    Console.Write(update.Text);
+}
+```
+
+> **提示：** 想让下一个请求从上次运行分支时用 `ParentRunId`；只需在同一线程继续时省略它。
+
+## 中断与审批
+
+当 AG-UI 服务端以中断结果结束运行时，客户端把暂停呈现为 MEAI 内容：
+
+- 工具调用审批变成 `ToolApprovalRequestContent`
+- 其它中断变成 `InterruptRequestContent`
+
+调用方追加一条响应消息并发送下一个请求。客户端从最新消息中提取 `ToolApprovalResponseContent` 与 `InterruptResponseContent`，作为 `RunAgentInput.Resume` 发出。
+
+```csharp
+using AGUI.Abstractions;
+using Microsoft.Extensions.AI;
+
+List<ChatMessage> messages =
+[
+    new(ChatRole.User, "删除生成的文件"),
+];
+
+ChatResponse firstResponse = await client.GetResponseAsync(
+    messages,
+    cancellationToken: CancellationToken.None);
+
+ToolApprovalRequestContent? approval = firstResponse.Messages
+    .SelectMany(message => message.Contents)
+    .OfType<ToolApprovalRequestContent>()
+    .FirstOrDefault();
+
+if (approval?.ToolCall is FunctionCallContent toolCall)
+{
+    messages.AddRange(firstResponse.Messages);
+    messages.Add(new ChatMessage(ChatRole.User,
+    [
+        new ToolApprovalResponseContent(approval.RequestId, approved: true, toolCall),
+    ]));
+
+    ChatResponse resumed = await client.GetResponseAsync(
+        messages,
+        cancellationToken: CancellationToken.None);
+
+    Console.WriteLine(resumed.Text);
+}
+```
+
+非工具中断用 `InterruptResponseContent` 响应：
+
+```csharp
+using System.Text.Json;
+using AGUI.Abstractions;
+using Microsoft.Extensions.AI;
+
+static ChatMessage CreateInterruptResponse(InterruptRequestContent request)
+{
+    using JsonDocument payload = JsonDocument.Parse("""{"approved":true}""");
+
+    return new ChatMessage(ChatRole.User,
+    [
+        new InterruptResponseContent(request.RequestId)
+        {
+            Payload = payload.RootElement.Clone(),
+        },
+    ]);
+}
+```
+
+`InterruptResponseContent.Metadata` 可选地携带关于响应的信封数据——证明决定未被篡改的签名、路由键——与 `Payload`（智能体所问的答案）不同。客户端把它复制到 resume 条目的 `metadata`，托管层再把它交回服务端管线；规则见 [Metadata](/concepts/metadata/#resume-条目)。
+
+```csharp
+new InterruptResponseContent(request.RequestId)
+{
+    Payload = payload.RootElement.Clone(),
+    Metadata = JsonDocument.Parse(
+        """{"definitionId":"review-plan","key":"afterModel-review"}""")
+        .RootElement.Clone(),
+}
+```

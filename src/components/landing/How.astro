@@ -5,18 +5,16 @@ import { platforms, howStats } from "../../lib/landing";
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
 const first = platforms[0];
-const hops = ["clone3", "命名空间", "cgroup", "overlayfs", "容器"];
+const hops = ["AG-UI 输入", "智能体执行", "标准事件", "客户端状态", "UI 渲染"];
 ---
 
 <section class="k-section k-defer" id="how" tabindex="-1">
   <div class="k-wrap k-how-grid">
     <div data-reveal>
-      <p class="k-kicker" data-code="ARCH-06">工作原理</p>
-      <h2 class="k-h2">一个小 VM，一条守护进程，一条通道。</h2>
+      <p class="k-kicker" data-code="ARCH-06">架构原理</p>
+      <h2 class="k-h2">事件流连接智能体与界面。</h2>
       <p class="k-lede">
-        在 macOS 上，Kiri 通过 Apple 的 Virtualization.framework 启动一个精简 Linux VM，使用自定义内核，用 Rust
-        写的 <code>kiri-init</code> 作为 PID 1。宿主与来宾之间只有一条通道；容器由代理直接
-        <code>clone3</code> 创建，没有 dockerd、containerd、shim 或 runc。
+        AG-UI 位于智能体后端与用户应用之间：后端发出标准化事件表达消息、状态、工具与控制信号，前端订阅事件并将其映射为实时、可交互的用户体验。
       </p>
       <div class="k-how-stats">
         {
@@ -33,12 +31,12 @@ const hops = ["clone3", "命名空间", "cgroup", "overlayfs", "容器"];
         }
       </div>
       <p class="k-more">
-        <a href={href("/guide/how-it-works/")}>完整架构说明 <span aria-hidden="true">→</span></a>
+        <a href={href("/concepts/architecture/")}>阅读核心架构文档 <span aria-hidden="true">→</span></a>
       </p>
     </div>
 
     <div data-reveal>
-      <div class="k-tabs" role="tablist" aria-label="选择平台">
+      <div class="k-tabs" role="tablist" aria-label="选择客户端形态">
         {
           platforms.map((p, i) => (
             <button
@@ -58,10 +56,10 @@ const hops = ["clone3", "命名空间", "cgroup", "overlayfs", "容器"];
       <div class="k-diagram" data-k-diagram>
         <div class="k-node">
           <div class="k-node-h">
-            <Icon name="ph:hard-drives" class="h-[18px] w-[18px]" aria-hidden="true" />
-            宿主机 · kiri 守护进程
+            <Icon name="ph:robot" class="h-[18px] w-[18px]" aria-hidden="true" />
+            智能体后端 · Agent Runtime
           </div>
-          <p class="k-node-p">Docker Engine API · 镜像与网络 · 端口转发 · VM 生命周期</p>
+          <p class="k-node-p">执行推理与工具调用，发出 AG-UI 兼容事件并接收输入</p>
         </div>
 
         <div class="k-channel">
@@ -71,8 +69,8 @@ const hops = ["clone3", "命名空间", "cgroup", "overlayfs", "容器"];
 
         <div class="k-node is-guest">
           <div class="k-node-h">
-            <Icon name="ph:cube" class="h-[18px] w-[18px]" aria-hidden="true" />
-            <span data-k-guest>{first.guest} · kiri-init（PID 1）</span>
+            <Icon name="ph:app-window" class="h-[18px] w-[18px]" aria-hidden="true" />
+            <span data-k-guest>{first.guest}</span>
           </div>
           <p class="k-node-p" data-k-guest-note>{first.guestNote}</p>
           <div class="k-chain">
@@ -82,7 +80,7 @@ const hops = ["clone3", "命名空间", "cgroup", "overlayfs", "容器"];
       </div>
 
       <p class="k-rl-note" style="color:var(--k-muted);margin-top:14px">
-        没有每容器常驻进程：容器退出后，命名空间与 cgroup 一并清理，VM 内不留下 shim。
+        AG-UI 与 MCP、A2A 协同：MCP 连接工具与数据，A2A 连接智能体之间的协作，AG-UI 连接智能体与最终用户。
       </p>
     </div>
   </div>

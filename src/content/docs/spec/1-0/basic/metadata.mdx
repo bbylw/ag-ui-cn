@@ -1,0 +1,48 @@
+---
+title: 元数据（规范）
+description: 1.0：一切之上的开放通道——携带什么、如何合并、落到哪里。
+---
+
+协议中几乎所有内容都携带 OPTIONAL 的 `metadata` 对象——事件、消息、工具调用、工具、中断、resume 条目。它是协议未建模内容的开放通道：提供商名称、延迟、结束原因、token 计数、trace key，以及应用想随数据携带的任何内容。
+
+## 值
+
+`metadata` **按 key 开放**。key 下允许任何 JSON 值，包括 `null`——那里的 `null` 是有意义的数据。对象本身要么缺省、要么是对象，且 MUST NOT 为 `null`。
+
+未知 metadata key 是**协议合法的**，不是未识别内容：[处理模型](/spec/1-0/basic/processing/)在任何 key 上都永不剥离它们。
+
+## Key
+
+`ag-ui` key 保留给协议自身使用。其他每个 key 都属于应用空间；生产者 SHOULD 为自创 key 加厂商或应用名前缀，使两个扩展同一流的参与方不会冲突。
+
+## 合并
+
+流式项由多个事件组装而成，而有趣的值——token 用量、结束原因——往往在最后才知道。因此元数据是**累积**的，而不是在项开启时固定：消费者 MUST 合并构成同一项的每个事件的元数据，逐 key，**最后写入胜出**。
+
+合并 MUST NOT 递归。key 的值被整体替换，因此 key 下的对象或数组会被整体替换，而不是与之前的内容混合。
+
+## 每个事件的元数据落到哪里
+
+合并需要目标，目标是事件所构建的东西——不总是消息：
+
+| 事件 | 合并进 |
+| --- | --- |
+| `TEXT_MESSAGE_START` / `CONTENT` / `END` | 文本消息 |
+| `REASONING_MESSAGE_START` / `CONTENT` / `END` | 推理消息 |
+| `TOOL_CALL_START` / `ARGS` / `END` | **工具调用本身**，而不是拥有它的助手消息 |
+| `TOOL_CALL_RESULT` | 它创建的工具消息 |
+| `ACTIVITY_SNAPSHOT` / `ACTIVITY_DELTA` | 活动消息——累积的元数据在替换性快照后仍保留（[活动](/spec/1-0/events/activity/)） |
+| chunks（`*_CHUNK`） | 其合成事件所合并进的对象（[chunk 元数据](/spec/1-0/basic/patterns/streaming/#chunk-元数据)） |
+| 其他一切（`RUN_*`、`STEP_*`、快照、`RAW`、`CUSTOM` 等） | 无——见下文 |
+
+工具调用元数据落在调用上而非父消息上，是刻意的。一条助手消息可以拥有多个工具调用，把它们的元数据折叠进父消息会让结果取决于调用交错顺序。每个调用保留自己的元数据，才能保持无歧义。
+
+构建不出持久项的事件没有合并目标：其元数据就是该事件自己的，对中间件与观察流的任何东西可见，协议不再把它分配到别处。消费者 MAY 展示它——例如在自身记账中展示某次运行的 `RUN_FINISHED` 元数据——但没有规则要求。
+
+## 存储型元数据
+
+消息、工具调用、工具、中断与 resume 条目把 `metadata` 作为自身普通的存储字段。除上表列出的事件外，没有内容合并进它们；[运行输入](/spec/1-0/basic/run-input/)中某个工具的元数据，或某个中断的元数据，只是随载体旅行的数据。
+
+## 数据类型
+
+[`Metadata`](https://docs.ag-ui.com/spec/1-0/schema#metadata) 由 [schema 参考](https://docs.ag-ui.com/spec/1-0/schema)定义，每个载体的条目都列出了其 `metadata` 字段。

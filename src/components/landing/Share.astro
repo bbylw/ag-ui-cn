@@ -1,72 +1,59 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
+import { DOJO_URL, GITHUB_URL } from "../../lib/landing";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
-
-const shares = [
-  { name: "web", target: "nginx · 8080", machine: "本机", color: "var(--k-rose)" },
-  { name: "api", target: "myapp-api · 3000", machine: "本机", color: "var(--k-ember)" },
-  { name: "docs", target: "astro · 4321", machine: "办公室 PC", color: "var(--k-orchid)" },
-];
 ---
 
 <section class="k-section k-alt k-defer" id="share" tabindex="-1">
   <div class="k-wrap k-sh-grid">
     <div data-reveal>
-      <p class="k-kicker" data-code="SHRE-03">Kiri Share</p>
-      <h2 class="k-h2">把容器链接发给任何人。</h2>
+      <p class="k-kicker" data-code="ECO-03">生态互操作</p>
+      <h2 class="k-h2">一个协议，连接多种框架与客户端。</h2>
       <p class="k-lede">
-        登录后执行 <code>kiri share 3000</code>，或在容器上点击 Share，它就会在
-        <code>runkiri.cloud</code> 上以 HTTPS 对外响应，直到你断开。给客户看当前分支、测试
-        webhook，或在手机上打开你的应用。
+        AG-UI 让智能体后端与用户界面解耦：后端可以来自不同框架或自研实现，前端可以是 Web、终端或聊天平台客户端，只要遵循同一事件与交互语义即可协作。
       </p>
       <ul class="k-sh-points" role="list">
-        <li><b>保留你的名字。</b> <code>kiri share reserve NAME</code> 预留名称，下次它仍然属于你。</li>
-        <li><b>所有电脑，一个列表。</b> 同一账号在任意设备上都能查看并断开自己的链接。</li>
-        <li><b>用量看得见。</b> <code>kiri share status</code> 或窗口里的 This month 查看并发数、速率与流量。</li>
-        <li><b>随时断开。</b> 窗口里点断开，终端里 <code>Ctrl+C</code>；不用时及时关掉。</li>
+        <li><b>框架接入。</b> LangGraph、CrewAI、Microsoft Agent Framework、Google ADK、Mastra 等已提供集成或支持。</li>
+        <li><b>多端客户端。</b> 同一智能体可服务于 Web 应用、终端工具与 Slack / Teams 等聊天平台。</li>
+        <li><b>示例可验证。</b> 在 AG-UI Dojo 中查看不同框架与特性的实时演示与源码思路。</li>
+        <li><b>开放扩展。</b> 在标准事件之上通过自定义事件与中间件适配业务需求。</li>
       </ul>
       <div class="k-cta">
-        <a href={href("/features/share/")} class="k-btn k-btn-sm">
-          Kiri Share 文档
+        <a href={href("/integrations/")} class="k-btn k-btn-sm">
+          查看生态集成
           <Icon name="ph:arrow-right" class="h-4 w-4" aria-hidden="true" />
         </a>
+        <a href={DOJO_URL} target="_blank" rel="noopener" class="k-btn k-btn-sm k-btn-ghost">打开 Dojo</a>
       </div>
       <details class="k-sh-disc">
         <summary class="k-btn k-btn-sm k-btn-ghost k-sh-sum">
-          <span class="k-sh-sum-shut">访客会先看到什么？</span>
-          <span class="k-sh-sum-open">收起提示页说明</span>
+          <span class="k-sh-sum-shut">AG-UI 与 A2UI 有什么不同？</span>
+          <span class="k-sh-sum-open">收起说明</span>
           <Icon name="ph:caret-down" class="k-sh-caret h-4 w-4" aria-hidden="true" />
         </summary>
         <div class="k-sh-warn">
-          <b><Icon name="ph:warning" class="h-4 w-4" aria-hidden="true" />这是一个分享链接</b>
-          首次访问会先显示 Kiri 的提示页，说明它来自某台个人电脑上的临时分享，而不是一个正式站点——确认后才继续打开，链接也就无法伪装成你的银行。
+          <b><Icon name="ph:info" class="h-4 w-4" aria-hidden="true" />名称相近，定位不同</b>
+          A2UI 是一种生成式 UI 规范，关注智能体如何交付 UI 组件；AG-UI 是 Agent ↔ User Interaction 协议，关注智能体前端与后端之间的实时交互连接。两者可以协同使用。
         </div>
       </details>
     </div>
 
     <figure class="k-sh-card" data-k-share data-reveal>
       <div class="k-sh-top">
-        <span class="k-sh-live"><i></i><span data-k-share-state>已连接</span></span>
-        <code class="k-sh-url" data-k-share-url>https://web.runkiri.cloud</code>
-        <button type="button" class="k-sh-btn" data-copy="https://web.runkiri.cloud" data-k-share-copy>复制</button>
+        <span class="k-sh-live"><i></i><span data-k-share-state>开放生态</span></span>
+        <code class="k-sh-url" data-k-share-url>{GITHUB_URL}</code>
+        <button type="button" class="k-sh-btn" data-copy={GITHUB_URL} data-k-share-copy>复制</button>
       </div>
       <ul class="k-sh-list" role="list">
-        {
-          shares.map((s) => (
-            <li style={`--k-m: ${s.color}`}>
-              <span class="k-sh-dot" />
-              <b>{s.name}</b>
-              <code>{s.target}</code>
-              <em>{s.machine}</em>
-            </li>
-          ))
-        }
+        <li style="--k-m: var(--k-rose)"><span class="k-sh-dot"></span><b>框架</b><code>LangGraph / CrewAI / ADK</code><em>后端</em></li>
+        <li style="--k-m: var(--k-ember)"><span class="k-sh-dot"></span><b>协议</b><code>AG-UI Events</code><em>交互层</em></li>
+        <li style="--k-m: var(--k-orchid)"><span class="k-sh-dot"></span><b>客户端</b><code>Web / CLI / Chat</code><em>前端</em></li>
       </ul>
       <div class="k-sh-foot">
-        <span>账号内共 3 个分享 · 今日 <b data-k-share-hits>14</b> 次访问</span>
-        <button type="button" class="k-sh-toggle" data-k-share-toggle>断开</button>
+        <span>同一协议语义 · 多种实现与运行环境</span>
+        <a href={href("/intro/")} class="k-sh-toggle" style="text-decoration:none;display:inline-flex;align-items:center;">了解协议</a>
       </div>
     </figure>
   </div>

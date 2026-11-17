@@ -1,0 +1,54 @@
+---
+title: 状态
+description: 1.0：共享状态与会话本身——整体替换，patch 修订。
+---
+
+状态是智能体与应用保持同步的值——计划、表单、正在构建的文档。它通过[快照–增量模式](/spec/1-0/basic/patterns/snapshots/)传输；本页补充状态以及会话自身快照特有的内容。
+
+## 事件
+
+### `STATE_SNAPSHOT`
+
+整体替换智能体状态。在增量无法表达变化时发送，或用于重新同步消费者。消费者 MUST 用 `snapshot` 替换自己的状态——**不合并**。
+
+### `STATE_DELTA`
+
+用 RFC 6902 patch 修订当前状态。基线是消费者当前状态：运行开始时为输入的 `state`；之后为该运行自身快照与增量所形成的结果。[模式](/spec/1-0/basic/patterns/snapshots/)关于 patch 的一切——原子应用、开放操作、失败处理、重新同步——原样适用。
+
+### `MESSAGES_SNAPSHOT`
+
+生产者拥有的完整消息集合，按顺序。
+
+它是**会话范围**而非普通覆盖，因为消费者可能持有生产者不跟踪的自己的消息。协调规则：
+
+- 快照中的消息替换消费者具有相同 id 的副本——**就地**替换：消费者为其已持有的消息保留现有位置。消费者从未见过的快照消息按快照顺序追加。因此快照顺序只对消费者**首次遇到**的消息权威；它不会重排消费者已有内容。
+- 消费者持有但快照中**缺失**的消息被丢弃——生产者在声明完整集合——**除了**生产者无法知道的客户端专属内容：[活动](/spec/1-0/events/activity/)消息（永不传给生产者）与推理消息（多数生产者不跟踪）。
+- 例外按 role 且可自我撤销：快照自身携带任何活动消息时，即在声明完整活动集合，不在其中的消费者活动消息与其他一样被丢弃。推理消息同理。
+
+由于是会话范围，快照不携带自己的 `subagentRunId`；它通过所含消息确立每条消息的所有权。
+
+## 跨运行行为
+
+状态在线程上跨运行持续存在，直到某事件替换它，下一次运行的输入把它作为起始值带回——这是让双方保持一致的循环。消息以同样方式累积；`MESSAGES_SNAPSHOT` 是生产者直接重述该累积的方式。
+
+## 消息流
+
+```text
+Agent → Application: STATE_SNAPSHOT {"draft": {"sections": []}}
+Agent → Application: STATE_DELTA (add /draft/sections/0)
+Agent → Application: STATE_DELTA (replace /draft/sections/0/status)
+Agent → Application: RUN_FINISHED
+Application → Agent: 下一条 RunAgentInput（state: 当前值）
+```
+
+## 数据类型
+
+`StateSnapshotEvent`、`StateDeltaEvent` 与 `MessagesSnapshotEvent` 由 [schema 参考](https://docs.ag-ui.com/spec/1-0/schema)定义，其中 `State` 刻意不受约束——任何 JSON 值，不只是对象——增量则为 `JsonPatch`。
+
+## 错误处理
+
+结构上格式错误的 patch 是致命的；格式良好但应用失败的 patch 会警告并跳过，按[模式](/spec/1-0/basic/patterns/snapshots/#当-patch-无法应用)处理。
+
+## 安全考量
+
+状态事件是对应用状态的**远程写入**。应用 MUST 在依据状态中的内容行动之前验证它——渲染、执行、因它授予任何权限——与验证任何跨越信任边界的输入完全一样。生产者则 SHOULD NOT 在状态中放置密钥：它在每次运行中经消费者往返。

@@ -1,74 +1,76 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
-import { DOWNLOAD_URL, languages } from "../../lib/landing";
+import { QUICKSTART_URL, OFFICIAL_DOCS_URL, DOJO_URL } from "../../lib/landing";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
 
 const rail = [
-  { icon: "ph:cube", on: true },
-  { icon: "ph:package" },
-  { icon: "ph:hammer" },
-  { icon: "ph:hexagon" },
-  { icon: "ph:hard-drives" },
+  { icon: "ph:chats-circle", on: true },
+  { icon: "ph:arrows-clockwise" },
+  { icon: "ph:wrench" },
+  { icon: "ph:layout" },
+  { icon: "ph:user-switch" },
 ];
 
 const rows = [
-  { name: "web", img: "nginx:alpine", state: "已分享", tone: "share", up: 128 },
-  { name: "api", img: "node:22", state: "运行 2 分钟", tone: "live", up: 122 },
-  { name: "db", img: "postgres:17", state: "运行 2 分钟", tone: "live", up: 121 },
-  { name: "redis", img: "redis:7", state: "已退出", tone: "idle", up: 0 },
+  { name: "RUN_STARTED", img: "会话启动", state: "已接收", tone: "live", up: 1 },
+  { name: "TEXT_MESSAGE_*", img: "流式输出", state: "进行中", tone: "share", up: 128 },
+  { name: "TOOL_CALL_*", img: "工具调用", state: "已完成", tone: "live", up: 42 },
+  { name: "STATE_SNAPSHOT", img: "状态同步", state: "已同步", tone: "idle", up: 0 },
 ];
 ---
 
 <section class="k-hero" id="top" tabindex="-1">
   <div class="k-wrap k-hero-grid">
     <div class="k-hero-copy">
-      <p class="k-eyebrow"><span class="k-dot"></span>用 Rust 从零构建 · 不基于 Docker 的组件</p>
+      <p class="k-eyebrow"><span class="k-dot"></span>开放协议 · 事件驱动 · 实时双向</p>
 
-      <h1 class="k-h1">容器启动，<br /><em class="k-underline">快过眨眼</em>。</h1>
+      <h1 class="k-h1">让智能体<br /><em class="k-underline">真正融入用户界面</em>。</h1>
 
       <p class="k-hero-lede">
-        Kiri 用一条守护进程运行 Docker 容器。<code>docker</code> CLI、Compose、buildx 与 Docker Engine API
-        都照常工作——只是背后的调用链更短，占用更小。
+        AG-UI（Agent–User Interaction Protocol）标准化 AI 智能体与前端应用之间的交互方式。
+        通过统一的事件流，你可以轻松实现流式聊天、共享状态、工具调用、生成式 UI 与人机协同。
       </p>
 
       <div class="k-stat">
-        <p class="k-stat-k">实测 · Docker Engine API</p>
+        <p class="k-stat-k">协议定位 · Agentic Protocol Stack</p>
         <div class="k-stat-main">
-          <span class="k-big">≈80<small>×</small></span>
-          <span class="k-stat-side">快于 Docker Desktop</span>
+          <span class="k-big">~16<small>类</small></span>
+          <span class="k-stat-side">标准事件类型</span>
         </div>
         <p class="k-stat-cap">
-          一次完整的容器生命周期：<strong>2.55 ms</strong> 对 <strong>213 ms</strong>。同一台 Apple Silicon Mac，
-          <code>docker run --rm alpine true</code>，30 次取中位数。
+          <strong>MCP</strong> 提供工具，<strong>A2A</strong> 连接智能体，<strong>AG-UI</strong> 负责将智能体能力带入面向用户的应用体验。
         </p>
       </div>
 
       <div class="k-cta">
-        <a href={DOWNLOAD_URL} target="_blank" rel="noopener" class="k-btn">
-          <Icon name="ph:download-simple" class="h-[18px] w-[18px]" aria-hidden="true" />
-          下载 Kiri
+        <a href={href(QUICKSTART_URL)} class="k-btn">
+          <Icon name="ph:rocket-launch" class="h-[18px] w-[18px]" aria-hidden="true" />
+          快速开始
         </a>
-        <a href={href("/quick-start/")} class="k-btn k-btn-ghost">
+        <a href={href("/intro/")} class="k-btn k-btn-ghost">
           阅读文档
           <Icon name="ph:arrow-right" class="h-[18px] w-[18px]" aria-hidden="true" />
         </a>
       </div>
 
       <p class="k-proof">
-        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />免费开源</span>
-        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />macOS · Windows · Linux</span>
-        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />不接管你现有的 docker</span>
+        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />开放协议 · MIT 许可</span>
+        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />传输无关（SSE / WebSocket）</span>
+        <span><Icon name="ph:check-circle" class="h-4 w-4" aria-hidden="true" />框架与客户端可互操作</span>
       </p>
 
       <div class="k-langs">
         <p class="k-lang-k">
-          <Icon name="ph:translate" class="h-[17px] w-[17px]" aria-hidden="true" />
-          窗口与设置向导支持 {languages.length} 种语言
+          <Icon name="ph:globe" class="h-[17px] w-[17px]" aria-hidden="true" />
+          适用于多种语言、框架与客户端形态
         </p>
         <ul class="k-lang-list" role="list">
-          {languages.map((l) => <li class:list={[l === "简体中文" && "k-me"]}>{l}</li>)}
+          <li class="k-me"><a href={DOJO_URL} target="_blank" rel="noopener">AG-UI Dojo</a></li>
+          <li><a href={OFFICIAL_DOCS_URL} target="_blank" rel="noopener">官方文档</a></li>
+          <li>Web / 终端 / 聊天平台</li>
+          <li>LangGraph · CrewAI · ADK 等</li>
         </ul>
       </div>
     </div>
@@ -76,11 +78,11 @@ const rows = [
     <div class="k-hero-side">
       <figure class="k-hx" data-k-window>
         <div class="k-hx-glow" aria-hidden="true"></div>
-        <div class="k-win" role="img" aria-label="Kiri 窗口示意：容器列表、资源占用与分享链接">
+        <div class="k-win" role="img" aria-label="AG-UI 事件流示意：消息、工具与状态同步">
           <div class="k-win-bar">
             <i></i><i></i><i></i>
-            <b>Kiri</b>
-            <em>macOS · 0.2</em>
+            <b>AG-UI Session</b>
+            <em>event stream</em>
           </div>
           <div class="k-win-body">
             <div class="k-rail">
@@ -91,33 +93,29 @@ const rows = [
                   </span>
                 ))
               }
-              <span class="k-rail-i is-share"><Icon name="ph:cloud-arrow-up" class="h-[18px] w-[18px]" aria-hidden="true" /></span>
+              <span class="k-rail-i is-share"><Icon name="ph:plugs-connected" class="h-[18px] w-[18px]" aria-hidden="true" /></span>
             </div>
             <div class="k-win-main">
               <div class="k-win-head">
-                <b>容器</b>
-                <span class="k-vm"><i></i>Linux VM 运行中</span>
+                <b>事件流</b>
+                <span class="k-vm"><i></i>Agent ↔ UI 已连接</span>
               </div>
 
               <div class="k-stats">
                 <div class="k-stat-tile">
-                  <span class="k-tile-k">CPU</span>
-                  <b data-k-cpu>0.4%</b>
-                  <span class="k-spark" data-k-spark="cpu" aria-hidden="true">
-                    {Array.from({ length: 10 }, () => <i style="height:30%"></i>)}
-                  </span>
+                  <span class="k-tile-k">传输</span>
+                  <b>SSE</b>
+                  <small>或 WebSocket</small>
                 </div>
                 <div class="k-stat-tile">
-                  <span class="k-tile-k">内存</span>
-                  <b data-k-mem>657 MB</b>
-                  <span class="k-spark is-mem" data-k-spark="mem" aria-hidden="true">
-                    {Array.from({ length: 10 }, () => <i style="height:45%"></i>)}
-                  </span>
+                  <span class="k-tile-k">模式</span>
+                  <b>双向</b>
+                  <small>输入 + 事件</small>
                 </div>
                 <div class="k-stat-tile">
-                  <span class="k-tile-k">启动</span>
-                  <b>2.55 ms</b>
-                  <small>Engine API</small>
+                  <span class="k-tile-k">能力</span>
+                  <b>可组合</b>
+                  <small>按需扩展</small>
                 </div>
               </div>
 
@@ -128,10 +126,7 @@ const rows = [
                       <span class:list={["k-row-dot", r.tone === "idle" && "is-idle", r.tone === "share" && "is-share"]} />
                       <span class="k-row-name">{r.name}</span>
                       <span class="k-row-img">{r.img}</span>
-                      <span
-                        class:list={["k-row-state", r.tone === "share" && "is-live"]}
-                        data-k-up={r.up || undefined}
-                      >
+                      <span class:list={["k-row-state", r.tone === "share" && "is-live"]} data-k-up={r.up || undefined}>
                         {r.state}
                       </span>
                     </li>
@@ -140,21 +135,21 @@ const rows = [
               </ul>
 
               <div class="k-share-row">
-                <Icon name="ph:globe" class="h-4 w-4" aria-hidden="true" />
-                <code>https://web.runkiri.cloud</code>
-                <span>已连接</span>
+                <Icon name="ph:link" class="h-4 w-4" aria-hidden="true" />
+                <code>POST /agent/run → stream events</code>
+                <span>实时</span>
               </div>
             </div>
           </div>
           <div class="k-win-foot">
-            <span>4 / 5 运行</span>
-            <span>docker → kiri</span>
-            <span data-k-foot-mem>657 MB / 4 GB</span>
+            <span>标准化交互层</span>
+            <span>Agent → AG-UI → App</span>
+            <span>可观测 · 可调试</span>
           </div>
         </div>
         <figcaption class="k-float">
-          <b>2.55 ms</b>
-          <span>一次容器生命周期</span>
+          <b>事件驱动</b>
+          <span>流式 · 状态 · 工具 · 中断</span>
         </figcaption>
       </figure>
     </div>

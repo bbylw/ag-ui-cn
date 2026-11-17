@@ -1,0 +1,42 @@
+---
+title: 最新更新
+description: AG-UI 的最新变化与改进概览，重点关注 1.0。
+---
+
+## AG-UI 1.0
+
+AG-UI 1.0 是第一个有**正式规范**支撑的版本：
+
+- **Schema 是唯一事实来源**：每个 SDK 的协议类型都由 schema 生成
+- **行为规则被写下来**：过去只存在于 TypeScript 客户端中的规则，现在成为规范的一部分
+- **大多数变化是增量式**：0.x 智能体可对接 1.0 客户端，反之亦然
+
+### 1.0 的关键变化
+
+| 领域 | 变化 |
+| --- | --- |
+| 运行生命周期 | `RUN_FINISHED.outcome` 可表达成功/中断；中断感知生命周期 |
+| 子智能体 | `SUBAGENT_STARTED/FINISHED/ERROR` 与 `subagentRunId` 归因 |
+| 推理 | `REASONING_*` 取代 `THINKING_*`；支持加密推理值 |
+| 版本协商 | `RUN_STARTED.protocolVersion` 与 `RunAgentInput.protocolVersion` |
+| 元数据 | 事件、消息、工具调用与 resume 条目上的 `metadata`；未知属性在 1.0 中被剥离 |
+| 能力发现 | `getCapabilities()` 与 `AgentCapabilities` |
+| 活动 | `ACTIVITY_SNAPSHOT` / `ACTIVITY_DELTA` 与活动消息 |
+| 多模态 | 类型化内容部分（text/image/audio/video/document）与 `FileSource` |
+| 序列化 | `parentRunId` 谱系、事件压缩与历史恢复 |
+
+### 已弃用与退役
+
+- `THINKING_*` 事件 → 使用 `REASONING_*`
+- `BinaryInputContent` → 使用媒体内容部分
+- TypeScript 的 `stripUnknown` / `StripResult` 内部 API
+- `SubAgentInfo` → `SubagentInfo`；`subAgents` → `subagents`
+
+完整迁移说明见[迁移到 1.0](/migrating-to-1-0/)。
+
+## 如何跟进
+
+- 官方规范变更：[Specification Key Changes](https://docs.ag-ui.com/spec/1-0/changelog)
+- 仓库发布与变更：[GitHub Releases](https://github.com/ag-ui-protocol/ag-ui/releases)
+- 路线图：[公开 Roadmap](https://github.com/orgs/ag-ui-protocol/projects/1)
+- 弃用计划：[DEPRECATIONS.md](https://github.com/ag-ui-protocol/ag-ui/blob/main/DEPRECATIONS.md)

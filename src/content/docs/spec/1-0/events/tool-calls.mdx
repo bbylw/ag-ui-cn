@@ -1,0 +1,137 @@
+---
+title: 工具调用
+description: 1.0：智能体如何提议调用、流式传输参数并获得结果。
+---
+
+工具调用是智能体请求做某件事。当工具是应用在其[运行输入](/spec/1-0/basic/run-input/)中宣告的工具时，由应用执行——这使工具调用成为协议的**人机协同核心**：智能体提议，应用处置。
+
+## 用户交互模型
+
+应用通常在工具调用流式到达时展示它——一张命名工具的卡片，参数逐步填充——并对有副作用的工具在执行前询问用户。协议不强制任何特定交互模型，但请见下文[安全考量](#安全考量)。
+
+## 事件
+
+工具调用遵循[流式模式](/spec/1-0/basic/patterns/streaming/)，按 `toolCallId` 匹配。
+
+### `TOOL_CALL_START`
+
+开启一次调用。
+
+```json
+{
+  "type": "TOOL_CALL_START",
+  "toolCallId": "call-1",
+  "toolCallName": "search",
+  "parentMessageId": "msg-1"
+}
+```
+
+- `toolCallName` 命名被调用的工具。
+- `parentMessageId` 是 OPTIONAL，把调用挂到承载它的助手消息上。当父消息归因到子智能体时，调用 MUST 与该归因一致——工具调用属于承载它的消息（见[子智能体](/spec/1-0/events/subagents/)）。
+
+### `TOOL_CALL_ARGS`
+
+扩展已开启的调用。`delta` 携带调用参数的下一片；拼接后的 delta 构成调用的参数文本，约定为 JSON 文档——但协议以**文本**携带且不验证它，这是刻意的：提供商会发出格式错误的参数字符串，由应用决定如何处理，胜过传输直接杀死运行。
+
+消费者 MUST NOT 在 `TOOL_CALL_END` 之前依据参数行动：调用关闭前，文本只是生产者正在发送内容的**前缀**，不是内容本身。
+
+### `TOOL_CALL_END`
+
+关闭调用。参数文本已**完整**——关闭确立的是完整性，不是有效性。执行工具者负责解析它，无法解析的文本如何处理是应用的决定，不是协议违规。
+
+已关闭的调用与已关闭的消息一样，MAY 由带同一 `toolCallId` 的新 `TOOL_CALL_START` 重开，后续参数追加。重开的 start MUST 与它重开的调用一致——相同 `toolCallName`、相同 `parentMessageId`、相同所有者。不要求消费者检测不一致，且与[重开的文本消息](/spec/1-0/events/text-messages/#text_message_end)不同，协议不承诺错过违规的消费者最终持有两个值中的哪一个。
+
+### `TOOL_CALL_CHUNK`
+
+紧凑拼写。消费者 MUST 按[流式模式](/spec/1-0/basic/patterns/streaming/#chunk-形式)展开：首个 chunk MUST 携带 `toolCallId` 与 `toolCallName`，延续 chunk 重复 `toolCallName` 或 `parentMessageId` 但值冲突是致命的。
+
+### `TOOL_CALL_RESULT`
+
+携带调用的结果。它本身就是一条消息——带自己 `messageId` 的工具消息——不会重开它所回答的调用。
+
+```json
+{
+  "type": "TOOL_CALL_RESULT",
+  "messageId": "msg-2",
+  "toolCallId": "call-1",
+  "content": "3 results found."
+}
+```
+
+结果 MAY 在与其调用相同的运行中到达——智能体执行的工具——也可能在流中永不出现：客户端执行的工具结果会在下一次运行的输入中作为工具消息返回给生产者。
+
+#### 结果内容
+
+`content` MUST 是字符串，或 [`ContentPart`](https://docs.ag-ui.com/spec/1-0/schema#contentpart) 的有序列表——与[用户消息](/spec/1-0/basic/run-input/#messages)携带的相同部分：`text`、`image`、`audio`、`video`、`document`，每个媒体部分的 `source` 为内联数据、URL 或[提供商文件句柄](/spec/1-0/basic/run-input/#提供方文件句柄)。该事件创建的工具消息形状完全相同，因此结果可原样进入下一次运行的 `messages`。
+
+```json
+{
+  "type": "TOOL_CALL_RESULT",
+  "messageId": "msg-2",
+  "toolCallId": "call-1",
+  "content": [
+    { "type": "text", "text": "Invoice INV-2291 attached." },
+    {
+      "type": "document",
+      "source": { "type": "url", "value": "https://example.com/INV-2291.pdf", "mimeType": "application/pdf" },
+      "metadata": { "title": "INV-2291" }
+    }
+  ]
+}
+```
+
+- 返回结构化数据的工具——例如 JSON 对象——把它序列化进字符串形式或 `text` 部分。协议没有 JSON 部分：每个提供商都接受工具结果为文本，类型化对象最终也必须在提供商边界变成文本。
+- 部分未建模的内容——搜索命中的来源与标题、文档文件名——放在该部分的 `metadata` 中。协议不定义提供商特定的结果块（带引用的搜索结果、浏览器状态）；需要它们的生产者把它映射到这些部分，或作为透传携带。
+- 把输出上传到模型提供商的工具——生成的报告现在位于提供商文件存储中——返回 `file` 来源的句柄而非重发字节；与输入相同的[规则](/spec/1-0/basic/run-input/#提供方文件句柄)适用，渲染结果的消费者把句柄视为不透明。
+- 生产者拿到模型无法接受的部分——给纯文本模型的图片、提供商不接受音频的音频、其他提供商签发的文件句柄——MUST NOT 因此让运行失败。它丢弃该部分并继续，与[运行输入规则](/spec/1-0/basic/run-input/#messages)对用户内容所说一致，并且 MUST 仍然回答调用：所有部分都被丢弃的结果以空字符串回答，因为未回答的工具调用是多数模型直接拒绝的。
+- 只能持有字符串的消费者——渲染器、存储、遗留桥接——把部分列表渲染为其 `text` 部分按序拼接，忽略其余。这样做是有损的，SHOULD 声明，与任何降级一样（[版本与兼容](/spec/1-0/basic/versioning/)）。
+- 内容部分出现之前的 peer 不发送 `protocolVersion`；知道自己在与这样的 peer 对话的生产者 MAY 在发射前以同样方式扁平化结果，并在扁平化丢弃部分时 MUST 警告。MUST NOT 在丢弃部分的位置放占位符：降级是重塑，不是发明。
+
+## 前端工具
+
+[运行输入](/spec/1-0/basic/run-input/#tools)中的 `tools` 列表属于应用：智能体提议调用，应用执行。协议没有从消费者到生产者的运行中通道，因此答案只能跨越运行边界——这决定了往返形状：
+
+- 调用前端工具的生产者 MUST NOT 回答它：没有 `TOOL_CALL_RESULT`，没有伪造的工具消息。结果由应用产出。
+- 生产者以未回答的调用结束运行。它 MUST 使用成功 outcome 或省略 outcome，MUST NOT 把运行报告为中断——并且在不再有依赖结果的工作时 SHOULD 尽快结束。一次运行 MAY 留下多个未回答的前端调用；应用一次性全部回答。
+- 成功 outcome 的 `pendingToolCallIds` 按发起顺序命名未回答的调用。生产者在运行留下待处理调用时 SHOULD 发送它；发送时，列表 MUST 恰好包含该运行发起且未以 `TOOL_CALL_RESULT` 回答的工具调用。仅凭 `RUN_FINISHED` 无法说明运行是否留下工作：当列表缺省或为空时，需要知道的消费者从流中推导——该运行发起且未收到结果的每个工具调用——且 MUST NOT 把缺省读作“没有待处理”。在被中断的运行上，待处理调用以同样方式推导；中断 outcome 不携带它们。
+- 运行结束后，应用处置每个未回答的前端调用——执行或拒绝，遵循其自身规则要求的同意。
+
+继续的线程 MUST 先回答其中每一个：下一次运行的 `messages` 为每个调用携带一条工具消息，以 `toolCallId` 为键——失败也是回答，作为设了 `error` 的工具消息；用户拒绝的调用以说明拒绝来回答。工具消息的 `content` 是字符串或部分列表，与 [`TOOL_CALL_RESULT`](#结果内容)完全一致：产出截图或选取文件的前端工具以媒体部分回答，而不是描述。未回答的调用会让智能体停在思考中途，而带悬空调用的历史是多数模型直接拒绝的。放弃线程不回答任何内容，也不违反任何规则——规则约束的是**继续**，与 resume 覆盖同理。
+
+这与[中断](/spec/1-0/basic/patterns/interrupt-resume/)是不同的往返：中断是生产者显式停下询问，由 resume 条目回答；前端工具调用走普通消息循环，由会话历史回答。
+
+> 因前端工具调用而停止的运行是**已完成的运行**，不是被中断的运行，也不是第三种结束方式。outcome 报告生产者对运行结束原因所知的内容，而这里生产者不知道它是否在等待：前端工具常常是终端效果——渲染图表、导航、高亮——其结果是否启动另一次运行是应用的决定，由应用对该工具的规则作出。因此生产者说出它**确实**知道的——运行已完成，这些调用未回答——作为成功 outcome 的细节；旧消费者剥离该字段后仍读到成功运行，并像以往一样推导待处理调用。
+
+生产者 SHOULD 只从宣告的列表调用前端工具；命名输入未宣告工具名的调用本身不是协议违规——如何处理是消费者的决定。生产者自己的工具由智能体侧执行，从不需要宣告，并在流内通过 `TOOL_CALL_RESULT` 回答。
+
+## 消息流
+
+客户端执行的工具跨越两次运行：
+
+```text
+Agent → Application: TOOL_CALL_START (call-1, "confirm_order")
+Agent → Application: TOOL_CALL_ARGS (…)
+Agent → Application: TOOL_CALL_END
+Agent → Application: RUN_FINISHED
+Application: 执行工具（在需要时取得用户同意）
+Application → Agent: 下一条 RunAgentInput（messages 包含工具结果）
+```
+
+## 数据类型
+
+事件形状由 [schema 参考](https://docs.ag-ui.com/spec/1-0/schema)定义：`ToolCallStartEvent`、`ToolCallArgsEvent`、`ToolCallEndEvent`、`ToolCallChunkEvent`、`ToolCallResultEvent`。会话历史中，调用作为 `AssistantMessage` 上的 `ToolCall` 出现，结果作为内容为字符串或 `ContentPart` 列表的 `ToolMessage`。宣告的工具是 `RunAgentInput` 上的 `Tool` 对象。
+
+内容部分按**是什么**命名——`TextPart`、`ImagePart`——而不是按传输方向，因为同一部分既进入用户消息里的模型，也流出工具结果里的流。`ReasoningPart`、`ToolCallPart`、`AssistantPart` 保留给后续小版本（助手消息也携带部分时）；目前没有定义它们，生产者 MUST NOT 发射。
+
+## 错误处理
+
+[流式模式](/spec/1-0/basic/patterns/streaming/)的序列规则不变：延续或关闭未开启的调用、重开已开启的调用，都是致命的。运行结束时仍开启的调用是违规。
+
+## 安全考量
+
+工具调用是协议最大的攻击面，因为它们把模型输出变成动作。
+
+- 参数由模型生成，MUST 被视为不可信输入：在宣告了参数 schema 时按其验证，未宣告时像任何不可信载荷一样审视，且绝不未转义地插入 shell 命令、查询或标记。
+- 应用 SHOULD 在执行有副作用的工具调用前取得用户同意，且 MUST NOT 把未经用户批准的调用表示为已批准。
+- 工具结果是来自工具获取处的数据。消费者 MUST NOT 把结果中的文本当作协议内容，或当作携带用户授权的指令。
+- 命名未宣告工具的调用，SHOULD NOT 在没有如同对待新工具那样审视的情况下执行。

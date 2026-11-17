@@ -1,0 +1,325 @@
+---
+title: 推理（Reasoning）
+description: AG-UI 对 LLM 推理可见性与跨轮状态连续性的支持，包括加密推理内容。
+---
+
+AG-UI 对 LLM 推理提供一等支持，使思维链可见，同时在会话轮次之间保持隐私与状态连续性。
+
+## 概览
+
+现代 LLM 越来越多地使用思维链推理来提升响应质量。AG-UI 的推理支持解决三个关键挑战：
+
+- **推理可见性**：向用户呈现推理信号（如摘要），而不暴露原始思维链
+- **状态连续性**：使用加密推理项跨轮保持推理上下文，即使在 `store:false` 或零数据保留（ZDR）策略下
+- **隐私合规**：在保留推理能力的同时满足企业隐私要求
+
+> 与活动消息不同，推理消息用于表示智能体的内部思考过程，可加密以保护隐私，并会被回传给智能体以在后续轮次继续处理。
+
+## ReasoningMessage
+
+`ReasoningMessage` 类型表示消息历史中的推理内容：
+
+```ts
+interface ReasoningMessage {
+  id: string
+  role: "reasoning"
+  content: string          // 推理内容（对客户端可见）
+  encryptedValue?: string  // 可选的加密推理，用于状态连续性
+}
+```
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | `string` | 推理消息唯一标识 |
+| `role` | `"reasoning"` | 消息角色判别符 |
+| `content` | `string` | 对客户端可见的推理内容 |
+| `encryptedValue` | `string?` | 用于状态连续性的加密思维链 blob |
+
+关键特征：
+
+- **与助手消息分离**：推理与最终响应保持独立，避免污染会话历史
+- **可流式**：内容通过流式事件到达
+- **可选加密**：存在 `encryptedValue` 时，它表示加密思维链，客户端不透明地存储并转发
+
+## 推理事件
+
+推理事件管理推理消息的生命周期。完整事件参考见[事件参考](/reference/events/)。
+
+### 事件流
+
+典型推理流：
+
+```text
+Agent → Client: REASONING_START
+
+Agent → Client: REASONING_MESSAGE_START
+Agent → Client: REASONING_MESSAGE_CONTENT (delta)
+Agent → Client: REASONING_MESSAGE_CONTENT (delta)
+Agent → Client: REASONING_MESSAGE_END
+
+Agent → Client: REASONING_ENCRYPTED_VALUE
+
+Agent → Client: REASONING_END
+```
+
+### 事件类型
+
+| 事件 | 用途 |
+| --- | --- |
+| `REASONING_START` | 标记推理阶段开始 |
+| `REASONING_MESSAGE_START` | 开始一条流式推理消息 |
+| `REASONING_MESSAGE_CONTENT` | 传递推理内容分片 |
+| `REASONING_MESSAGE_END` | 完成一条推理消息 |
+| `REASONING_MESSAGE_CHUNK` | 便捷事件，自动管理消息生命周期 |
+| `REASONING_END` | 标记推理完成 |
+| `REASONING_ENCRYPTED_VALUE` | 把加密思维链附加到消息或工具调用 |
+
+## 隐私与合规
+
+AG-UI 推理以隐私优先为设计原则。
+
+### 零数据保留（ZDR）
+
+对于要求零数据保留的部署：
+
+1. **加密推理值**可跨轮携带状态，而无需在客户端存储可解密内容
+2. 客户端通过 `REASONING_ENCRYPTED_VALUE` 事件不透明地接收并转发 `encryptedValue` blob
+3. 只有智能体（或授权后端）能解密推理内容
+
+### 可见性控制
+
+智能体控制哪些推理对用户可见：
+
+- **完全可见**：通过 `REASONING_MESSAGE_CONTENT` 流式输出完整思维链
+- **仅摘要**：发射精简摘要，同时把详细推理作为加密值附加
+- **隐藏**：仅使用 `REASONING_ENCRYPTED_VALUE`，不进行可见流式输出
+
+### 合规考量
+
+| 要求 | 方案 |
+| --- | --- |
+| GDPR 删除权 | 可丢弃加密内容而不失去推理能力 |
+| SOC 2 数据处理 | 推理内容永不以明文存储在客户端 |
+| HIPAA 最小必要 | 仅暴露摘要；详细推理保持加密 |
+| 审计日志 | `REASONING_START`/`REASONING_END` 提供审计轨迹而不暴露内容 |
+
+## 示例实现
+
+### 基础推理流
+
+```ts
+// 智能体发射推理开始
+yield { type: "REASONING_START", messageId: "reasoning-001" }
+
+// 流式输出可见推理内容
+yield { type: "REASONING_MESSAGE_START", messageId: "msg-123", role: "reasoning" }
+yield { type: "REASONING_MESSAGE_CONTENT", messageId: "msg-123", delta: "Let me " }
+yield { type: "REASONING_MESSAGE_CONTENT", messageId: "msg-123", delta: "think through " }
+yield { type: "REASONING_MESSAGE_CONTENT", messageId: "msg-123", delta: "this step " }
+yield { type: "REASONING_MESSAGE_CONTENT", messageId: "msg-123", delta: "by step..." }
+yield { type: "REASONING_MESSAGE_END", messageId: "msg-123" }
+
+// 结束推理
+yield { type: "REASONING_END", messageId: "reasoning-001" }
+```
+
+### 用于状态连续性的加密内容
+
+跨轮保持推理状态而不暴露内容时，使用 `REASONING_ENCRYPTED_VALUE` 把加密思维链附加到消息或工具调用：
+
+```ts
+yield { type: "REASONING_START", messageId: "reasoning-002" }
+
+// 为用户流式输出可见摘要
+yield { type: "REASONING_MESSAGE_START", messageId: "msg-456", role: "reasoning" }
+yield { type: "REASONING_MESSAGE_CONTENT", messageId: "msg-456", delta: "Analyzing your request..." }
+yield { type: "REASONING_MESSAGE_END", messageId: "msg-456" }
+
+// 把加密思维链附加到推理消息
+yield {
+  type: "REASONING_ENCRYPTED_VALUE",
+  subtype: "message",
+  entityId: "msg-456",
+  encryptedValue: "eyJhbGciOiJBMjU2R0NNIiwiZW5jIjoiQTI1NkdDTSJ9...",
+}
+
+yield { type: "REASONING_END", messageId: "reasoning-002" }
+
+// 后续轮次中，客户端回传带 encryptedValue 的消息
+// 智能体可解密以恢复推理上下文
+```
+
+### 把加密推理附加到工具调用
+
+也可以把加密推理附加到工具调用，记录智能体为何选择特定参数或如何解释结果：
+
+```ts
+yield { type: "TOOL_CALL_START", toolCallId: "tool-123", toolCallName: "search_database", parentMessageId: "msg-789" }
+yield { type: "TOOL_CALL_ARGS", toolCallId: "tool-123", delta: '{"query": "user preferences"}' }
+yield { type: "TOOL_CALL_END", toolCallId: "tool-123" }
+
+// 附加解释为何调用该工具的加密推理
+yield {
+  type: "REASONING_ENCRYPTED_VALUE",
+  subtype: "tool-call",
+  entityId: "tool-123",
+  encryptedValue: "encrypted-reasoning-about-tool-selection...",
+}
+```
+
+### ZDR 合规实现
+
+```ts
+// 服务端：发送前加密推理
+const encryptedReasoning = await encrypt(detailedChainOfThought, secretKey)
+
+yield { type: "REASONING_START", messageId: "reasoning-003" }
+
+// 只向客户端发射高层摘要
+yield { type: "REASONING_MESSAGE_CHUNK", messageId: "summary-001", delta: "Processing your request securely..." }
+yield { type: "REASONING_MESSAGE_CHUNK", messageId: "summary-001", delta: "" } // 空 delta 关闭消息
+
+// 附加加密思维链
+yield {
+  type: "REASONING_ENCRYPTED_VALUE",
+  subtype: "message",
+  entityId: "summary-001",
+  encryptedValue: encryptedReasoning,
+}
+
+yield { type: "REASONING_END", messageId: "reasoning-003" }
+
+// 客户端只存储：
+// - 加密 blob（无法解密）
+// - 摘要文本（无敏感细节）
+// 完整推理永不以明文持久化
+```
+
+### 使用便捷 chunk 事件
+
+`REASONING_MESSAGE_CHUNK` 自动管理消息生命周期：
+
+```ts
+// 首个带 messageId 的 chunk 自动开启消息
+yield { type: "REASONING_MESSAGE_CHUNK", messageId: "msg-789", delta: "Analyzing the problem space..." }
+yield { type: "REASONING_MESSAGE_CHUNK", messageId: "msg-789", delta: " Considering multiple approaches..." }
+
+// 空 delta（或下一个非推理事件）自动关闭
+yield { type: "REASONING_MESSAGE_CHUNK", messageId: "msg-789", delta: "" }
+```
+
+## 客户端集成
+
+### 处理推理事件
+
+```ts
+import { EventType, type BaseEvent } from "@ag-ui/core"
+
+function handleEvent(event: BaseEvent) {
+  switch (event.type) {
+    case EventType.REASONING_START:
+      console.log("Agent is reasoning...")
+      break
+
+    case EventType.REASONING_MESSAGE_CONTENT:
+      appendReasoningText(event.messageId, event.delta)
+      break
+
+    case EventType.REASONING_ENCRYPTED_VALUE:
+      if (event.subtype === "message") {
+        storeMessageEncryptedValue(event.entityId, event.encryptedValue)
+      } else if (event.subtype === "tool-call") {
+        storeToolCallEncryptedValue(event.entityId, event.encryptedValue)
+      }
+      break
+
+    case EventType.REASONING_END:
+      console.log("Reasoning complete")
+      break
+  }
+}
+```
+
+### 回传加密推理
+
+后续请求时，包含已存储的加密值：
+
+```ts
+const response = await agent.run({
+  threadId: "thread-123",
+  messages: [
+    ...previousMessages,
+    {
+      id: "reasoning-002",
+      role: "reasoning",
+      content: "Analyzing your request...",  // 可见摘要
+      encryptedValue: storedEncryptedBlob,   // 客户端不透明
+    },
+    {
+      id: "user-msg-001",
+      role: "user",
+      content: "Follow up question...",
+    },
+  ],
+})
+```
+
+## 从 Thinking 事件迁移
+
+> `THINKING_*` 事件已弃用，将在 1.0.0 中移除。新实现应使用 `REASONING_*` 事件。
+
+### 已弃用事件
+
+| 已弃用事件 | 替代 |
+| --- | --- |
+| `THINKING_START` | `REASONING_START` |
+| `THINKING_END` | `REASONING_END` |
+| `THINKING_TEXT_MESSAGE_START` | `REASONING_MESSAGE_START` |
+| `THINKING_TEXT_MESSAGE_CONTENT` | `REASONING_MESSAGE_CONTENT` |
+| `THINKING_TEXT_MESSAGE_END` | `REASONING_MESSAGE_END` |
+
+### 迁移步骤
+
+1. **更新事件类型**：把所有 `THINKING_*` 替换为对应的 `REASONING_*`
+2. **更新消息类型**：使用 `role: "reasoning"` 的 `ReasoningMessage`，而非任何 thinking 专用消息类型
+3. **添加加密值支持**：考虑使用 `ReasoningEncryptedValue` 事件以提升隐私合规
+4. **充分测试**：确保现有功能在新事件类型下正常
+
+### 迁移示例
+
+之前（已弃用）：
+
+```ts
+// ❌ 已弃用
+yield { type: "THINKING_START", messageId: "think-001" }
+yield { type: "THINKING_TEXT_MESSAGE_START", messageId: "msg-001" }
+yield { type: "THINKING_TEXT_MESSAGE_CONTENT", messageId: "msg-001", delta: "..." }
+yield { type: "THINKING_TEXT_MESSAGE_END", messageId: "msg-001" }
+yield { type: "THINKING_END", messageId: "think-001" }
+```
+
+之后（当前）：
+
+```ts
+// ✅ 当前实现
+yield { type: "REASONING_START", messageId: "reasoning-001" }
+yield { type: "REASONING_MESSAGE_START", messageId: "msg-001", role: "assistant" }
+yield { type: "REASONING_MESSAGE_CONTENT", messageId: "msg-001", delta: "..." }
+yield { type: "REASONING_MESSAGE_END", messageId: "msg-001" }
+yield { type: "REASONING_END", messageId: "reasoning-001" }
+```
+
+## 最佳实践
+
+1. **始终成对发射 start/end 事件**：每个 `ReasoningStart` 都应有对应的 `ReasoningEnd`
+2. **敏感推理使用加密值**：当思维链含敏感信息时，用 `ReasoningEncryptedValue` 把加密内容附加到消息或工具调用
+3. **提供用户反馈**：即使推理加密，也发射可见摘要，让用户知道智能体在工作
+4. **优雅处理缺失事件**：客户端应对不完整事件流保持健壮
+5. **考虑带宽**：超长推理链可只发射摘要以减少传输
+
+## 相关文档
+
+- [事件参考](/reference/events/)
+- [消息](/concepts/messages/)
+- [序列化](/concepts/serialization/)
+- [元数据](/concepts/metadata/)

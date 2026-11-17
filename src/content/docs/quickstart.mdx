@@ -1,0 +1,75 @@
+---
+title: 快速开始总览
+description: 根据你的目标选择接入 AG-UI 的路径：构建应用、构建集成或构建客户端。
+---
+
+AG-UI 提供了多条上手路径。你可以根据目标选择从应用端、智能体集成端或客户端实现开始。
+
+## 一分钟创建示例应用
+
+使用官方脚手架快速创建 AG-UI 应用：
+
+```bash
+npx create-ag-ui-app@latest
+```
+
+按提示选择模板与配置后，进入项目并启动开发服务（通常为安装依赖后运行 `npm run dev` 或项目说明中的命令）。例如 CopilotKit 相关示例通常可在本地开发地址（如 `http://localhost:3000`）查看效果。
+
+## 三条主要路径
+
+### 1. 构建智能体应用
+
+适用场景：你希望构建由兼容 AG-UI 的智能体驱动的用户应用（如 Copilot、对话助手、工作流应用）。
+
+你将关注：
+- 前端如何连接 AG-UI 客户端/运行时
+- 如何订阅并渲染事件流（消息、工具、状态、UI 意图）
+- 如何把用户输入与交互结果回传给智能体
+
+详见：[构建应用](/quickstart/applications/)
+
+### 2. 构建 AG-UI 集成（服务端/框架）
+
+适用场景：你要为某个智能体框架、自研 Agent 系统或现有协议提供 AG-UI 支持。
+
+你将关注：
+- 如何将智能体执行过程转换为标准 AG-UI 事件
+- 如何接收 AG-UI 输入并驱动运行
+- 直接发射事件 vs. 通过中间件/适配层转换协议
+
+详见：[构建集成](/quickstart/integrations/)
+
+### 3. 构建 AG-UI 客户端
+
+适用场景：你希望开发新的客户端来消费 AG-UI 事件流（Web、终端、移动端、Slack/Teams 等聊天平台）。
+
+你将关注：
+- 连接智能体端点并建立事件流订阅
+- 按事件类型更新会话状态与 UI
+- 处理工具调用、状态同步与人机协同交互
+
+详见：[构建客户端](/quickstart/clients/)
+
+## 前置准备建议
+
+不同路径所需环境略有差异，通常包括：
+
+- **Node.js**（建议使用较新 LTS；部分示例要求 Node.js 20+ 或 22+）
+- **包管理器**：npm / pnpm / yarn（本中文站点示例与 Nimbus 使用 pnpm）
+- **模型或框架凭据**：如 OpenAI API Key、各框架所需的服务配置等
+- **基础开发工具**：Git、终端环境
+
+## 推荐学习顺序
+
+1. 阅读[简介](/intro/)与[核心架构](/concepts/architecture/)，理解事件驱动模型。
+2. 查看[事件机制](/concepts/events/)和[事件参考](/reference/events/)，掌握核心事件类型。
+3. 在 [AG-UI Dojo](https://dojo.ag-ui.com/) 中体验不同框架与能力示例。
+4. 根据目标选择对应的快速开始子页面动手实现。
+5. 结合[生态与集成](/integrations/)、[SDK 与客户端](/sdk/)扩展能力。
+
+## 常用资源
+
+- 官方文档：[https://docs.ag-ui.com/](https://docs.ag-ui.com/)
+- GitHub：[https://github.com/ag-ui-protocol/ag-ui](https://github.com/ag-ui-protocol/ag-ui)
+- Dojo：[https://dojo.ag-ui.com/](https://dojo.ag-ui.com/)
+- Discord：[https://discord.gg/Jd3FzfdJa8](https://discord.gg/Jd3FzfdJa8)

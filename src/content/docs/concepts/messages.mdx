@@ -1,0 +1,444 @@
+---
+title: 消息（Messages）
+description: 理解 AG-UI 的消息结构、角色类型、多模态内容、工具调用与消息同步。
+---
+
+消息是 AG-UI 协议中通信的骨架。它们表示用户与 AI 智能体之间的会话历史，并提供一种标准化方式交换信息，无论底层使用何种 AI 服务。
+
+## 消息结构
+
+AG-UI 消息采用**厂商中立**格式，确保跨不同 AI 提供商兼容，同时保持结构一致。这使应用可以在不修改客户端实现的情况下切换 AI 服务（如 OpenAI、Anthropic 或自定义模型）。
+
+基础消息结构：
+
+```ts
+interface BaseMessage {
+  id: string                        // 消息唯一标识
+  role: string                      // 发送者角色（user, assistant, system, tool, reasoning 等）
+  content?: string                  // 可选文本内容
+  name?: string                     // 可选发送者名称
+  encryptedContent?: string         // 可选的加密内容，用于隐私保护的状态连续性
+  metadata?: Record<string, any>    // 可选附加信息
+}
+```
+
+`role` 判别符可以是 `"user"`、`"assistant"`、`"system"`、`"tool"`、`"developer"`、`"activity"` 或 `"reasoning"`。具体消息类型在此基础上扩展所需字段。
+
+每种消息类型都携带 `metadata`——一个按 key 开放的对象，在消息由事件构建的过程中累积。工具调用也携带自己的 metadata，规则见[元数据](/concepts/metadata/)。
+
+> `encryptedContent` 字段支持隐私保护工作流：敏感内容（如推理链）可跨轮次传递而不暴露原始内容。这对零数据保留（ZDR）合规与 `store:false` 场景尤其有用。
+
+## 消息类型
+
+### 用户消息（UserMessage）
+
+来自最终用户的消息：
+
+```ts
+interface UserMessage {
+  id: string
+  role: "user"
+  content: string | ContentPart[]   // 文本或多模态输入
+  name?: string                     // 可选用户标识
+}
+
+type ContentPart =
+  | TextPart
+  | ImagePart
+  | AudioPart
+  | VideoPart
+  | DocumentPart
+
+interface DataSource {
+  type: "data"
+  value: string
+  mimeType: string
+}
+
+interface UrlSource {
+  type: "url"
+  value: string
+  mimeType?: string
+}
+
+interface FileSource {
+  type: "file"
+  value: string      // 提供商签发的句柄；不透明，永不抓取
+  provider?: string  // 签发方，如 "openai"
+  mimeType?: string
+}
+
+type PartSource = DataSource | UrlSource | FileSource
+
+interface TextPart {
+  type: "text"
+  text: string
+}
+
+interface ImagePart {
+  type: "image"
+  source: PartSource
+  metadata?: Record<string, unknown>
+}
+
+interface AudioPart {
+  type: "audio"
+  source: PartSource
+  metadata?: Record<string, unknown>
+}
+
+interface VideoPart {
+  type: "video"
+  source: PartSource
+  metadata?: Record<string, unknown>
+}
+
+interface DocumentPart {
+  type: "document"
+  source: PartSource
+  metadata?: Record<string, unknown>
+}
+```
+
+> 在 Python 中，旧的 `BinaryInputContent` 模型已弃用，仅作为兼容路径临时保留。
+
+该结构在保持传统纯文本输入可用的同时，支持在同一消息中携带更丰富的载荷，如图片、音频片段或上传文件。
+
+### 助手消息（AssistantMessage）
+
+来自 AI 助手的消息：
+
+```ts
+interface AssistantMessage {
+  id: string
+  role: "assistant"
+  content?: string          // 助手文本响应（使用工具调用时可选）
+  name?: string
+  toolCalls?: ToolCall[]    // 助手发起的工具调用
+  encryptedContent?: string
+}
+```
+
+### 系统消息（SystemMessage）
+
+提供给智能体的指令或上下文：
+
+```ts
+interface SystemMessage {
+  id: string
+  role: "system"
+  content: string
+  name?: string
+}
+```
+
+### 工具消息（ToolMessage）
+
+工具执行结果：
+
+```ts
+interface ToolMessage {
+  id: string
+  role: "tool"
+  content: string          // 工具执行结果
+  toolCallId: string       // 响应的工具调用 ID
+  error?: string           // 工具执行失败时的错误信息
+  encryptedValue?: string  // 可选的加密推理，用于状态连续性
+}
+```
+
+要点：
+
+- `toolCallId` 把结果链接回原始工具调用
+- 用 `error` 表示工具执行失败
+- 用 `encryptedValue` 附加智能体如何解释/处理工具结果的加密思维链
+
+### 活动消息（ActivityMessage）
+
+仅存在于前端的结构化 UI 消息。用于进度、状态或任何不应发送给模型的自定义视觉元素：
+
+```ts
+interface ActivityMessage {
+  id: string
+  role: "activity"
+  activityType: string              // 如 "PLAN"、"SEARCH"、"SCRAPE"
+  content: Record<string, any>      // 前端负责渲染的结构化载荷
+}
+```
+
+要点：
+
+- 通过 `ACTIVITY_SNAPSHOT` 与 `ACTIVITY_DELTA` 发射，支持实时可更新的 UI（清单、步骤、搜索进行中等）
+- **仅前端**：永不转发给智能体，因此无需过滤，也不会干扰 LLM
+- **可自定义**：定义自己的 `activityType` 与 `content` 并渲染匹配的 UI 组件
+- **可流式更新**：可在长耗时操作中持续更新
+- 通过把自定义事件转为持久消息对象，帮助持久化/恢复
+
+### 开发者消息（DeveloperMessage）
+
+用于开发或调试的内部消息：
+
+```ts
+interface DeveloperMessage {
+  id: string
+  role: "developer"
+  content: string
+  name?: string
+}
+```
+
+### 推理消息（ReasoningMessage）
+
+表示智能体内部推理或思维链过程的消息：
+
+```ts
+interface ReasoningMessage {
+  id: string
+  role: "reasoning"
+  content: string          // 推理内容（对客户端可见）
+  encryptedValue?: string  // 可选的加密推理，用于状态连续性
+}
+```
+
+> 与活动消息不同，推理消息用于表示智能体的内部思考过程，可加密以保护隐私，并会被回传给智能体以在后续轮次继续处理。
+
+要点：
+
+- 通过 `REASONING_MESSAGE_START`、`REASONING_MESSAGE_CONTENT`、`REASONING_MESSAGE_END` 发射
+- **可见性控制**：内容可对用户可见（作为摘要），或完全加密
+- **加密值**：使用 `REASONING_ENCRYPTED_VALUE` 事件把加密思维链附加到消息或工具调用，而不暴露内容
+- **状态连续性**：加密推理项可跨轮传递，无需暴露原始思维链
+- **隐私优先**：支持 `store:false` 与零数据保留策略，同时保留推理能力
+- **与助手消息分离**：推理与最终响应保持独立，避免污染会话历史
+
+完整流式事件生命周期见[推理](/concepts/reasoning/)与[事件参考](/reference/events/)。
+
+## 厂商中立
+
+AG-UI 消息设计为厂商中立，可方便地与各 AI 提供商的专有格式互相映射：
+
+```ts
+// 示例：将 AG-UI 消息转换为 OpenAI 格式
+const openaiMessages = agUiMessages
+  .filter((msg) => ["user", "system", "assistant"].includes(msg.role))
+  .map((msg) => ({
+    role: msg.role as "user" | "system" | "assistant",
+    content: msg.content || "",
+    ...(msg.role === "assistant" && msg.toolCalls
+      ? {
+          tool_calls: msg.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: tc.type,
+            function: {
+              name: tc.function.name,
+              arguments: tc.function.arguments,
+            },
+          })),
+        }
+      : {}),
+  }))
+```
+
+这种抽象使 AG-UI 能作为通用接口，独立于底层 AI 服务。
+
+## 消息同步
+
+消息可通过两种主要机制在客户端与服务端之间同步。
+
+### 完整快照
+
+`MESSAGES_SNAPSHOT` 事件提供会话中所有消息的完整视图：
+
+```ts
+interface MessagesSnapshotEvent {
+  type: EventType.MESSAGES_SNAPSHOT
+  messages: Message[]
+}
+```
+
+通常用于：
+
+- 初始化会话时
+- 连接中断之后
+- 发生重大状态变化时
+- 确保客户端与服务端同步
+
+### 流式消息
+
+实时交互中，新消息可在生成时流式传输：
+
+1. **开始消息**
+
+```ts
+interface TextMessageStartEvent {
+  type: EventType.TEXT_MESSAGE_START
+  messageId: string
+  role: string
+}
+```
+
+2. **流式内容**
+
+```ts
+interface TextMessageContentEvent {
+  type: EventType.TEXT_MESSAGE_CONTENT
+  messageId: string
+  delta: string
+}
+```
+
+3. **结束消息**
+
+```ts
+interface TextMessageEndEvent {
+  type: EventType.TEXT_MESSAGE_END
+  messageId: string
+}
+```
+
+这种流式方式带来响应迅速、即时反馈的体验。
+
+## 消息中的工具集成
+
+### 工具调用
+
+工具调用嵌入在助手消息中：
+
+```ts
+interface ToolCall {
+  id: string
+  type: "function"
+  function: {
+    name: string        // 要调用的函数名
+    arguments: string   // JSON 编码的参数
+  }
+}
+```
+
+带工具调用的助手消息示例：
+
+```ts
+{
+  id: "msg_123",
+  role: "assistant",
+  content: "I'll help you with that calculation.",
+  toolCalls: [
+    {
+      id: "call_456",
+      type: "function",
+      function: {
+        name: "calculate",
+        arguments: '{"expression": "24 * 7"}'
+      }
+    }
+  ]
+}
+```
+
+### 工具结果
+
+工具执行结果表示为工具消息：
+
+```ts
+{
+  id: "result_789",
+  role: "tool",
+  content: "168",
+  toolCallId: "call_456"
+}
+```
+
+这形成清晰的工具使用链：
+
+1. 助手请求工具调用
+2. 工具执行并返回结果
+3. 助手可引用并基于结果继续响应
+
+## 流式工具调用
+
+与文本消息类似，工具调用也可流式传输，提供对智能体动作的实时可见性：
+
+1. **开始工具调用**
+
+```ts
+interface ToolCallStartEvent {
+  type: EventType.TOOL_CALL_START
+  toolCallId: string
+  toolCallName: string
+  parentMessageId?: string
+}
+```
+
+2. **流式参数**
+
+```ts
+interface ToolCallArgsEvent {
+  type: EventType.TOOL_CALL_ARGS
+  toolCallId: string
+  delta: string   // JSON 片段
+}
+```
+
+3. **结束工具调用**
+
+```ts
+interface ToolCallEndEvent {
+  type: EventType.TOOL_CALL_END
+  toolCallId: string
+}
+```
+
+这使前端能够在智能体构建推理时逐步展示工具调用。
+
+## 完整示例
+
+```ts
+// 会话历史
+;[
+  // 用户提问
+  {
+    id: "msg_1",
+    role: "user",
+    content: "What's the weather in New York?",
+  },
+
+  // 带工具调用的助手响应
+  {
+    id: "msg_2",
+    role: "assistant",
+    content: "Let me check the weather for you.",
+    toolCalls: [
+      {
+        id: "call_1",
+        type: "function",
+        function: {
+          name: "get_weather",
+          arguments: '{"location": "New York", "unit": "celsius"}',
+        },
+      },
+    ],
+  },
+
+  // 工具结果
+  {
+    id: "result_1",
+    role: "tool",
+    content: '{"temperature": 22, "condition": "Partly Cloudy", "humidity": 65}',
+    toolCallId: "call_1",
+  },
+
+  // 使用工具结果的最终助手响应
+  {
+    id: "msg_3",
+    role: "assistant",
+    content:
+      "The weather in New York is partly cloudy with a temperature of 22°C and 65% humidity.",
+  },
+]
+```
+
+## 结论
+
+AG-UI 的消息结构在保持厂商中立的同时，支持复杂的对话式 AI 体验。通过标准化消息的表示、同步与流式传输，AG-UI 提供了一致的方式来实现人机交互，无论底层 AI 服务是什么。该系统既支持简单文本交换，也支持复杂的工具工作流，同时兼顾实时响应与高效数据传输。
+
+相关页面：[元数据](/concepts/metadata/)、[推理](/concepts/reasoning/)、[状态管理](/concepts/state/)。

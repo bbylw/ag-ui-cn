@@ -1,57 +1,122 @@
 ---
-title: 什么是 Kiri？
-description: Kiri 是一个小巧、快速的容器运行时，在 Mac、Windows 和 Linux 上运行你的 Docker 镜像，并与现有 docker CLI、Compose 和 buildx 无缝协作。
-sidebar:
-  order: 1
-  label: 什么是 Kiri
+title: AG-UI 简介
+description: AG-UI 协议概览：定位、协议栈、核心构建块、为何需要 AG-UI、支持的集成与快速开始。
 ---
 
-[Kiri](https://runkiri.com/) 是一个**小巧、快速**的容器运行时。它用 Rust 编写，可作为 Docker Desktop 和 OrbStack 的轻量替代方案。
+> 本页基于官方文档 [AG-UI Introduction](https://docs.ag-ui.com/introduction) 整理与翻译，力求完整覆盖其核心内容。
 
-- 在 **macOS** 和 **Windows** 上，Kiri 在一个精简的 Linux 虚拟机中运行容器。
-- 在 **Linux** 上，Kiri 直接在宿主机内核上运行容器，无需虚拟机。
-- Kiri 实现了 **Docker Engine API**，因此你现有的 `docker` CLI、Docker Compose 和 buildx 可以照常使用。
+## AG-UI 协议是什么
 
-<Aside type="note" title="名字的由来">
-  Kiri 来自伊博语单词 <em>ntakịrị</em>，意为“小”。
-</Aside>
+**AG-UI（Agent–User Interaction Protocol，智能体-用户交互协议）**是一个**开放、轻量、事件驱动**的协议，用于标准化 AI 智能体与面向用户应用之间的连接方式。
 
-## 为什么选择 Kiri？
+AG-UI 被设计为用户应用与任意智能体后端之间通用的**双向交互连接层**。它在保持简单与灵活的同时，标准化了**智能体状态、UI 意图与用户交互**如何在模型/智能体运行时与前端应用之间流动，使开发者能够快速交付可靠、可调试、体验良好的智能体功能，而无需反复编写复杂的临时对接代码。
 
-<CardGrid>
-  <Card title="快速">
-    通过 Docker Engine API 启动并移除一个容器约需 <strong>2.55 ms</strong>。在相同测试环境下，相比 Docker Desktop 可快约 80 倍量级。
-  </Card>
-  <Card title="轻量">
-    引擎进程占用很小，虚拟机在空闲约 60 秒后休眠并归还内存，唤醒约需 0.15 秒。
-  </Card>
-  <Card title="兼容">
-    支持 <code>docker</code>、Compose、buildx、<code>docker login</code>，并可通过 Rosetta 运行 amd64 镜像。
-  </Card>
-  <Card title="简单好用">
-    容器可通过本地域名访问（如 <code>http://&lt;name&gt;.kiri.localhost</code>），支持 HTTPS、本机文件挂载与 SSH agent 转发等能力。
-  </Card>
-</CardGrid>
+## 智能体协议栈（Agentic Protocols）
 
-## 它能做什么？
+AG-UI 是三个重要开放智能体协议之一，各自关注不同层面：
 
-除了容器与 Compose，Kiri 还提供：
+| 层面 | 协议 | 作用 |
+| --- | --- | --- |
+| **智能体 ↔ 用户交互** | **AG-UI**（Agent–User Interaction Protocol） | 连接智能体与面向用户应用的开放、事件驱动标准，实现实时、多模态、可交互体验 |
+| **智能体 ↔ 工具与数据** | **MCP**（Model Context Protocol） | 开放标准（源自 Anthropic），让智能体安全连接外部系统——工具、工作流与数据源 |
+| **智能体 ↔ 智能体** | **A2A**（Agent to Agent） | 开放标准（源自 Google），定义智能体在分布式系统中如何协作与共享工作 |
 
-- **Kubernetes**：一条命令启动单节点 k3s 集群（`kiri k8s start`）。
-- **Linux 机器**：创建长期运行的 Linux 开发环境（如 `kiri machine create dev --distro ubuntu`）。
-- **Kiri Share**：将任意容器一键发布为公网 HTTPS 地址。
-- **原生界面**：管理容器、镜像、卷、网络与 Compose 项目，并查看日志、终端与文件。
+> **关于 “A2UI” 与 “AG-UI” 的区别**：两者名称相似但定位不同，且可以很好地协同工作。**A2UI** 是一种[生成式 UI 规范](https://docs.ag-ui.com/concepts/generative-ui-specs)，用于让智能体交付 UI 组件/控件；**AG-UI** 是智能体↔用户交互协议，用于连接智能体前端与任意智能体后端。了解更多：[https://copilotkit.ai/ag-ui-and-a2ui](https://copilotkit.ai/ag-ui-and-a2ui)
 
-## 下一步
+## 核心构建块（当前与规划中）
 
-<Steps>
-  <Step title="快速上手">
-    按照 [快速开始](/quick-start/) 在几分钟内运行你的第一个容器。
-  </Step>
-  <Step title="安装 Kiri">
-    查看 [安装指南](/install/) 了解 macOS、Windows 与 Linux 的安装方式。
-  </Step>
-  <Step title="探索功能">
-    在 [功能特性](/features/) 中查看 Kiri 当前支持的能力。
-  </Step>
-</Steps>
+AG-UI 围绕可组合的交互能力构建，主要包括：
+
+- **流式聊天（Streaming chat）**：实时 token 与事件流，支持响应式多轮会话，以及取消与恢复。
+- **多模态（Multimodality）**：类型化附件与实时媒体（文件、图片、音频、转录等）；支持语音、预览、标注与来源信息。
+- **生成式 UI - 静态（Generative UI, static）**：将模型输出渲染为稳定、类型化组件，由应用控制展示。
+- **生成式 UI - 声明式（Generative UI, declarative）**：小型声明式语言用于表达受约束但开放的智能体 UI；智能体提出结构与约束，应用校验后挂载。
+- **共享状态（Shared state）**：只读与读写状态。智能体与应用共享的类型化存储，通过事件溯源的增量差异流式同步，并支持冲突处理以实现顺畅协作。
+- **思考步骤（Thinking steps）**：基于 trace 与工具事件可视化中间推理过程；不暴露原始思维链（raw chain of thought）。
+- **前端工具调用（Frontend tool calls）**：从智能体到前端执行动作的类型化交接，并将结果返回。
+- **后端工具渲染（Backend tool rendering）**：在应用与聊天中可视化后端工具输出，将副作用作为一等事件发出。
+- **中断/人机协同（Interrupts, human in the loop）**：在流程中暂停、批准、编辑、重试或升级处理，而不丢失状态。
+- **子智能体与组合（Sub-agents and composition）**：嵌套委派，具备作用域状态、追踪与取消能力。
+- **智能体引导（Agent steering）**：通过实时用户输入动态重定向智能体执行，以引导行为与结果。
+- **工具输出流式传输（Tool output streaming）**：流式传输工具结果与日志，使 UI 能实时渲染长耗时效果。
+- **自定义事件（Custom events）**：用于协议未覆盖需求的开放式数据交换。
+
+## 为什么智能体应用需要 AG-UI
+
+智能体应用打破了智能体时代之前主导前后端开发的简单请求/响应模型：客户端发起请求，服务器返回数据，客户端渲染，然后交互结束。
+
+### 面向用户智能体的需求
+
+虽然智能体本质上也是软件，但它们表现出一些特性，使其难以通过传统 REST/GraphQL API 提供服务：
+
+- 智能体是**长时间运行**的，并会**流式输出**中间工作——通常跨越多轮会话。
+- 智能体具有**非确定性**，并可能**非确定性地控制应用 UI**。
+- 智能体同时混合**结构化与非结构化 I/O**（例如文本与语音，以及工具调用和状态更新）。
+- 智能体需要用户可参与的**组合能力**：例如可能调用子智能体，且往往是递归的。
+- 以及更多……
+
+AG-UI 是一种事件驱动协议，用于实现智能体前端与后端之间的动态通信。它建立在 Web 基础协议（HTTP、WebSocket）之上，作为面向智能体时代的抽象层，弥合传统客户端-服务器架构与 AI 智能体动态、有状态本质之间的鸿沟。
+
+## AG-UI 实践与演示
+
+你可以在 [AG-UI Dojo](https://dojo.ag-ui.com/) 中查看不同框架下 AG-UI 特性的演示应用，包含预览、代码与讲解文档。
+
+## 支持的集成
+
+AG-UI 源于 CopilotKit 与 LangChain、CrewAI 的早期合作，并将广受欢迎的智能体-用户交互基础设施带入更广泛的生态。以下为概览（具体状态与资源请以官方页面为准）：
+
+### 智能体框架 - 合作伙伴
+- **LangGraph / LangChain**：Supported（[Docs](https://docs.copilotkit.ai/langgraph/)、[Demos](https://dojo.ag-ui.com/langgraph-fastapi/feature/shared_state)）
+- **CrewAI**：Supported（[Docs](https://docs.copilotkit.ai/crewai-flows)、[Demos](https://dojo.ag-ui.com/crewai/feature/shared_state)）
+
+### 智能体框架 - 官方/一方集成（示例）
+- **Microsoft Agent Framework**：Supported（[Docs](https://docs.copilotkit.ai/microsoft-agent-framework)、[Demos](https://dojo.ag-ui.com/microsoft-agent-framework-dotnet/feature/shared_state)）
+- **Google ADK**：Supported（[Docs](https://docs.copilotkit.ai/adk)、[Demos](https://dojo.ag-ui.com/adk-middleware/feature/shared_state?openCopilot=true)）
+- **Google ADK (JavaScript)**：Supported（[Quickstart](https://docs.ag-ui.com/integrations/google-adk-js)、[Demos](https://dojo.ag-ui.com/adk-js/feature/agentic_chat?openCopilot=true)）
+- **AWS Strands Agents**：Supported（[Docs](https://github.com/strands-agents/sdk-python/tree/main/src/strands/experimental/ag_ui)、[Demos](https://dojo.ag-ui.com/aws-strands/feature/shared_state?openCopilot=true)）
+- **Mastra**：Supported（[Docs](https://docs.copilotkit.ai/mastra/)、[Demos](https://dojo.ag-ui.com/mastra/feature/tool_based_generative_ui)）
+- **Pydantic AI**：Supported（[Docs](https://docs.copilotkit.ai/pydantic-ai/)、[Demos](https://dojo.ag-ui.com/pydantic-ai/feature/shared_state)）
+- **Agno**：Supported（[Docs](https://docs.copilotkit.ai/agno/)、[Demos](https://dojo.ag-ui.com/agno/feature/tool_based_generative_ui)）
+- **LlamaIndex**：Supported（[Docs](https://docs.copilotkit.ai/llamaindex/)、[Demos](https://dojo.ag-ui.com/llamaindex/feature/shared_state)）
+- **AG2**：Supported（[Docs](https://docs.copilotkit.ai/ag2/)、[Demos](https://dojo.ag-ui.com/ag2/feature/shared_state)）
+- **AWS Bedrock Agents**：In Progress
+
+### 智能体框架 - 社区集成（示例）
+- **OpenAI Agents SDK**、**Cloudflare Agents**、**Claude Agent SDK**、**Claude Managed Agents SDK**、**Langroid**、**Omnara** 等均有对应支持/集成资源（详见[生态与集成](/integrations/)与官方文档）。
+
+### 智能体交互协议
+- **A2A Middleware**：Supported（[Docs](https://docs.copilotkit.ai/a2a-protocol)）
+
+### 基础设施与部署
+- **Amazon Bedrock AgentCore**：Supported（[Docs](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-agui.html)）
+
+### 规范
+- **Oracle Agent Spec**：Supported（[Docs](https://go.copilotkit.ai/copilotkit-oracle-docs)、[Demos](https://dojo.ag-ui.com/agent-spec-langgraph/feature/tool_based_generative_ui)）
+
+### SDK
+官方与社区提供多语言 SDK，包括 TypeScript、Kotlin、Go、Java、.NET、Python、Dart、Rust、Ruby、C++ 等（状态与入门链接见 [SDK 与客户端](/sdk/) 与官方文档）。
+
+### 客户端
+
+AG-UI 客户端不必是 Web 应用。协议描述的是**事件流**而非渲染目标，因此终端、移动应用或聊天平台都可以作为客户端。
+
+聊天平台客户端是任何人都可以基于 AG-UI 构建的。[Channels SDK](https://github.com/CopilotKit/channels-sdk) 是其中一种实现，[OpenTag](https://github.com/CopilotKit/OpenTag) 是基于它构建的完整应用：将 Python LangGraph 智能体通过 AG-UI 接入 Slack 与 Microsoft Teams。在该应用中，智能体及其运行时由用户自托管，而平台凭据与消息投递可由 CopilotKit Intelligence（托管服务，非协议的一部分）处理。
+
+## 快速开始
+
+根据你的需求选择路径：
+
+- [构建智能体应用](/quickstart/applications/)：构建由兼容 AG-UI 的智能体驱动的应用
+- [构建 AG-UI 集成](/quickstart/integrations/)：为新的智能体框架、自研方案或无框架场景实现集成
+- [构建 AG-UI 兼容客户端](/quickstart/clients/)：为兼容智能体构建新的客户端（Web、移动端、Slack、消息平台等）
+
+## 深入探索
+
+- [核心架构](/concepts/architecture/)：理解 AG-UI 如何连接智能体、协议与前端
+- [事件机制](/concepts/events/) 与 [事件参考](/reference/events/)：了解事件驱动协议与完整事件类型
+
+## 资源与支持
+
+- [资源与链接](/resources/)：文档、示例、路线图与贡献入口
+- 问题反馈与功能请求：[GitHub Issues](https://github.com/ag-ui-protocol/ag-ui/issues)
+- 社区讨论：[Discord](https://discord.gg/Jd3FzfdJa8)

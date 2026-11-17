@@ -1,0 +1,49 @@
+---
+title: 概览
+description: TypeScript 核心包 @ag-ui/core：类型与事件的基础层。
+---
+
+# @ag-ui/core
+
+Agent User Interaction Protocol SDK 采用基于流式事件的架构与强类型数据结构。本包提供连接智能体系统的基础。
+
+```bash
+npm install @ag-ui/core
+```
+
+## 类型
+
+构成系统基石的核心数据结构：
+
+- [RunAgentInput](/sdk/js/core/types/#runagentinput) — 运行智能体的输入参数
+- [Message](/sdk/js/core/types/#消息类型) — 用户与助手的交流及工具使用
+- [Context](/sdk/js/core/types/#context) — 提供给智能体的上下文信息
+- [Tool](/sdk/js/core/types/#tool) — 定义智能体可调用的函数
+- [State](/sdk/js/core/types/#state) — 智能体状态管理
+
+完整的类型文档见[类型参考](/sdk/js/core/types/)。
+
+## 事件
+
+驱动智能体与前端之间通信的事件：
+
+- [生命周期事件](/sdk/js/core/events/#生命周期事件) — 运行与步骤追踪
+- [文本消息事件](/sdk/js/core/events/#文本消息事件) — 助手消息流式传输
+- [工具调用事件](/sdk/js/core/events/#工具调用事件) — 函数调用生命周期
+- [状态管理事件](/sdk/js/core/events/#状态管理事件) — 智能体状态更新
+- [特殊事件](/sdk/js/core/events/#特殊事件) — 原始事件与自定义事件
+
+完整的事件文档见[事件参考](/sdk/js/core/events/)。
+
+## 与其它包的关系
+
+`@ag-ui/core` 只定义线路类型与事件 schema，不涉及网络或框架：
+
+| 包 | 用途 |
+| --- | --- |
+| `@ag-ui/core` | 协议类型、事件定义与 Zod 校验 |
+| [`@ag-ui/client`](/sdk/js/client/overview/) | `AbstractAgent`、`HttpAgent`、中间件、订阅者 |
+| `@ag-ui/encoder` | 事件编码（服务端） |
+| `@ag-ui/proto` | Protobuf 二进制事件流 |
+
+协议层面的语义（何时必须发某类事件、如何处理未识别内容）参见[规范 1.0](/spec/1-0/)。

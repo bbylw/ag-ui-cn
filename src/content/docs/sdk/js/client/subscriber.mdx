@@ -1,0 +1,238 @@
+---
+title: AgentSubscriber
+description: 事件驱动的订阅系统，处理智能体生命周期与状态变更。
+---
+
+# AgentSubscriber
+
+`AgentSubscriber` 接口提供完整的事件驱动系统，用于在智能体执行期间处理生命周期事件、消息更新与状态变更。
+
+```typescript
+import { AgentSubscriber } from "@ag-ui/client"
+```
+
+## 概览
+
+`AgentSubscriber` 定义了一组可选的事件处理器与生命周期钩子。接口中所有方法都是可选的，你只需实现关心的事件。
+
+所有订阅者方法都支持同步或异步——若返回 Promise，智能体会等待其完成再继续。
+
+## 把订阅者加到智能体
+
+### 永久订阅
+
+```typescript
+const agent = new HttpAgent({ url: "https://api.example.com/agent" })
+
+const subscriber: AgentSubscriber = {
+  onTextMessageContentEvent: ({ textMessageBuffer }) => {
+    console.log("Streaming text:", textMessageBuffer)
+  },
+}
+
+const subscription = agent.subscribe(subscriber)
+
+// 不再需要时移除
+subscription.unsubscribe()
+```
+
+### 临时订阅
+
+把订阅者直接传给 `runAgent()`，仅对本次运行生效：
+
+```typescript
+const temporarySubscriber: AgentSubscriber = {
+  onRunFinishedEvent: ({ result }) => {
+    console.log("Run completed with result:", result)
+  },
+}
+
+await agent.runAgent({ tools: [myTool] }, temporarySubscriber)
+```
+
+## 核心接口
+
+### AgentStateMutation
+
+事件处理器可以返回 `AgentStateMutation`，以修改智能体状态并控制事件处理：
+
+```typescript
+interface AgentStateMutation {
+  messages?: Message[]     // 更新消息历史
+  state?: State            // 更新智能体状态
+  stopPropagation?: boolean // 阻止后续订阅者处理该事件
+}
+```
+
+返回变更时：
+
+- **messages**：替换当前消息历史
+- **state**：替换当前智能体状态
+- **stopPropagation**：为 `true` 时阻止后续订阅者处理该事件
+
+### AgentSubscriberParams
+
+多数订阅者方法共享的参数：
+
+```typescript
+interface AgentSubscriberParams {
+  messages: Message[]      // 当前消息历史
+  state: State             // 当前智能体状态
+  agent: AbstractAgent     // 智能体实例
+  input: RunAgentInput     // 原始输入参数
+}
+```
+
+## 事件处理器
+
+### 生命周期事件
+
+```typescript
+onRunInitialized?(params: AgentSubscriberParams): MaybePromise<Omit<AgentStateMutation, "stopPropagation"> | void>
+onRunFailed?(params: { error: Error } & AgentSubscriberParams): MaybePromise<Omit<AgentStateMutation, "stopPropagation"> | void>
+onRunFinalized?(params: AgentSubscriberParams): MaybePromise<Omit<AgentStateMutation, "stopPropagation"> | void>
+```
+
+- `onRunInitialized`：运行初始化、任何处理开始之前
+- `onRunFailed`：运行出错时
+- `onRunFinalized`：运行结束（无论成功或失败）
+
+### 事件处理器
+
+```typescript
+onEvent?(params: { event: BaseEvent } & AgentSubscriberParams): MaybePromise<AgentStateMutation | void>
+```
+
+`onEvent` 接收执行期间的所有事件。其余处理器按事件类型细分：
+
+| 处理器 | 触发时机 |
+| --- | --- |
+| `onRunStartedEvent` | 运行开始执行 |
+| `onRunFinishedEvent` | 运行成功完成（附带 `result`） |
+| `onRunErrorEvent` | 运行遇到错误 |
+| `onStepStartedEvent` / `onStepFinishedEvent` | 步骤开始／完成 |
+
+### 消息事件
+
+```typescript
+onTextMessageStartEvent?(...)
+onTextMessageContentEvent?(params: { event: TextMessageContentEvent; textMessageBuffer: string } & AgentSubscriberParams)
+onTextMessageEndEvent?(params: { event: TextMessageEndEvent; textMessageBuffer: string } & AgentSubscriberParams)
+```
+
+`textMessageBuffer` 是该消息到目前为止累积的完整文本。
+
+### 工具调用事件
+
+```typescript
+onToolCallStartEvent?(...)
+onToolCallArgsEvent?(params: {
+  event: ToolCallArgsEvent
+  toolCallBuffer: string
+  toolCallName: string
+  partialToolCallArgs: Record<string, any>
+} & AgentSubscriberParams)
+onToolCallEndEvent?(params: {
+  event: ToolCallEndEvent
+  toolCallName: string
+  toolCallArgs: Record<string, any>
+} & AgentSubscriberParams)
+onToolCallResultEvent?(...)
+```
+
+### 状态事件
+
+```typescript
+onStateSnapshotEvent?(...)
+onStateDeltaEvent?(...)
+onMessagesSnapshotEvent?(...)
+```
+
+活动事件处理器还会收到已有的活动消息，便于在默认客户端逻辑运行前检查或替换：
+
+```typescript
+onActivitySnapshotEvent?(params: {
+  event: ActivitySnapshotEvent
+  activityMessage?: ActivityMessage
+  existingMessage?: Message
+} & AgentSubscriberParams)
+
+onActivityDeltaEvent?(params: {
+  event: ActivityDeltaEvent
+  activityMessage?: ActivityMessage
+} & AgentSubscriberParams)
+```
+
+以及 `onRawEvent`、`onCustomEvent`。
+
+### 状态变更处理器
+
+```typescript
+onMessagesChanged?(params: Omit<AgentSubscriberParams, "input"> & { input?: RunAgentInput }): MaybePromise<void>
+onStateChanged?(...)
+onNewMessage?(params: { message: Message } & ...): MaybePromise<void>
+onNewToolCall?(params: { toolCall: ToolCall } & ...): MaybePromise<void>
+```
+
+## 状态与消息是只读的
+
+处理器收到的 messages、state，以及 `agent.messages`，都应视为只读。修改前先复制。
+
+- 未变化的消息在两次更新之间保持同一对象，因此可按引用比较；就地修改也会改变所有持有它的早前更新。
+- 变化的消息与其未变化的嵌套值（如 metadata、多模态内容）共享归约器的工作副本；就地修改会影响后续更新。
+- `agent.state` 与活动消息的 `content` 在发出时会复制，修改它们不影响后续更新；但持有同一对象的早前更新仍会受影响。
+
+## 异步支持
+
+```typescript
+const subscriber: AgentSubscriber = {
+  onTextMessageContentEvent: ({ textMessageBuffer }) => {
+    updateUI(textMessageBuffer)
+  },
+  onStateChanged: async ({ state }) => {
+    await saveStateToDatabase(state)
+  },
+  onRunInitialized: async ({ messages, state }) => {
+    const enrichedState = await loadUserPreferences()
+    return { state: { ...state, ...enrichedState } }
+  },
+}
+```
+
+## 多个订阅者
+
+同一智能体可挂载多个订阅者，按添加顺序处理，后续订阅者能看到前面产生的变更：
+
+```typescript
+const stateEnricher: AgentSubscriber = {
+  onRunInitialized: ({ state }) => ({
+    state: { ...state, timestamp: new Date().toISOString() },
+  }),
+}
+
+const logger: AgentSubscriber = {
+  onRunInitialized: ({ state }) => {
+    console.log("State after enrichment:", state)
+  },
+}
+
+agent.subscribe(stateEnricher)
+agent.subscribe(logger)
+```
+
+## 与智能体集成
+
+```typescript
+const agent = new HttpAgent({ url: "https://api.example.com/agent" })
+
+agent.subscribe({
+  onTextMessageContentEvent: ({ textMessageBuffer }) => {
+    updateStreamingUI(textMessageBuffer)
+  },
+  onRunFinishedEvent: ({ result }) => {
+    displayFinalResult(result)
+  },
+})
+
+const result = await agent.runAgent({ tools: [myTool] })
+```

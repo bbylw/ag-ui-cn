@@ -1,0 +1,56 @@
+---
+title: 架构
+description: 1.0 规范的组件、以“运行”为交互单元，以及背后的设计原则。
+---
+
+AG-UI 通过一条通道连接智能体与面向用户的应用：**对一次请求作出回答的一条有序类型化事件流**。用户能看到的智能体一切——文本、工具调用、推理、状态、进度——都在这条流里；没有旁路通道。
+
+## 核心组件
+
+```text
+Application
+  UI ── AG-UI Client（middleware · enforcement · verification）
+        │ RunAgentInput
+        ▼
+Agent side
+  Agent Endpoint ── Framework Bridge ── Agent / LLM framework
+        │ event stream
+        ▼
+```
+
+### 应用（Application）
+
+拥有用户。它渲染事件流，执行它宣告的[工具调用](/spec/1-0/events/tool-calls/)，保存智能体与它共享的[状态](/spec/1-0/events/state/)，并决定什么需要用户同意。
+
+### 客户端（Client）
+
+消费者的协议机制，通常是 SDK。它发送[运行输入](/spec/1-0/basic/run-input/)，对返回内容运行[处理管道](/spec/1-0/basic/processing/)——兼容翻译、中间件、执行、chunk 展开、验证——并把一条可信任的流交给应用。
+
+### 智能体端点及其桥接层
+
+生产者。桥接层把框架原生事件翻译为协议事件；端点使用某种[传输绑定](/spec/1-0/basic/transports/)。协议不携带任何框架概念，这正是同一个客户端可以面对任意框架的原因。
+
+### 中间件
+
+任一侧安装进客户端管道的代码。它在执行阶段剥离任何内容**之前**看到每个事件，因此兼容 shim 可以翻译[退役形状](/spec/1-0/basic/versioning/#退役形状)，扩展也可以对当前版本未定义的内容采取行动。
+
+## 运行（The Run）
+
+交互的单元。消费者用一条 `RunAgentInput` 开启一次交换；生产者用被[运行生命周期](/spec/1-0/events/lifecycle/)括起来的事件作答——被请求的运行，可能前面还有重放的历史；会话是这类运行组成的线程，累积消息与状态。
+
+```text
+Application → Agent: RunAgentInput (threadId, runId, messages, tools, state)
+Agent → Application: RUN_STARTED
+Agent → Application: … messages, tool calls, state, activity …
+Agent → Application: RUN_FINISHED (outcome, usage)
+Application: 渲染、执行、存储
+Application → Agent: 下一条 RunAgentInput（同一 threadId）
+```
+
+## 设计原则
+
+1. **暴露智能体应当极其容易。** 桥接层是**翻译**，不是实现：框架发出的一切都映射到少量事件族，所有可选部分都是可选的。强制表面只有运行生命周期，别无其他。
+2. **一切可观察的内容都在交换中。** 智能体可见行为没有任何部分走带外：持有交换记录（每次运行输入与回答它的事件）的录制器，能重建 UI 在每一刻所知的内容，这正是协议可测试、可回放、传输无关的原因。
+3. **宽容的读者，严格的写者。** 生产者 MUST 只发射 schema 定义的内容；消费者 MUST 经受住它不认识的内容，剥离并警告而不是失败。完整的不对称性——以及为什么已知字段的格式错误值会被相反处理——见[处理模型](/spec/1-0/basic/processing/)。
+4. **中间件先于执行。** 翻译在被剥离之前获得机会，因此协议可以演进而不抛弃任何一方：昨天的形状在边界被翻译，明天的形状则传递给认识它们的人。
+5. **传输是绑定。** 语义从不因 wire 而变。相同事件、相同规则，无论以 SSE 文本还是 protobuf 帧成帧——跨实现一致性由共享字节语料固定。

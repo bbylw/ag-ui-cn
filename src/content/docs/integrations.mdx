@@ -1,0 +1,72 @@
+---
+title: 生态与集成
+description: AG-UI 在智能体框架、协议、基础设施、SDK 与客户端生态中的集成概览。
+---
+
+AG-UI 的价值在于互操作：同一套交互协议可以连接不同的智能体后端与不同形态的客户端。以下按生态类别整理主要集成方向（具体支持状态与用法请以官方文档和仓库为准，生态持续演进）。
+
+## 智能体框架集成
+
+### 合作伙伴与主流框架
+
+| 框架 | 说明 |
+| --- | --- |
+| [LangGraph / LangChain](https://www.langchain.com/langgraph) | 常见的智能体编排框架，AG-UI 可将其执行过程以事件流暴露给前端 |
+| [CrewAI](https://crewai.com/) | 多智能体协作框架，支持通过 AG-UI 对接用户界面 |
+| [Microsoft Agent Framework](https://azure.microsoft.com/en-us/blog/introducing-microsoft-agent-framework/) | 微软智能体框架生态集成 |
+| [Google ADK](https://google.github.io/adk-docs/get-started/) | Google Agent Development Kit（含多语言相关集成） |
+| [AWS Strands Agents](https://github.com/strands-agents/sdk-python) | AWS Strands 智能体 SDK |
+| [Mastra](https://mastra.ai/) | TypeScript/JS 智能体框架 |
+| [Pydantic AI](https://github.com/pydantic/pydantic-ai) | 基于 Pydantic 的 Python 智能体框架 |
+| [Agno](https://github.com/agno-agi/agno) | 轻量智能体框架 |
+| [LlamaIndex](https://github.com/run-llama/llama_index) | 数据与智能体应用框架 |
+| [AG2](https://ag2.ai/) | 多智能体对话/协作框架 |
+
+### 社区与更多集成
+
+生态中还包括（示例）：OpenAI Agents SDK、Cloudflare Agents、Claude Agent SDK 相关集成、Langroid、Oracle Agent Spec 等。部分集成处于持续完善或社区维护状态，建议在 [AG-UI Dojo](https://dojo.ag-ui.com/) 与官方集成列表中确认最新可用性与示例。
+
+## 协议与规范协同
+
+| 协议/规范 | 与 AG-UI 的关系 |
+| --- | --- |
+| **MCP（Model Context Protocol）** | 为智能体提供工具与数据访问；AG-UI 负责将使用这些能力的过程呈现给用户 |
+| **A2A（Agent to Agent）** | 支持智能体间协作；AG-UI 负责用户侧交互与可视化 |
+| **MCP Apps / 生成式 UI 规范** | 在 UI 组件与交互表达层面与 AG-UI 协同，丰富前端渲染能力 |
+
+## 基础设施与部署
+
+部分平台提供对 AG-UI 运行时或协议的支持，例如 **Amazon Bedrock AgentCore** 等。基础设施层面的集成通常关注：事件流传输、鉴权、扩缩容与可观测性。
+
+## SDK 生态
+
+AG-UI 提供或社区维护多语言 SDK，便于在不同技术栈中实现客户端或服务端集成。常见语言包括：
+
+- **TypeScript / JavaScript**：Web 与 Node.js 生态核心支持
+- **Kotlin / Java / .NET / Go**：服务端与企业应用集成
+- **Python**：智能体后端与框架集成常用
+- **Dart / Rust / Ruby / C++ 等**：社区实现，覆盖特定平台需求
+
+详见 [SDK 与客户端](/sdk/)。
+
+## 客户端生态
+
+AG-UI 客户端可以是任何能消费事件流的界面：
+
+- **Web**：如 CopilotKit 等前端集成方案
+- **终端**：CLI 交互客户端，适合开发与运维场景
+- **聊天平台**：Slack、Microsoft Teams 等（可结合 Channels SDK 等实现）
+- **移动端**：如 React Native 示例
+
+## 如何选择集成方案
+
+1. **优先复用现成集成**：若所用框架已有 AG-UI 支持，直接使用并参考 Dojo 示例。
+2. **评估能力覆盖**：确认集成是否支持你需要的事件与能力（流式、工具、状态、中断、生成式 UI 等）。
+3. **必要时自建适配层**：通过中间件或直接发射事件实现缺失能力，保持与标准事件语义兼容。
+4. **客户端配套**：选择与后端集成匹配的客户端/SDK，确保事件类型与字段处理一致。
+
+## 参考链接
+
+- [AG-UI 官方文档 - Introduction](https://docs.ag-ui.com/introduction)
+- [AG-UI GitHub 仓库](https://github.com/ag-ui-protocol/ag-ui)
+- [AG-UI Dojo](https://dojo.ag-ui.com/)

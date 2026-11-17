@@ -1,0 +1,33 @@
+---
+title: 草案概览
+description: AG-UI 协议正在考虑的草案变更（Proposals）及其状态定义。
+---
+
+本部分包含 AG-UI 协议正在考虑的**草案变更**。这些提案处于内部评审中，在实现前可能被修改或撤回。
+
+## 当前草案
+
+- [推理（Reasoning）](https://docs.ag-ui.com/drafts/reasoning)：支持 LLM 推理可见性与加密内容的状态连续性
+- [中断感知的运行生命周期（Interrupt-Aware Run Lifecycle）](/concepts/interrupts/)：原生支持智能体因需要人工审批或输入而暂停
+- [生成式用户界面（Generative User Interfaces）](/drafts/generative-ui/)：无需自定义工具渲染器的 AI 生成界面
+- [元事件（Meta Events）](/drafts/meta-events/)：独立于智能体运行的标注与信号
+
+## 状态定义
+
+| 状态 | 含义 |
+| --- | --- |
+| **Draft** | 初始提案，正在考虑中 |
+| **Under Review** | 活跃开发与测试中 |
+| **Accepted** | 已批准实现 |
+| **Implemented** | 已合并进主协议规范 |
+| **Withdrawn** | 提案已撤回或被取代 |
+
+## 如何使用草案
+
+草案页面描述的是**可能变化**的设计。若要基于草案实现：
+
+1. 先确认你所用 SDK/协议版本是否已包含相关字段与事件
+2. 在集成中把草案能力置于可选开关之后，避免影响现有客户端
+3. 关注官方仓库的变更与 [What's New](/development/updates/)
+
+> 草案内容不代表最终协议；生产实现应以正式规范与 SDK 文档为准。

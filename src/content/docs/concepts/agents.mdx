@@ -1,0 +1,312 @@
+---
+title: 智能体（Agents）
+description: 理解 AG-UI 中的智能体抽象、AbstractAgent、HttpAgent 与智能体能力。
+---
+
+智能体（Agents）是 AG-UI 协议中处理请求并生成响应的核心组件。它们为前端应用与 AI 服务之间的通信建立了标准化方式，无论底层实现是什么，都能通过一致的接口交互。
+
+## 什么是智能体
+
+在 AG-UI 中，智能体是一个类，它：
+
+1. 管理会话状态与消息历史
+2. 处理传入消息与上下文
+3. 通过事件驱动的流式接口生成响应
+4. 遵循标准化的通信协议
+
+智能体可以连接任何 AI 服务，包括：
+
+- 大语言模型（LLM），如 GPT-4o 或 Claude
+- 自定义 AI 系统
+- 检索增强生成（RAG）系统
+- 多智能体系统
+
+## 智能体架构
+
+AG-UI 中所有智能体都继承 `AbstractAgent` 类，它提供以下基础：
+
+- 状态管理
+- 消息历史跟踪
+- 事件流处理
+- 工具使用
+
+```ts
+import { AbstractAgent } from "@ag-ui/client"
+
+class MyAgent extends AbstractAgent {
+  run(input: RunAgentInput): RunAgent {
+    // 实现细节
+  }
+}
+```
+
+### 核心组件
+
+AG-UI 智能体有几个关键组成部分：
+
+1. **配置**：智能体 ID、线程 ID 与初始状态
+2. **消息**：用户与助手消息组成的会话历史
+3. **状态**：跨交互持久化的结构化数据
+4. **事件**：与客户端通信的标准化消息
+5. **工具**：智能体用于与外部系统和用户交互的函数
+
+## 智能体类型
+
+### AbstractAgent
+
+所有智能体继承的基类，负责核心事件处理、状态管理与消息历史。
+
+### HttpAgent
+
+通过 HTTP 连接远程 AI 服务的具体实现：
+
+```ts
+import { HttpAgent } from "@ag-ui/client"
+
+const agent = new HttpAgent({
+  url: "https://your-agent-endpoint.com/agent",
+  headers: {
+    Authorization: "Bearer your-api-key",
+  },
+})
+```
+
+### 自定义智能体
+
+通过继承 `AbstractAgent` 可以接入任意 AI 服务：
+
+```ts
+class CustomAgent extends AbstractAgent {
+  // 自定义属性与方法
+
+  run(input: RunAgentInput): RunAgent {
+    // 实现智能体逻辑
+  }
+}
+```
+
+## 实现智能体
+
+### 基础实现
+
+继承 `AbstractAgent` 并实现 `run` 方法，返回事件流（通常用 RxJS `Observable`）：
+
+```ts
+import {
+  AbstractAgent,
+  RunAgent,
+  RunAgentInput,
+  EventType,
+  BaseEvent,
+} from "@ag-ui/client"
+import { Observable } from "rxjs"
+
+class SimpleAgent extends AbstractAgent {
+  run(input: RunAgentInput): RunAgent {
+    const { threadId, runId } = input
+
+    return () =>
+      new Observable<BaseEvent>((observer) => {
+        observer.next({ type: EventType.RUN_STARTED, threadId, runId })
+
+        const messageId = Date.now().toString()
+
+        observer.next({
+          type: EventType.TEXT_MESSAGE_START,
+          messageId,
+          role: "assistant",
+        })
+
+        observer.next({
+          type: EventType.TEXT_MESSAGE_CONTENT,
+          messageId,
+          delta: "Hello, world!",
+        })
+
+        observer.next({ type: EventType.TEXT_MESSAGE_END, messageId })
+        observer.next({ type: EventType.RUN_FINISHED, threadId, runId })
+
+        observer.complete()
+      })
+  }
+}
+```
+
+## 智能体能力
+
+### 交互式通信
+
+智能体通过事件流与前端建立双向通信，支持：
+
+- 逐字符的实时流式响应
+- 用户与 AI 之间的即时反馈循环
+- 长耗时操作的进度指示
+- 双向结构化数据交换
+
+### 工具使用
+
+智能体可使用工具执行动作并访问外部资源。重要的是，**工具由前端应用定义并传入**，从而形成灵活可扩展的系统：
+
+```ts
+const confirmAction = {
+  name: "confirmAction",
+  description: "Ask the user to confirm a specific action before proceeding",
+  parameters: {
+    type: "object",
+    properties: {
+      action: { type: "string", description: "The action that needs user confirmation" },
+      importance: {
+        type: "string",
+        enum: ["low", "medium", "high", "critical"],
+        description: "The importance level of the action",
+      },
+      details: { type: "string", description: "Additional details about the action" },
+    },
+    required: ["action"],
+  },
+}
+
+agent.runAgent({ tools: [confirmAction] })
+```
+
+工具通过事件序列调用：
+
+1. `TOOL_CALL_START`：工具调用开始
+2. `TOOL_CALL_ARGS`：流式传输参数
+3. `TOOL_CALL_END`：工具调用结束
+
+前端可执行工具并把结果回传给智能体。这种双向流程支持复杂的人机协同工作流：智能体请求动作、人类以适当判断执行、结果回传用于继续推理，智能体始终保持对决策的感知。
+
+例如 [CopilotKit](https://docs.copilotkit.ai/) 的 [`useCopilotAction`](https://docs.copilotkit.ai/guides/frontend-actions) hook 就是这一模式的简化封装。
+
+### 状态管理
+
+智能体维护跨交互持久化的结构化状态，可以：
+
+- 通过 `STATE_DELTA` 增量更新
+- 通过 `STATE_SNAPSHOT` 完整刷新
+- 被智能体与前端共同访问
+- 存储用户偏好、会话上下文或应用状态
+
+```ts
+console.log(agent.state.preferences)
+
+agent.runAgent().subscribe((event) => {
+  if (event.type === EventType.STATE_DELTA) {
+    console.log("New state:", agent.state)
+  }
+})
+```
+
+### 多智能体协作
+
+AG-UI 支持智能体之间的交接与协作：
+
+- 智能体可将任务委派给其他专用智能体
+- 多个智能体可在协调工作流中协作
+- 状态与上下文可在智能体之间转移
+- 前端在智能体切换时保持一致体验
+
+例如，通用助手可在需要编程帮助时移交给专用编码智能体，并传递会话上下文与具体需求。
+
+### 人机协同工作流
+
+- 智能体可针对特定决策请求人工输入
+- 前端可暂停执行并在人工反馈后恢复
+- 人类专家可在最终确定前审查与修改智能体输出
+- 混合工作流将 AI 效率与人类判断结合
+
+### 会话记忆
+
+- 过往交互影响后续响应
+- 消息历史在客户端与服务端之间同步
+- 消息可包含丰富内容（文本、结构化数据、引用）
+- 可管理上下文窗口以聚焦相关信息
+
+```ts
+console.log(agent.messages)
+
+agent.messages.push({
+  id: "msg_123",
+  role: "user",
+  content: "Can you explain that in more detail?",
+})
+```
+
+### 元数据与可观测性
+
+智能体可发射关于内部过程的元数据：
+
+- 通过自定义事件表达推理步骤
+- 性能指标与耗时信息
+- 来源引用与参考跟踪
+- 不同响应选项的置信度
+
+这使前端能够透明呈现智能体的决策过程。
+
+## 使用智能体
+
+```ts
+const agent = new HttpAgent({
+  url: "https://your-agent-endpoint.com/agent",
+})
+
+agent.messages = [
+  { id: "1", role: "user", content: "Hello, how can you help me today?" },
+]
+
+agent
+  .runAgent({
+    runId: "run_123",
+    tools: [],
+    context: [],
+  })
+  .subscribe({
+    next: (event) => {
+      switch (event.type) {
+        case EventType.TEXT_MESSAGE_CONTENT:
+          console.log("Content:", event.delta)
+          break
+      }
+    },
+    error: (error) => console.error("Error:", error),
+    complete: () => console.log("Run complete"),
+  })
+```
+
+## 智能体配置
+
+```ts
+interface AgentConfig {
+  agentId?: string          // 智能体唯一标识
+  description?: string      // 人类可读描述
+  threadId?: string         // 会话线程标识
+  initialMessages?: Message[] // 初始消息
+  initialState?: State      // 初始状态对象
+}
+
+const agent = new HttpAgent({
+  agentId: "my-agent-123",
+  description: "A helpful assistant",
+  threadId: "thread-456",
+  initialMessages: [
+    { id: "1", role: "system", content: "You are a helpful assistant." },
+  ],
+  initialState: { preferredLanguage: "English" },
+})
+```
+
+## 智能体状态管理
+
+```ts
+console.log(agent.state)     // 当前状态
+console.log(agent.messages)  // 消息历史
+
+const clonedAgent = agent.clone() // 克隆智能体及其状态
+```
+
+## 总结
+
+智能体是 AG-UI 协议的基础，为前端应用与 AI 服务之间提供标准化连接方式。通过实现 `AbstractAgent`，你可以接入任意 AI 服务，同时为应用保持一致的接口。事件驱动架构带来现代 AI 应用必不可少的实时流式交互，标准化协议则确保不同实现之间的兼容性。
+
+相关页面：[中间件](/concepts/middleware/)、[能力发现](/concepts/capabilities/)、[工具调用](/concepts/tools/)。

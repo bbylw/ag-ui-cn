@@ -1,0 +1,32 @@
+---
+title: 关键变更（1.0）
+description: 1.0 相对 0.x 的行为变更清单，面向熟悉 0.x 的读者。
+---
+
+本页列出 1.0 相对 0.x 系列的**行为变更**，面向熟悉 0.x、只想知道差异的读者。它是信息性的：链接到的页面才是规范。
+
+## 主要变更
+
+1. **规范存在了。** 0.x 定义形状，行为则住在 TypeScript 客户端里。本组页面上的规则——顺序、未识别与格式错误的区分、警告、归因——现在是规范性的，用 [BCP 14](https://datatracker.ietf.org/doc/html/bcp14) 语言书写，其中 schema 对结构权威、本文档对行为权威。
+2. **运行会报告它如何结束。** `RUN_FINISHED` 携带可选 `outcome`：缺省或 success 表示成功，interrupt 结果携带运行正在等待的内容，[cancelled 结果](/spec/1-0/events/lifecycle/#已取消的运行)标记被有意停止、未完成的运行。随之而来的是 `Interrupt`、[运行输入](/spec/1-0/basic/run-input/)上的 resume 条目，以及[中断–恢复模式](/spec/1-0/basic/patterns/interrupt-resume/)。在 outcome 出现之前写成的生产者已经是一致的。
+3. **子智能体。** 委派工作通过可携带归因的事件上的 `subagentRunId` 标注，可选地由 `SUBAGENT_STARTED` 宣告并由 `SUBAGENT_FINISHED`/`SUBAGENT_ERROR` 关闭，其[所有权、嵌套、并行与终止规则](/spec/1-0/events/subagents/)另有规定。
+4. **推理取代思考。** 0.x 的 `THINKING_*` 事件退役，改用[推理族](/spec/1-0/events/reasoning/)：span、按 `messageId` 匹配的流式推理消息，以及让消费者存储并原样返回、但不读取的 `REASONING_ENCRYPTED_VALUE`。退役形状在[兼容边界](/spec/1-0/basic/versioning/#退役形状)被翻译，而不是被丢弃。
+5. **活动事件。** `ACTIVITY_SNAPSHOT` 与 `ACTIVITY_DELTA` 以内容为对象、由 JSON Patch 修订的消息承载[结构化进度](/spec/1-0/events/activity/)，并保留其在消息序列中的位置。
+6. **未识别 vs. 格式错误，正式化。** 未识别的事件、字段与联合成员会存活到执行阶段，执行阶段丢弃未知事件、剥离未知成员并发出警告；**已知字段的格式错误值是致命的**。在翻译器有机会处理之前不会移除任何内容，两种传输都汇入同一条[处理管道](/spec/1-0/basic/processing/)。
+7. **chunk 形式有规则。** 首个 chunk MUST 携带开启所需内容（文本的 `messageId` 与 role 语义，工具调用的 `toolCallId` 与 `toolCallName`）；后续 chunk MAY 省略；延续 chunk 重复开启字段但值冲突是致命的（[流式模式](/spec/1-0/basic/patterns/streaming/)）。
+8. **二进制 wire。** 规定了 [HTTP + Protobuf 绑定](/spec/1-0/basic/transports/http-protobuf/)：按媒体类型协商、4 字节长度前缀帧、由同一 schema 生成，并用共享字节语料固定跨实现一致性。
+9. **能力进入 schema。** 三个 SDK 各自手写的 `AgentCapabilities` 现在只在 schema 中定义一次并为每个 SDK 生成。其语义也被规定：省略表示未声明；声明是信息性的，事件流才是权威；获取方式刻意留给实现（[能力](/spec/1-0/basic/capabilities/)）。子智能体列表拼写为 `subagents`，与 `subagentRunId` 一致；旧的 `subAgents` key 不再读取。
+10. **工具结果携带内容部分。** `TOOL_CALL_RESULT.content` 及其创建的工具消息接受字符串，或与用户消息相同的有序 `ContentPart` 列表，因此工具可以返回文档、图片或搜索结果，而不必编码进字符串（[工具调用](/spec/1-0/events/tool-calls/#结果内容)）。内容部分按其**是什么**而非方向重命名：`InputContent` → `ContentPart`、`TextInputContent` → `TextPart`、`ImageInputContent` → `ImagePart` 等，`InputContentSource` → `PartSource`（含 `DataSource`、`UrlSource`）。wire 未变：每个 `type` 值相同，只是定义名与锚点移动，SDK 保留旧名作为别名。每个部分新增可选 `id`，文本部分新增媒体部分已有的 `metadata`。`ReasoningPart`、`ToolCallPart`、`AssistantPart` 保留给助手消息也携带部分的后续版本。
+
+## 次要变更
+
+1. 运行输入上的 `tools` 与 `context` 是可选的：缺省与空表示同一件事（[运行输入](/spec/1-0/basic/run-input/)）。
+2. 元数据合并语义成为规范：逐 key、最后写入胜出、不递归、按族指定合并目标；`ag-ui` key 保留（[元数据](/spec/1-0/basic/metadata/)）。
+3. **缺省即缺省**：可选字段被省略，永不 `null`（[事件模型](/spec/1-0/basic/#缺省即缺省)）。
+4. `RUN_FINISHED` 与 `RUN_ERROR` MAY 携带按提供商分的 token 用量，统一记账：输入与输出计数是总量，缓存与推理 token 是其中的部分，缓存读与缓存写分开报告，用量遵循运行边界——子智能体的调用计入，子运行与被恢复运行的调用不计入（[运行与步骤](/spec/1-0/events/lifecycle/#token-用量)）。
+5. 因前端工具调用而停止的运行以**成功**结束，绝不作为中断结束；成功结果 MAY 在 `pendingToolCallIds` 中列出未回答的调用（[工具调用](/spec/1-0/events/tool-calls/#前端工具)）。
+6. 输入消息 MAY 携带多模态内容部分（text、image、audio、video、document），通过 URL、内联数据或提供商文件句柄——`file` 来源是 1.0 新增，用于已上传到模型提供商的字节（[运行输入](/spec/1-0/basic/run-input/#提供方文件句柄)）。
+7. `TOOL_CALL_RESULT` 本身就是一条消息，不会重新打开它所回答的调用（[工具调用](/spec/1-0/events/tool-calls/)）。
+8. `RUN_FINISHED` 之后的迟到 `RUN_ERROR` 被允许，用于报告在已报告成功之后浮现的失败（[运行与步骤](/spec/1-0/events/lifecycle/)）。
+9. 消费者把**它拒绝的流**与**报告自身失败的运行**区分开，并定义了“把运行视为失败”：向应用暴露失败，绝不报告成功，API 形状留给实现（[运行与步骤](/spec/1-0/events/lifecycle/#错误处理)）。
+10. 协议版本**带内传输**：消费者在 `RunAgentInput.protocolVersion` 声明自己的版本，生产者在 `RUN_STARTED.protocolVersion` 用自己的版本回答，缺失标识着版本机制之前的 peer（[版本与兼容](/spec/1-0/basic/versioning/#版本协商)）。

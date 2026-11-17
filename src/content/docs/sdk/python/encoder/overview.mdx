@@ -1,0 +1,90 @@
+---
+title: 概览
+description: Python EventEncoder：把 AG-UI 事件编码为 SSE 字符串。
+---
+
+# EventEncoder
+
+AG-UI 以流式方式把事件从智能体发送到客户端。`EventEncoder` 负责把事件编码为可通过 HTTP 传输的格式。
+
+```bash
+pip install ag-ui-protocol
+```
+
+```python
+from ag_ui.core import BaseEvent
+from ag_ui.encoder import EventEncoder
+
+encoder = EventEncoder()
+encoded_event = encoder.encode(event)
+```
+
+## 用法
+
+`EventEncoder` 通常用在 HTTP 处理函数中，把事件对象转换为数据流。当前实现把事件编码为 Server-Sent Events（SSE），客户端可用 `EventSource` API 消费。
+
+## 方法
+
+### `__init__(accept: str = None)`
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| `accept` | `str`（可选） | 客户端接受的内容类型 |
+
+### `encode(event: BaseEvent) -> str`
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| `event` | `BaseEvent` | 要编码的事件 |
+
+**返回**：事件在 SSE 格式下的字符串表示。
+
+## 示例
+
+```python
+from ag_ui.core import TextMessageContentEvent, EventType
+from ag_ui.encoder import EventEncoder
+
+event = TextMessageContentEvent(
+    type=EventType.TEXT_MESSAGE_CONTENT,
+    message_id="msg_123",
+    delta="Hello, world!"
+)
+
+encoder = EventEncoder()
+encoded_event = encoder.encode(event)
+print(encoded_event)
+# data: {"type":"TEXT_MESSAGE_CONTENT","messageId":"msg_123","delta":"Hello, world!"}\n\n
+```
+
+## 实现细节
+
+内部将事件转为 JSON，并按如下结构格式化为 SSE：
+
+```
+data: {json-serialized event}\n\n
+```
+
+字段名从 snake_case 序列化为 camelCase；`exclude_none=True`，因此缺省的可选字段不会出现在载荷中。该格式允许客户端持续接收事件流并逐条处理。
+
+## 在 Web 处理函数中使用
+
+```python
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from ag_ui.core import RunAgentInput
+from ag_ui.encoder import EventEncoder
+
+app = FastAPI()
+
+@app.post("/agent")
+async def agent_endpoint(input: RunAgentInput, request: Request):
+    accept = request.headers.get("accept")
+    encoder = EventEncoder(accept=accept)
+
+    async def event_stream():
+        for event in agent.run(input):   # 生成 BaseEvent 序列
+            yield encoder.encode(event)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+```

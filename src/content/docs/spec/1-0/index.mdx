@@ -1,0 +1,77 @@
+---
+title: 规范（1.0）
+description: AG-UI 协议 1.0 的行为规范总览：权威划分、角色、一致性、范围与安全原则。
+---
+
+AG-UI 是一个开放协议，标准化智能体与面向用户应用之间的通信方式：**一次请求进入，一条有序的类型化事件流出**，承载用户能看到的智能体一切——文本、工具调用、推理、共享状态与进度。
+
+本规范定义权威的协议要求，基于 [`schema.json`](https://docs.ag-ui.com/spec/1-0/schema.json) 中的 JSON Schema，其可读版本为 [Schema Reference](https://docs.ag-ui.com/spec/1-0/schema)。
+
+面向实现的指南、概念与示例见[文档](/intro/)。
+
+本文件中的关键词 “MUST”、“MUST NOT”、“REQUIRED”、“SHALL”、“SHALL NOT”、“SHOULD”、“SHOULD NOT”、“RECOMMENDED”、“NOT RECOMMENDED”、“MAY” 与 “OPTIONAL” 应按 [BCP 14](https://datatracker.ietf.org/doc/html/bcp14)（[RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119)、[RFC 8174](https://datatracker.ietf.org/doc/html/rfc8174)）解释，且仅当它们以全大写形式出现时。
+
+## 本文档是什么
+
+JSON Schema 说明一个事件长什么样。它无法说明事件可以以什么顺序到达、实现遇到不认识的内容时该做什么、何时必须发出警告。这些规则就是**协议**，本文档负责陈述它们。
+
+权威划分是刻意且绝对的：
+
+- **Schema 对结构权威。** 哪些字段存在、哪些必填、各携带什么类型、判别符可取哪些值。本文档提到字段，是为了让规则有意义，**从不**重述字段形状。若两者在结构上冲突，schema 胜出，本文档有缺陷。
+- **本文档对行为权威。** 顺序、生命周期、归因、错误处理、兼容性。schema 无法表达这些。若实现与本文档的规则冲突，实现有缺陷。
+
+## 角色
+
+每条规则都指明它约束谁。两种角色承担义务：
+
+- **生产者（producer）**：任何发射事件流的东西——智能体、代理、桥接层、测试替身。
+- **消费者（consumer）**：任何读取事件流的东西——客户端 SDK、UI、录制器、另一个代理。
+
+同时承担两者的参与者，按两个方向分别受两套规则约束。
+
+## 一致性
+
+实现满足其所扮演角色的每一条 MUST 与 MUST NOT 时即为**一致（conforms）**。SHOULD 级规则描述良好实现的做法；偏离它需要理由，但不是违规。
+
+一致性**按流判定**。生产者发出一次格式错误的运行，就不一致，无论它在其他运行中表现如何。
+
+## 总览
+
+协议分为每个实现都要说的**基础部分**，以及生产者在有内容要表达时才发射的**特性部分**：
+
+- **[事件模型](/spec/1-0/basic/)** —— 信封、通用字段、标识符
+- **[运行输入](/spec/1-0/basic/run-input/)** —— 从应用到智能体的唯一消息
+- **[元数据](/spec/1-0/basic/metadata/)** —— 一切之上的开放通道，以及它如何合并
+- **[事件模式](/spec/1-0/basic/patterns/)** —— 流式、快照–增量、中断–恢复
+- **[传输](/spec/1-0/basic/transports/)** —— HTTP + SSE、HTTP + Protobuf，以及自定义绑定必须满足的契约
+- **[处理模型](/spec/1-0/basic/processing/)** —— 中间件先于执行；未识别内容存活，已知字段的格式错误值致命
+- **[版本与兼容](/spec/1-0/basic/versioning/)** —— 与更旧/更新 peer 对话，以及丢失内容时的义务
+- **[事件流](/spec/1-0/events/)** —— 八个事件族
+
+## 安全与信任
+
+AG-UI 把模型输出变成应用会执行的事情：工具调用变成动作，状态事件变成写入，流式内容变成用户读到的文字。随之而来的是协议无法在 wire 层强制执行、但实现者必须处理的义务。
+
+### 关键原则
+
+1. **用户同意与控制。** 应用决定运行什么。在执行有副作用的[工具调用](/spec/1-0/events/tool-calls/)前，它 SHOULD 获得用户明确同意；并且 MUST NOT 把未经用户批准的动作表示为已批准。
+2. **模型输出是不可信输入。** 工具参数、工具结果、[状态](/spec/1-0/events/state/)内容与[透传](/spec/1-0/events/passthrough/)载荷都跨越信任边界。应用 MUST 校验它要据以行动的内容，并且 MUST NOT 把流式内容渲染为可执行标记。
+3. **数据双向流动。** 状态与消息在每次运行中经消费者往返。生产者 SHOULD NOT 在其中放置密钥；消费者 SHOULD 像对待会话一样对待推理与加密产物。
+
+### 实现指南
+
+协议本身无法强制执行这些原则。实现者 SHOULD 为重要动作构建同意流程，在每个信任边界验证 schema 与语义，把渲染与执行隔离，并记录足够信息以审计智能体代表用户做了什么。
+
+## 范围
+
+本文档规定**协议**：事件流、运行输入，以及交换双方的义务。它不规定任何特定集成在收到事件后做什么、智能体框架应如何组织，或 UI 应如何渲染。
+
+AG-UI 由三个一方 SDK 维护——TypeScript、Python 与 .NET——这里的每条规则同等适用于它们。其他语言绑定由社区维护；当它们声称一致时受本文档约束，但本文档不派生自它们。
+
+## 章节导航
+
+- [架构](/spec/1-0/architecture/)
+- [基础协议](/spec/1-0/basic/)：[事件模型](/spec/1-0/basic/)、[运行输入](/spec/1-0/basic/run-input/)、[元数据](/spec/1-0/basic/metadata/)、[能力](/spec/1-0/basic/capabilities/)、[事件模式](/spec/1-0/basic/patterns/)、[传输](/spec/1-0/basic/transports/)、[处理模型](/spec/1-0/basic/processing/)、[版本与兼容](/spec/1-0/basic/versioning/)
+- [事件流](/spec/1-0/events/)
+- [关键变更](/spec/1-0/changelog/)
+- [Schema 文件](/spec/1-0/schema-files/)

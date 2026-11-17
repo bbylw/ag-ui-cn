@@ -1,0 +1,421 @@
+---
+title: 事件
+description: "@ag-ui/core 的事件：EventType 枚举、各类事件结构与 Zod 校验。"
+---
+
+# 事件
+
+Agent User Interaction Protocol SDK 采用流式事件架构。事件是智能体与前端之间通信的基本单位。
+
+## EventType 枚举
+
+```typescript
+enum EventType {
+  TEXT_MESSAGE_START = "TEXT_MESSAGE_START",
+  TEXT_MESSAGE_CONTENT = "TEXT_MESSAGE_CONTENT",
+  TEXT_MESSAGE_END = "TEXT_MESSAGE_END",
+  TOOL_CALL_START = "TOOL_CALL_START",
+  TOOL_CALL_ARGS = "TOOL_CALL_ARGS",
+  TOOL_CALL_END = "TOOL_CALL_END",
+  TOOL_CALL_RESULT = "TOOL_CALL_RESULT",
+  STATE_SNAPSHOT = "STATE_SNAPSHOT",
+  STATE_DELTA = "STATE_DELTA",
+  MESSAGES_SNAPSHOT = "MESSAGES_SNAPSHOT",
+  ACTIVITY_SNAPSHOT = "ACTIVITY_SNAPSHOT",
+  ACTIVITY_DELTA = "ACTIVITY_DELTA",
+  RAW = "RAW",
+  CUSTOM = "CUSTOM",
+  RUN_STARTED = "RUN_STARTED",
+  RUN_FINISHED = "RUN_FINISHED",
+  RUN_ERROR = "RUN_ERROR",
+  STEP_STARTED = "STEP_STARTED",
+  STEP_FINISHED = "STEP_FINISHED",
+  REASONING_START = "REASONING_START",
+  REASONING_MESSAGE_START = "REASONING_MESSAGE_START",
+  REASONING_MESSAGE_CONTENT = "REASONING_MESSAGE_CONTENT",
+  REASONING_MESSAGE_END = "REASONING_MESSAGE_END",
+  REASONING_MESSAGE_CHUNK = "REASONING_MESSAGE_CHUNK",
+  REASONING_END = "REASONING_END",
+  REASONING_ENCRYPTED_VALUE = "REASONING_ENCRYPTED_VALUE",
+  SUBAGENT_STARTED = "SUBAGENT_STARTED",
+  SUBAGENT_FINISHED = "SUBAGENT_FINISHED",
+  SUBAGENT_ERROR = "SUBAGENT_ERROR",
+}
+```
+
+## BaseEvent
+
+所有事件都继承 `BaseEvent`：
+
+```typescript
+type BaseEvent = {
+  type: EventType
+  timestamp?: number
+  rawEvent?: any
+  metadata?: Record<string, any>
+}
+```
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `type` | `EventType` | 事件类型（联合的判别字段） |
+| `timestamp` | `number`（可选） | 事件创建时间 |
+| `rawEvent` | `any`（可选） | 事件经转换前的原始数据 |
+| `metadata` | `Record<string, any>`（可选） | 附在事件上的额外信息 |
+
+`metadata` 按 key 开放：任意 JSON 值（含 `null`）。对象可缺省，但存在时永不为 `null`——显式 `null` 按缺省解析。`ag-ui` 键保留给 AG-UI 自用。可使用 `@ag-ui/core` 的 `mergeMetadata` 将事件 metadata 折入消息；规则见 [Metadata](/concepts/metadata/)。
+
+## 生命周期事件
+
+### RunStartedEvent
+
+```typescript
+type RunStartedEvent = BaseEvent & {
+  type: EventType.RUN_STARTED
+  threadId: string
+  runId: string
+  parentRunId?: string
+  input?: RunAgentInput
+}
+```
+
+| 属性 | 类型 | 说明 |
+| --- | --- | --- |
+| `threadId` | `string` | 会话线程 ID |
+| `runId` | `string` | 运行 ID |
+| `parentRunId` | `string`（可选） | 分支／时间旅行的谱系指针；若存在，指向同一线程中更早的运行 |
+| `input` | `RunAgentInput`（可选） | 本次运行发给智能体的确切输入载荷；可省略历史中已有的消息 |
+
+### TokenUsage
+
+终态运行事件上携带的可复用、仅含数字的 token 用量摘要。它**只**包含提供方／模型标签与 token 计数——不含提示词、补全内容、消息或标识符。计数遵循协议的[记账规则](/spec/1-0/events/lifecycle/#token-用量)：输入与输出是总量，缓存与推理计数是其中的一部分，绝不叠加。
+
+```typescript
+type TokenUsage = {
+  provider?: string
+  model?: string
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+  reasoningTokens?: number
+  cachedInputTokens?: number
+  cacheWriteInputTokens?: number
+}
+```
+
+### RunFinishedEvent
+
+```typescript
+type RunFinishedEvent = BaseEvent & {
+  type: EventType.RUN_FINISHED
+  threadId: string
+  runId: string
+  result?: any
+  usage?: TokenUsage[]
+}
+```
+
+### RunErrorEvent
+
+```typescript
+type RunErrorEvent = BaseEvent & {
+  type: EventType.RUN_ERROR
+  message: string
+  code?: string
+  usage?: TokenUsage[]
+}
+```
+
+`usage` 是已完成的模型调用产生的部分用量。
+
+### StepStartedEvent / StepFinishedEvent
+
+```typescript
+type StepStartedEvent = BaseEvent & {
+  type: EventType.STEP_STARTED
+  stepName: string
+}
+```
+
+## 文本消息事件
+
+```typescript
+type TextMessageStartEvent = BaseEvent & {
+  type: EventType.TEXT_MESSAGE_START
+  messageId: string
+  role: "assistant"
+}
+
+type TextMessageContentEvent = BaseEvent & {
+  type: EventType.TEXT_MESSAGE_CONTENT
+  messageId: string
+  delta: string // 非空字符串
+}
+
+type TextMessageEndEvent = BaseEvent & {
+  type: EventType.TEXT_MESSAGE_END
+  messageId: string
+}
+```
+
+### TextMessageChunkEvent
+
+便捷事件，在 JS/TS 客户端中自动展开为 `TextMessageStart` → `TextMessageContent` → `TextMessageEnd`。
+
+```typescript
+type TextMessageChunkEvent = BaseEvent & {
+  type: EventType.TEXT_MESSAGE_CHUNK
+  messageId?: string // 消息的首个 chunk 必须提供
+  role?: "developer" | "system" | "assistant" | "user"
+  delta?: string
+}
+```
+
+行为：
+
+- **省略 start/end**：客户端把 chunk 序列转换为标准的 start/content/end 三元组，无需手工发出。
+- **首块要求**：消息的第一个 chunk 必须包含 `messageId`；省略 `role` 时默认 `assistant`。
+- **流式**：同一 `messageId` 的后续 chunk 发出 `TextMessageContent`；当另一条消息开始或流结束时，自动发出 `TextMessageEnd`。
+
+## 工具调用事件
+
+```typescript
+type ToolCallStartEvent = BaseEvent & {
+  type: EventType.TOOL_CALL_START
+  toolCallId: string
+  toolCallName: string
+  parentMessageId?: string
+}
+
+type ToolCallArgsEvent = BaseEvent & {
+  type: EventType.TOOL_CALL_ARGS
+  toolCallId: string
+  delta: string
+}
+
+type ToolCallEndEvent = BaseEvent & {
+  type: EventType.TOOL_CALL_END
+  toolCallId: string
+}
+
+type ToolCallResultEvent = BaseEvent & {
+  type: EventType.TOOL_CALL_RESULT
+  messageId: string
+  toolCallId: string
+  content: string
+  role?: "tool"
+}
+```
+
+### ToolCallChunkEvent
+
+```typescript
+type ToolCallChunkEvent = BaseEvent & {
+  type: EventType.TOOL_CALL_CHUNK
+  toolCallId?: string   // 首块必须提供
+  toolCallName?: string // 首块必须提供
+  parentMessageId?: string
+  delta?: string
+}
+```
+
+行为：首块必须同时包含 `toolCallId` 与 `toolCallName`；`parentMessageId` 若提供会传播到 `ToolCallStart`；同一 `toolCallId` 的后续 chunk 发出 `ToolCallArgs`，工具调用变化或流结束时自动发出 `ToolCallEnd`。
+
+## 状态管理事件
+
+```typescript
+type StateSnapshotEvent = BaseEvent & {
+  type: EventType.STATE_SNAPSHOT
+  snapshot: any
+}
+
+type StateDeltaEvent = BaseEvent & {
+  type: EventType.STATE_DELTA
+  delta: any[] // JSON Patch 操作（RFC 6902）
+}
+
+type MessagesSnapshotEvent = BaseEvent & {
+  type: EventType.MESSAGES_SNAPSHOT
+  messages: Message[]
+}
+```
+
+### ActivitySnapshotEvent / ActivityDeltaEvent
+
+```typescript
+type ActivitySnapshotEvent = BaseEvent & {
+  type: EventType.ACTIVITY_SNAPSHOT
+  messageId: string
+  activityType: string
+  content: Record<string, any>
+  replace?: boolean // 默认 true；为 false 时若同 ID 消息已存在则忽略该快照
+}
+
+type ActivityDeltaEvent = BaseEvent & {
+  type: EventType.ACTIVITY_DELTA
+  messageId: string
+  activityType: string
+  patch: any[] // RFC 6902 JSON Patch
+}
+```
+
+## 推理事件
+
+推理事件让智能体把内部思考过程暴露给前端，生成角色为 `"reasoning"` 的 `ReasoningMessage` 并保留在消息历史中。
+
+```typescript
+type ReasoningStartEvent = BaseEvent & {
+  type: EventType.REASONING_START
+  messageId: string
+}
+
+type ReasoningMessageStartEvent = BaseEvent & {
+  type: EventType.REASONING_MESSAGE_START
+  messageId: string
+  role: "reasoning"
+}
+
+type ReasoningMessageContentEvent = BaseEvent & {
+  type: EventType.REASONING_MESSAGE_CONTENT
+  messageId: string
+  delta: string
+}
+
+type ReasoningMessageEndEvent = BaseEvent & {
+  type: EventType.REASONING_MESSAGE_END
+  messageId: string
+}
+
+type ReasoningEndEvent = BaseEvent & {
+  type: EventType.REASONING_END
+  messageId: string
+}
+```
+
+`REASONING_START` 与 `REASONING_END` 是直通事件：通知订阅者，但不创建消息。
+
+### ReasoningMessageChunkEvent
+
+```typescript
+type ReasoningMessageChunkEvent = BaseEvent & {
+  type: EventType.REASONING_MESSAGE_CHUNK
+  messageId?: string
+  delta?: string
+}
+```
+
+### ReasoningEncryptedValueEvent
+
+找到 `entityId` 引用的实体，写入其 `encryptedValue` 字段。
+
+```typescript
+type ReasoningEncryptedValueEvent = BaseEvent & {
+  type: EventType.REASONING_ENCRYPTED_VALUE
+  subtype: "tool-call" | "message"
+  entityId: string
+  encryptedValue: string
+}
+```
+
+## 子智能体事件
+
+`subagentRunId` 标识**一次调用**，而不是可复用的子智能体定义——同一子智能体运行两次会得到两个不同的值。完整模型见[子智能体](/concepts/subagents/)。
+
+```typescript
+type SubagentStartedEvent = BaseEvent & {
+  type: EventType.SUBAGENT_STARTED
+  subagentRunId: string
+  name: string
+  description?: string
+  parentSubagentRunId?: string
+  parentToolCallId?: string
+  parentMessageId?: string
+}
+
+type SubagentFinishedEvent = BaseEvent & {
+  type: EventType.SUBAGENT_FINISHED
+  subagentRunId: string
+  result?: any
+  outcome?: { type: "success" } | { type: "suspended"; interruptIds?: string[] }
+}
+
+type SubagentErrorEvent = BaseEvent & {
+  type: EventType.SUBAGENT_ERROR
+  subagentRunId: string
+  message: string
+  code?: string
+}
+```
+
+### 其它事件上的归因
+
+大多数事件类型接受可选的 `subagentRunId`。不带该字段的事件属于父智能体，因此从不设置它的流与子智能体出现之前的行为完全一致。
+
+`RunStartedEvent`、`RunFinishedEvent`、`RunErrorEvent` 不可归因——它们描述整个运行。`MessagesSnapshotEvent` 改为逐消息携带归因，因为一份快照可能混合多个生产者的消息。`StateSnapshotEvent` 与 `StateDeltaEvent` 可以归因，但归因表示来源而非所有权：状态是运行级的，带归因的快照或增量与不带归因的一样应用到该运行唯一的状态文档。
+
+订阅者可通过 `onSubagentStartedEvent`、`onSubagentFinishedEvent`、`onSubagentErrorEvent` 直接响应生命周期。
+
+## 特殊事件
+
+```typescript
+type RawEvent = BaseEvent & {
+  type: EventType.RAW
+  event: any
+  source?: string
+}
+
+type CustomEvent = BaseEvent & {
+  type: EventType.CUSTOM
+  name: string
+  value: any
+}
+```
+
+## 已弃用事件
+
+> **警告：** `THINKING_*` 事件已弃用，将在 1.0.0 中移除。新实现请使用 `REASONING_*`。
+
+| 已弃用 | 替代 |
+| --- | --- |
+| `THINKING_START` | `REASONING_START` |
+| `THINKING_END` | `REASONING_END` |
+| `THINKING_TEXT_MESSAGE_START` | `REASONING_MESSAGE_START` |
+| `THINKING_TEXT_MESSAGE_CONTENT` | `REASONING_MESSAGE_CONTENT` |
+| `THINKING_TEXT_MESSAGE_END` | `REASONING_MESSAGE_END` |
+
+迁移指引见[推理：从 Thinking 事件迁移](/concepts/reasoning/#从-thinking-事件迁移)。
+
+## 事件 Schema
+
+SDK 使用 Zod schema 校验事件，并提供 TypeScript 类型推断：
+
+```typescript
+const EventSchemas = z.discriminatedUnion("type", [
+  TextMessageStartEventSchema,
+  TextMessageContentEventSchema,
+  TextMessageEndEventSchema,
+  ToolCallStartEventSchema,
+  ToolCallArgsEventSchema,
+  ToolCallEndEventSchema,
+  ToolCallResultEventSchema,
+  StateSnapshotEventSchema,
+  StateDeltaEventSchema,
+  MessagesSnapshotEventSchema,
+  ActivitySnapshotEventSchema,
+  ActivityDeltaEventSchema,
+  RawEventSchema,
+  CustomEventSchema,
+  RunStartedEventSchema,
+  RunFinishedEventSchema,
+  RunErrorEventSchema,
+  StepStartedEventSchema,
+  StepFinishedEventSchema,
+  ReasoningStartEventSchema,
+  ReasoningMessageStartEventSchema,
+  ReasoningMessageContentEventSchema,
+  ReasoningMessageEndEventSchema,
+  ReasoningMessageChunkEventSchema,
+  ReasoningEndEventSchema,
+  ReasoningEncryptedValueEventSchema,
+])
+```

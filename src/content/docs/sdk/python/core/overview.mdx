@@ -1,0 +1,65 @@
+---
+title: 概览
+description: Python 核心包 ag_ui.core：类型与事件的基础层。
+---
+
+# ag_ui.core
+
+AG-UI Python SDK 采用基于流式事件的架构与强类型数据结构。本包提供连接智能体系统的基础。
+
+```bash
+pip install ag-ui-protocol
+```
+
+```python
+from ag_ui.core import ...
+```
+
+## 类型
+
+- [RunAgentInput](/sdk/python/core/types/#runagentinput) — 运行智能体的输入参数
+- [Message](/sdk/python/core/types/#消息类型) — 用户与助手的交流及工具使用
+- [Context](/sdk/python/core/types/#context) — 提供给智能体的上下文信息
+- [Tool](/sdk/python/core/types/#tool) — 定义智能体可调用的函数
+- [State](/sdk/python/core/types/#state) — 智能体状态管理
+
+完整定义见[类型参考](/sdk/python/core/types/)。
+
+## 事件
+
+- [生命周期事件](/sdk/python/core/events/#生命周期事件) — 运行与步骤追踪
+- [文本消息事件](/sdk/python/core/events/#文本消息事件) — 助手消息流式传输
+- [工具调用事件](/sdk/python/core/events/#工具调用事件) — 函数调用生命周期
+- [状态管理事件](/sdk/python/core/events/#状态管理事件) — 智能体状态更新
+- [特殊事件](/sdk/python/core/events/#特殊事件) — 原始事件与自定义事件
+
+完整定义见[事件参考](/sdk/python/core/events/)。
+
+## 与其它包的关系
+
+| 包／模块 | 用途 |
+| --- | --- |
+| `ag_ui.core` | 协议类型、事件模型与 Pydantic 校验 |
+| [`ag_ui.encoder`](/sdk/python/encoder/overview/) | 把事件编码为 SSE 字符串 |
+| `ag_ui.*` 框架适配 | 把各智能体框架的流式输出映射为 AG-UI 事件 |
+
+Python 模型使用 snake_case 字段名，序列化到线路时输出 camelCase（例如 `message_id` → `messageId`）。
+
+## 示例
+
+```python
+from ag_ui.core import (
+    RunAgentInput,
+    UserMessage,
+    TextMessageStartEvent,
+    TextMessageContentEvent,
+    TextMessageEndEvent,
+    EventType,
+)
+
+event = TextMessageContentEvent(
+    type=EventType.TEXT_MESSAGE_CONTENT,
+    message_id="msg_123",
+    delta="你好",
+)
+```

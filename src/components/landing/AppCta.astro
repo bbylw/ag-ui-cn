@@ -1,6 +1,6 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
-import { platforms, DOWNLOAD_URL } from "../../lib/landing";
+import { platforms, QUICKSTART_URL, OFFICIAL_DOCS_URL } from "../../lib/landing";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
@@ -9,11 +9,10 @@ const href = (path: string) => `${base}${path}`;
 <section class="k-section k-alt k-defer" id="app" tabindex="-1">
   <div class="k-wrap">
     <header class="k-head" data-reveal>
-      <p class="k-kicker" data-code="APP-07">桌面应用</p>
-      <h2 class="k-h2">原生应用，不是网页套壳。</h2>
+      <p class="k-kicker" data-code="APP-07">客户端与场景</p>
+      <h2 class="k-h2">同一协议，适配多种交互入口。</h2>
       <p class="k-lede">
-        Mac 上是 AppKit 与系统 WebKit，Windows 上是 Win32 与 WebView2——没有 Electron，也没有随附浏览器。容器、镜像、卷、网络与
-        Compose 项目都在同一个窗口里，每个容器都有实时统计、日志、终端与文件，菜单栏也能直接操作。
+        AG-UI 描述的是事件流与交互语义，因此客户端不局限于网页。你可以在浏览器、终端或协作平台中，为用户提供一致的智能体体验。
       </p>
     </header>
 
@@ -37,24 +36,23 @@ const href = (path: string) => `${base}${path}`;
 
     <div class="k-band" style="margin-top:34px" data-reveal>
       <div>
-        <h2>下载 Kiri，然后打开一个新终端。</h2>
+        <h2>开始构建你的 AG-UI 应用</h2>
         <p>
-          Kiri 会创建 <code>kiri</code> docker context，并自带 docker、Compose 与 buildx。从 OrbStack 或 Docker Desktop
-          过来？<code>kiri import</code> 会把镜像、卷与容器一起带过来，源侧只读。
+          使用脚手架创建项目，连接兼容 AG-UI 的智能体后端，在前端订阅标准事件流，即可获得实时聊天、状态同步与工具交互能力。
         </p>
         <div class="k-cmd k-band-cmd">
-          <code>docker run --rm hello-world</code>
-          <button type="button" class="k-copy" data-copy="docker run --rm hello-world" aria-label="复制命令">
+          <code>npx create-ag-ui-app my-agent-app</code>
+          <button type="button" class="k-copy" data-copy="npx create-ag-ui-app my-agent-app" aria-label="复制命令">
             <Icon name="ph:copy" class="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
       </div>
       <div class="k-band-actions">
-        <a href={DOWNLOAD_URL} target="_blank" rel="noopener" class="k-btn">
-          <Icon name="ph:download-simple" class="h-[18px] w-[18px]" aria-hidden="true" />
-          下载 Kiri
+        <a href={href(QUICKSTART_URL)} class="k-btn">
+          <Icon name="ph:rocket-launch" class="h-[18px] w-[18px]" aria-hidden="true" />
+          快速开始
         </a>
-        <a href={href("/install/")} class="k-btn k-btn-ghost">所有平台</a>
+        <a href={OFFICIAL_DOCS_URL} target="_blank" rel="noopener" class="k-btn k-btn-ghost">官方文档</a>
       </div>
     </div>
   </div>
@@ -64,10 +62,9 @@ const href = (path: string) => `${base}${path}`;
   <div class="k-wrap">
     <div class="k-band" data-reveal>
       <div>
-        <h2>每个细节都写清楚了。</h2>
+        <h2>从概念到落地，一站式阅读。</h2>
         <p>
-          从安装到 Compose、构建、Kubernetes、Linux 机器、域名与分享，33 篇文档覆盖 Kiri 的全部能力，并附带
-          <code>llms.txt</code> 与每页 Markdown，方便你和你的 agent 一起读。
+          本站基于 AG-UI 官方 README 与文档简介整理，提供协议概述、核心架构、事件机制、能力构建块、生态集成与 SDK 客户端等中文内容，帮助你快速理解并接入 AG-UI。
         </p>
       </div>
       <div class="k-band-actions">
@@ -75,7 +72,7 @@ const href = (path: string) => `${base}${path}`;
           进入文档
           <Icon name="ph:arrow-right" class="h-[18px] w-[18px]" aria-hidden="true" />
         </a>
-        <a href={href("/faq/")} class="k-btn k-btn-ghost">常见问题</a>
+        <a href={href("/resources/")} class="k-btn k-btn-ghost">资源链接</a>
       </div>
     </div>
   </div>

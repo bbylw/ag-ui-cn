@@ -1,0 +1,151 @@
+---
+title: 事件参考
+description: AG-UI 标准事件类型、分类、关键字段与流式模式参考（中文整理）。
+---
+
+本页汇总 AG-UI 常见标准事件类型及其用途。具体字段、可选性与行为可能随协议版本（如 1.0 / draft）和 SDK 实现略有差异，请以官方规范与所用 SDK 为准。
+
+## 事件类型总览
+
+| 类别 | 事件类型 |
+| --- | --- |
+| 生命周期 | `RUN_STARTED`, `RUN_FINISHED`, `RUN_ERROR`, `STEP_STARTED`, `STEP_FINISHED` |
+| 文本消息 | `TEXT_MESSAGE_START`, `TEXT_MESSAGE_CONTENT`, `TEXT_MESSAGE_END`, `TEXT_MESSAGE_CHUNK` |
+| 工具调用 | `TOOL_CALL_START`, `TOOL_CALL_ARGS`, `TOOL_CALL_END`, `TOOL_CALL_RESULT`, `TOOL_CALL_CHUNK` |
+| 状态管理 | `STATE_SNAPSHOT`, `STATE_DELTA`, `MESSAGES_SNAPSHOT` |
+| 活动 | `ACTIVITY_SNAPSHOT`, `ACTIVITY_DELTA` |
+| 推理 | `REASONING_START`, `REASONING_END`, `REASONING_MESSAGE_START`, `REASONING_MESSAGE_CONTENT`, `REASONING_MESSAGE_END`, `REASONING_MESSAGE_CHUNK`, `REASONING_ENCRYPTED_VALUE` |
+| 子智能体 | `SUBAGENT_STARTED`, `SUBAGENT_FINISHED`, `SUBAGENT_ERROR` |
+| 特殊/扩展 | `RAW`, `CUSTOM` |
+
+## 通用基础字段
+
+多数事件继承基础字段：
+
+| 字段 | 说明 |
+| --- | --- |
+| `type` | 事件类型枚举值 |
+| `timestamp` | 可选，事件时间戳 |
+| `rawEvent` | 可选，转换前的原始事件 |
+| `metadata` | 可选，附加元数据（合并与作用范围依事件类型而定） |
+
+## 生命周期事件
+
+### `RUN_STARTED`
+- **用途**：标记一次智能体运行开始。
+- **关键字段**：`threadId`, `runId`, `parentRunId?`, `input?`
+
+### `RUN_FINISHED`
+- **用途**：标记运行结束。
+- **关键字段**：可能包含 `result?` 与/或 `outcome`（如成功或中断，视协议版本而定）。在中断感知实现中，`outcome` 可表示 `success` 或 `interrupt` 并携带中断信息。
+
+### `RUN_ERROR`
+- **用途**：标记运行失败。
+- **关键字段**：通常包含错误消息/代码等信息（以实现为准）。
+
+### `STEP_STARTED` / `STEP_FINISHED`
+- **用途**：标记可选的子步骤开始与结束，用于进度与过程可视化。
+- **关键字段**：常见为 `stepName` 等。
+
+## 文本消息事件
+
+文本消息采用流式模式：Start → Content(多次) → End。
+
+### `TEXT_MESSAGE_START`
+- **关键字段**：`messageId`, `role`（如 `assistant`/`user`/`system`/`developer`/`tool`，以定义为准）
+
+### `TEXT_MESSAGE_CONTENT`
+- **关键字段**：`messageId`, `delta`（非空文本片段，按顺序拼接）
+
+### `TEXT_MESSAGE_END`
+- **关键字段**：`messageId`
+
+### `TEXT_MESSAGE_CHUNK`
+- **用途**：便捷事件，可由适配层展开为标准 Start/Content/End。
+- **关键字段**：`messageId?`, `role?`, `delta?`（首个 chunk 通常需提供 `messageId`）
+
+## 工具调用事件
+
+### `TOOL_CALL_START`
+- **关键字段**：`toolCallId`, `toolCallName`, `parentMessageId?`
+
+### `TOOL_CALL_ARGS`
+- **用途**：流式传输工具参数片段。
+- **关键字段**：`toolCallId`, `delta`（常为 JSON 片段，需拼接）
+
+### `TOOL_CALL_END`
+- **用途**：表示参数传输/调用规格完成。
+- **关键字段**：`toolCallId`
+
+### `TOOL_CALL_RESULT`
+- **用途**：返回工具执行结果。
+- **关键字段**：`messageId`, `toolCallId`, `content`, `role?`（通常为 `tool`）
+
+### `TOOL_CALL_CHUNK`
+- **用途**：便捷事件，可展开为 Start/Args/End。
+- **关键字段**：`toolCallId?`, `toolCallName?`, `parentMessageId?`, `delta?`
+
+## 状态与消息同步事件
+
+### `STATE_SNAPSHOT`
+- **用途**：提供完整共享状态。
+- **关键字段**：`snapshot`（完整状态对象）
+
+### `STATE_DELTA`
+- **用途**：提供状态增量更新。
+- **关键字段**：`delta`（通常为 JSON Patch / RFC 6902 操作数组）
+
+### `MESSAGES_SNAPSHOT`
+- **用途**：提供会话消息的全量快照。
+- **关键字段**：`messages`（消息数组；不同消息类型的替换语义以协议为准）
+
+## 活动事件（Activity）
+
+用于表示结构化的进行中活动（如计划、搜索进度）。
+
+### `ACTIVITY_SNAPSHOT`
+- **关键字段**：`messageId`, `activityType`, `content`（结构化对象）, `replace?`
+
+### `ACTIVITY_DELTA`
+- **关键字段**：`messageId`, `activityType`, `patch`（JSON Patch 操作数组）
+
+## 推理事件（Reasoning）
+
+用于传输可展示的推理/过程信息（不等同于暴露原始内部思维链）。
+
+- `REASONING_START` / `REASONING_END`：推理阶段边界
+- `REASONING_MESSAGE_START` / `REASONING_MESSAGE_CONTENT` / `REASONING_MESSAGE_END`：流式推理消息
+- `REASONING_MESSAGE_CHUNK`：便捷流式事件
+- `REASONING_ENCRYPTED_VALUE`：携带加密推理内容（可按实体关联，如 message/tool-call），用于跨轮次保留上下文而不向客户端暴露明文
+
+## 子智能体事件（Subagent）
+
+- `SUBAGENT_STARTED`：子智能体开始（含 `subagentRunId`、名称/描述、父级关联等）
+- `SUBAGENT_FINISHED`：子智能体完成（可含结果/结果状态）
+- `SUBAGENT_ERROR`：子智能体失败（含错误信息）
+
+## 特殊与扩展事件
+
+### `RAW`
+- **用途**：封装外部系统原始事件。
+- **关键字段**：`event`, `source?`
+
+### `CUSTOM`
+- **用途**：协议扩展点，承载应用自定义语义。
+- **关键字段**：`name`, `value`
+
+## 事件流模式速查
+
+| 模式 | 典型事件 | 客户端处理要点 |
+| --- | --- | --- |
+| Start/Content/End | 文本、工具参数、推理消息 | 按 ID 聚合并顺序拼接 `delta`，在 End 时收尾 |
+| Snapshot/Delta | 状态、活动 | Snapshot 初始化/重建，Delta 增量应用（JSON Patch） |
+| 生命周期 | 运行、步骤、子智能体 | 驱动 UI 运行态、进度与错误/完成状态 |
+| 结果事件 | `TOOL_CALL_RESULT` 等 | 与发起事件通过 ID 关联并更新对应实体 |
+
+## 实现注意事项
+
+- **ID 关联**：`runId`、`threadId`、`messageId`、`toolCallId`、`subagentRunId` 等是正确聚合事件的关键。
+- **闭合性**：确保流式序列正确结束，避免 UI 长期处于“生成中/执行中”。
+- **版本差异**：事件集合与字段（如中断相关 `outcome`、草案事件）可能因版本不同而变化。
+- **前向兼容**：对未知事件类型做容错处理，优先保证核心交互不中断。

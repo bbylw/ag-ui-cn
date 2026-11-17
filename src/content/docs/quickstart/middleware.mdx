@@ -1,0 +1,189 @@
+---
+title: 构建中间件
+description: 通过中间件把现有协议、进程内智能体或自定义方案转换为 AG-UI 事件。
+---
+
+## 简介
+
+中间件实现允许你**将现有协议与应用翻译为 AG-UI 事件**。它在现有系统与 AG-UI 之间建立桥梁，非常适合为当前应用添加智能体能力。
+
+### 何时使用中间件实现
+
+- 将**现有协议或 API** 进行**通用化翻译**
+- 在**现有系统或框架**的约束内工作
+- 当你在**无法直接控制**智能体框架或系统时
+
+## 你将构建什么
+
+一个中间件智能体，它：
+
+1. 继承 `AbstractAgent` 类
+2. 连接 OpenAI 的 GPT-4o 模型
+3. 将 OpenAI 响应翻译为 AG-UI 事件
+4. 与你的应用在同一进程内运行
+
+## 前置条件
+
+- **Node.js v16+**
+- 一个 **OpenAI API Key**
+
+```bash
+export OPENAI_API_KEY=your-api-key-here
+```
+
+构建工具（按需）：`brew install protobuf`、`npm i nx`、安装 pnpm。
+
+## 第 1 步 — 脚手架
+
+```bash
+git clone git@github.com:ag-ui-protocol/ag-ui.git
+cd ag-ui/
+cp -r integrations/middleware-starter integrations/openai
+```
+
+更新 `integrations/openai/package.json` 元数据，并修改 `src/index.ts` 中的类名：
+
+```ts
+export class OpenAIAgent extends AbstractAgent {}
+```
+
+将该集成注册到 Dojo（`apps/dojo/src/menu.ts` 与 `agents.ts`）。
+
+## 第 2 步 — 添加到 Dojo 依赖
+
+在 `apps/dojo/package.json` 中加入：
+
+```json
+"@ag-ui/openai": "workspace:*"
+```
+
+## 第 3 步 — 启动 Dojo
+
+```bash
+pnpm install
+pnpm dev
+```
+
+打开 `http://localhost:3000`，选择 OpenAI。此时 stub 智能体会返回 “Hello world!”。
+
+stub 的核心结构：
+
+```ts
+export class OpenAIAgent extends AbstractAgent {
+  run(input: RunAgentInput): Observable<BaseEvent> {
+    const messageId = Date.now().toString()
+    return new Observable<BaseEvent>((observer) => {
+      observer.next({ type: EventType.RUN_STARTED, threadId: input.threadId, runId: input.runId } as any)
+      observer.next({ type: EventType.TEXT_MESSAGE_START, messageId } as any)
+      observer.next({ type: EventType.TEXT_MESSAGE_CONTENT, messageId, delta: "Hello world!" } as any)
+      observer.next({ type: EventType.TEXT_MESSAGE_END, messageId } as any)
+      observer.next({ type: EventType.RUN_FINISHED, threadId: input.threadId, runId: input.runId } as any)
+      observer.complete()
+    })
+  }
+}
+```
+
+## 第 4 步 — 打通 OpenAI 与 AG-UI
+
+```bash
+cd integrations/openai
+pnpm install openai
+```
+
+### AG-UI 回顾
+
+AG-UI 智能体继承 `AbstractAgent` 并发射事件来表达：
+
+- **生命周期事件**：`RUN_STARTED`、`RUN_FINISHED`、`RUN_ERROR`
+- **内容事件**：`TEXT_MESSAGE_*`、`TOOL_CALL_*` 等
+
+### 实现流式智能体
+
+在构造函数中初始化 OpenAI 客户端，并把 `chat.completions` 的流式分片转换为 AG-UI 事件：
+
+```ts
+this.openai.chat.completions
+  .create({
+    model: "gpt-4o",
+    stream: true,
+    tools: input.tools.map((tool) => ({
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    })),
+    messages: input.messages.map((message) => ({
+      role: message.role as any,
+      content: message.content ?? "",
+      ...(message.role === "assistant" && message.toolCalls
+        ? { tool_calls: message.toolCalls }
+        : {}),
+      ...(message.role === "tool" ? { tool_call_id: message.toolCallId } : {}),
+    })),
+  })
+  .then(async (response) => {
+    const messageId = Date.now().toString()
+
+    for await (const chunk of response) {
+      if (chunk.choices[0].delta.content) {
+        observer.next({
+          type: EventType.TEXT_MESSAGE_CHUNK,
+          messageId,
+          delta: chunk.choices[0].delta.content,
+        } as any)
+      } else if (chunk.choices[0].delta.tool_calls) {
+        const toolCall = chunk.choices[0].delta.tool_calls[0]
+        observer.next({
+          type: EventType.TOOL_CALL_CHUNK,
+          toolCallId: toolCall.id,
+          toolCallName: toolCall.function?.name,
+          parentMessageId: messageId,
+          delta: toolCall.function?.arguments,
+        } as any)
+      }
+    }
+
+    observer.next({ type: EventType.RUN_FINISHED, threadId: input.threadId, runId: input.runId } as any)
+    observer.complete()
+  })
+  .catch((error) => {
+    observer.next({ type: EventType.RUN_ERROR, message: error.message } as any)
+    observer.error(error)
+  })
+```
+
+### 底层发生了什么
+
+1. **初始化**：创建 OpenAI 客户端并发射 `RUN_STARTED`
+2. **请求**：以 `stream: true` 发送用户消息
+3. **流式转发**：每个分片作为 `TEXT_MESSAGE_CHUNK` 或 `TOOL_CALL_CHUNK` 转发
+4. **结束**：发射 `RUN_FINISHED`（或 `RUN_ERROR`）并完成 observable
+
+## 第 5 步 — 与你的智能体聊天
+
+刷新 Dojo 页面并开始输入，你会看到 GPT-4o 实时逐词返回。
+
+## 将 AG-UI 桥接到任意协议
+
+你刚刚实现的模式——**翻译输入、转发流式分片、发射 AG-UI 事件**——适用于几乎所有后端：
+
+- REST 或 GraphQL API
+- WebSocket
+- MQTT 等 IoT 协议
+
+## 将智能体连接到前端
+
+像 [CopilotKit](https://docs.copilotkit.ai) 这样的工具已理解 AG-UI 并提供即插即用的 React 组件。将智能体端点指向它即可获得完整的聊天 UI。
+
+## 分享你的集成
+
+1. Fork [AG-UI 仓库](https://github.com/ag-ui-protocol/ag-ui)
+2. 在 `integrations` 下添加包（参见[参与贡献](/development/contributing/)）
+3. 提交 PR 说明用例与设计决策
+
+## 结论
+
+你现在拥有了一个可运行的 OpenAI AG-UI 适配器与本地演练环境。接下来可以添加工具调用、发布到 npm，或将 AG-UI 桥接到其他模型/服务。

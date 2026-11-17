@@ -10,11 +10,10 @@ const sessionText = termSession.map((l) => `$ ${l.cmd}\n${l.out.map((o) => o.tex
 <section class="k-section k-defer" id="cli" tabindex="-1">
   <div class="k-wrap k-cli-grid">
     <div data-reveal>
-      <p class="k-kicker" data-code="TERM-02">命令行优先</p>
-      <h2 class="k-h2">你本来就在敲的命令。</h2>
+      <p class="k-kicker" data-code="DEV-02">开发体验</p>
+      <h2 class="k-h2">从脚手架到事件流，一条清晰路径。</h2>
       <p class="k-lede">
-        Kiri 打开后，普通的 <code>docker</code> 命令就跑在 Kiri 上；而 <code>kiri</code> 补上了 Docker
-        没有的东西：每个容器的名字、Kubernetes、Linux 机器与公网链接。
+        无论你是接入现有智能体框架，还是为自研后端与客户端实现协议支持，AG-UI 都提供了统一的交互语义与上手方式。
       </p>
       <ul class="k-points" role="list">
         {
@@ -29,23 +28,23 @@ const sessionText = termSession.map((l) => `$ ${l.cmd}\n${l.out.map((o) => o.tex
         }
       </ul>
       <div class="k-cta">
-        <a href={href("/guide/cli/")} class="k-btn k-btn-sm">
-          命令行参考
+        <a href={href("/quickstart/")} class="k-btn k-btn-sm">
+          快速开始
           <Icon name="ph:arrow-right" class="h-4 w-4" aria-hidden="true" />
         </a>
-        <a href={href("/quick-start/")} class="k-btn k-btn-sm k-btn-ghost">快速开始</a>
+        <a href={href("/resources/")} class="k-btn k-btn-sm k-btn-ghost">资源链接</a>
       </div>
     </div>
 
     <figure class="k-term" data-k-term data-reveal>
       <div class="k-term-bar">
         <i></i><i></i><i></i>
-        <b>~ zsh</b>
+        <b>~ terminal</b>
         <span class="k-term-stack" aria-hidden="true"><b></b><b></b><b></b></span>
       </div>
       <pre class="k-term-body"><code data-k-term-body><span class="k-p">$ </span><span class="k-cursor"></span></code></pre>
       <figcaption class="k-term-foot">
-        <span>示例会话 · 始终指向 Kiri</span>
+        <span>示例会话 · AG-UI 应用开发流程</span>
         <button type="button" class="k-run k-run-ghost" data-k-term-copy data-copy={sessionText}>
           <Icon name="ph:copy" class="h-3.5 w-3.5" aria-hidden="true" />
           复制

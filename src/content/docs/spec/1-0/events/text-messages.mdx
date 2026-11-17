@@ -1,0 +1,74 @@
+---
+title: 文本消息
+description: 1.0：从智能体到用户，流式传输会话文本。
+---
+
+文本消息就是会话本身：用户读到的文字。生产者随生成流式传输每条消息，使 UI 能在文本到达时渲染，而不必等消息完成。
+
+## 用户交互模型
+
+文本消息通常渲染为聊天记录，每条消息随内容流式到达而增量出现。协议不强制任何特定呈现——消费者 MAY 缓冲整条消息再显示，或逐 token 渲染。
+
+## 事件
+
+文本消息遵循[流式模式](/spec/1-0/basic/patterns/streaming/)，按 `messageId` 匹配。该模式的规则——内容前先开启、运行结束前关闭、已开启 id 不得重开——按原文适用。
+
+### `TEXT_MESSAGE_START`
+
+开启一条消息。
+
+```json
+{
+  "type": "TEXT_MESSAGE_START",
+  "messageId": "msg-1",
+  "role": "assistant"
+}
+```
+
+- `role` 是 OPTIONAL；缺省 role 表示 `assistant`。role 可取的值为 [schema](https://docs.ag-ui.com/spec/1-0/schema#textmessagerole) 的事。
+- `name` 是 OPTIONAL，在 role 内标识说话者，供区分多个说话者的生产者使用。
+
+### `TEXT_MESSAGE_CONTENT`
+
+扩展已开启的消息。`delta` 携带消息文本的下一片；delta 按到达顺序拼接。
+
+```json
+{
+  "type": "TEXT_MESSAGE_CONTENT",
+  "messageId": "msg-1",
+  "delta": "Hello, world."
+}
+```
+
+### `TEXT_MESSAGE_END`
+
+关闭消息。**已关闭的消息是关闭的，不是封死的**：生产者 MAY 用新的 `TEXT_MESSAGE_START` 重开同一 `messageId`，消息继续，后续内容追加到已有内容之后。重开的 `TEXT_MESSAGE_START` MUST 与它重开的消息一致——相同所有者、相同 `role`、相同 `name`；消息已确立的值成立，且不要求消费者检测不一致。后续 [`MESSAGES_SNAPSHOT`](/spec/1-0/events/state/) 也 MAY 整体重述该消息。任何事件都不能以其他方式更改已关闭消息的内容。
+
+> 运行内，以不同所有者重开就是[子智能体规则](/spec/1-0/events/subagents/)已拒绝的归因不匹配。跨运行时消费者的所有权跟踪已重置，因此不要求检测跨运行不匹配——生产者的义务在两种情况下相同。
+
+### `TEXT_MESSAGE_CHUNK`
+
+紧凑拼写。消费者 MUST 按[流式模式](/spec/1-0/basic/patterns/streaming/#chunk-形式)把 chunk 展开为上述三个事件，包括首块要求与冲突重复规则。
+
+## 消息流
+
+```text
+Agent → Client: TEXT_MESSAGE_START (msg-1, assistant)
+Client → UI: 新消息出现
+loop 流式
+  Agent → Client: TEXT_MESSAGE_CONTENT (delta)
+  Client → UI: 文本增长
+end
+Agent → Client: TEXT_MESSAGE_END (msg-1)
+Client → UI: 消息完成
+```
+
+## 数据类型
+
+事件形状由 [schema 参考](https://docs.ag-ui.com/spec/1-0/schema)定义：`TextMessageStartEvent`、`TextMessageContentEvent`、`TextMessageEndEvent`、`TextMessageChunkEvent`。组装后的消息按 role 以 `AssistantMessage`、`UserMessage`、`SystemMessage` 或 `DeveloperMessage` 出现在会话历史中。
+
+消息任一事件上的元数据按[元数据规则](/spec/1-0/basic/metadata/)合并进消息：逐 key，最后写入胜出。
+
+## 错误处理
+
+对未开启的 `messageId` 发送 `TEXT_MESSAGE_CONTENT` 或 `TEXT_MESSAGE_END`，或对已开启者发送 `TEXT_MESSAGE_START`，是格式错误的序列，对流派生致命。运行结束时仍开启的消息同样是违规。这些是[流式模式](/spec/1-0/basic/patterns/streaming/)的规则；文本消息没有任何放宽。

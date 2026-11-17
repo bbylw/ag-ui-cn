@@ -1,0 +1,58 @@
+---
+title: 概览
+description: TypeScript 客户端包 @ag-ui/client：智能体连接、中间件与订阅。
+---
+
+# @ag-ui/client
+
+Agent User Interaction Protocol 客户端 SDK 提供面向 AI 系统的智能体连接能力。本包建立在核心类型与事件之上，提供灵活的连接方式。
+
+```bash
+npm install @ag-ui/client
+```
+
+## AbstractAgent
+
+`AbstractAgent` 是实现自定义智能体连接的基类。扩展它并实现 `run()`，即可把自有服务或智能体实现桥接到 AG-UI。
+
+- [配置](/sdk/js/client/abstract-agent/#配置) — 智能体 ID、消息与状态
+- [核心方法](/sdk/js/client/abstract-agent/#核心方法) — 运行、中止与克隆
+- [受保护方法](/sdk/js/client/abstract-agent/#受保护方法) — 供自定义实现扩展的钩子
+- [属性](/sdk/js/client/abstract-agent/#属性) — 状态与消息追踪
+
+## HttpAgent
+
+基于 HTTP 的智能体连接具体实现：
+
+- [配置](/sdk/js/client/http-agent/#配置) — URL 与请求头
+- [方法](/sdk/js/client/http-agent/#方法) — HTTP 专属的执行与取消
+- [受保护方法](/sdk/js/client/http-agent/#受保护方法) — 可定制的 HTTP 请求处理
+- [属性](/sdk/js/client/http-agent/#属性) — 连接管理
+
+## 中间件
+
+以灵活的中间件系统转换与拦截流经智能体的事件流：
+
+- [函数中间件](/sdk/js/client/middleware/#函数中间件) — 用普通函数做简单转换
+- [类中间件](/sdk/js/client/middleware/#类中间件) — 带配置的有状态中间件
+- [内置中间件](/sdk/js/client/middleware/#内置中间件) — `FilterToolCallsMiddleware` 等
+- [中间件模式](/sdk/js/client/middleware/#中间件模式) — 常见用例与示例
+
+## AgentSubscriber
+
+事件驱动的订阅系统，用于在智能体执行期间处理生命周期事件与状态变更：
+
+- [事件处理器](/sdk/js/client/subscriber/#事件处理器) — 生命周期、消息、工具调用与状态事件
+- [状态管理](/sdk/js/client/subscriber/#状态与消息是只读的) — 变更控制与传播
+- [用法示例](/sdk/js/client/subscriber/#异步支持) — 日志、持久化与错误处理
+- [与智能体集成](/sdk/js/client/subscriber/#与智能体集成) — 注册与使用订阅者
+
+## 流压缩
+
+[`compactEvents()`](/sdk/js/client/compaction/) 将冗长的流式序列折叠为等价但更紧凑的事件数组，适合持久化日志与导出。
+
+## 相关
+
+- [核心类型](/sdk/js/core/types/)
+- [事件参考](/reference/events/)
+- [规范 1.0](/spec/1-0/)

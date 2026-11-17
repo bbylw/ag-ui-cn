@@ -1,5 +1,5 @@
 /* ============================================================
- * Kiri landing page — the dockyard language of runkiri.com:
+ * AG-UI landing page — a modern, protocol-focused visual theme:
  * warm paper, dark mustard ember, stencilled container codes,
  * cards stacked on a container behind them, dark instrument
  * windows. Scoped to `.kiri` so the docs keep the Nimbus theme.
@@ -20,10 +20,10 @@
 	--k-line: #e1d9ca;
 	--k-line-strong: #cfc5b3;
 
-	/* the dominant family: Kiri's dark mustard */
-	--k-ember: #8a6a00;
-	--k-ember-lid: #a88300;
-	--k-ember-text: #6e5400;
+	/* the dominant family: AG-UI purple accent */
+	--k-ember: #6963ff;
+	--k-ember-lid: #8b86ff;
+	--k-ember-text: #5751d9;
 	--k-on-ember: #ffffff;
 	--k-ember-soft: color-mix(in srgb, var(--k-ember) 12%, transparent);
 
@@ -31,7 +31,7 @@
 	--k-orchid: #8a6fb5; /* OrbStack */
 	--k-teal: #1f9a86; /* Docker Desktop */
 	--k-moss: #1f7656; /* success */
-	--k-rose: #d6336c; /* Kiri Share */
+	--k-rose: #d6336c; /* highlight */
 	--k-azure: #2f6feb; /* information */
 	--k-amber: #b4690e; /* warning */
 	--k-danger: #c2352b; /* danger */
@@ -91,10 +91,10 @@
 	--k-muted: #9aa3ae;
 	--k-line: #26303a;
 	--k-line-strong: #34404c;
-	--k-ember: #e0b420;
-	--k-ember-lid: #f2cf5b;
-	--k-ember-text: #e8c04a;
-	--k-on-ember: #1a1400;
+	--k-ember: #8b86ff;
+	--k-ember-lid: #a7a3ff;
+	--k-ember-text: #b0acff;
+	--k-on-ember: #0f1020;
 	--k-ember-soft: color-mix(in srgb, var(--k-ember) 16%, transparent);
 	--k-orchid: #9a80c6;
 	--k-teal: #25a892;
@@ -115,10 +115,11 @@ body:has(.kiri) {
 
 /* the document scroller belongs to the page, not to the browser chrome */
 html:has(.kiri) {
-	--k-scroll-thumb: #7a6414;
+	--k-scroll-thumb: #5751d9;
 	--k-scroll-track: #efe9dd;
 	scrollbar-color: var(--k-scroll-thumb) var(--k-scroll-track);
-	scrollbar-width: thin;
+	/* default (auto) width: a thin thumb is hard to grab for anyone with a
+	 * motor impairment, and the colour pair already carries the branding */
 	/* Reserve the scrollbar lane so short and tall pages share one width.
 	 * `scrollbar-gutter: stable` would do the same, but Chromium aborts a
 	 * view transition when the root reserves a gutter *and* a section holds
@@ -128,7 +129,7 @@ html:has(.kiri) {
 	scroll-padding-top: var(--k-nav-h, 66px);
 }
 html[data-mode="dark"]:has(.kiri) {
-	--k-scroll-thumb: #c9a53a;
+	--k-scroll-thumb: #a7a3ff;
 	--k-scroll-track: #171e26;
 }
 
@@ -207,7 +208,6 @@ html[data-mode="dark"]:has(.kiri) {
 /* every inner scroller wears the same scrollbar */
 .kiri * {
 	scrollbar-color: var(--k-scroll-thumb) var(--k-scroll-track);
-	scrollbar-width: thin;
 }
 @supports not (scrollbar-color: auto) {
 	.kiri ::-webkit-scrollbar {
@@ -508,7 +508,10 @@ html[data-mode="dark"]:has(.kiri) {
 	align-items: center;
 	justify-content: space-between;
 	gap: 16px;
-	height: var(--k-nav-h);
+	/* a minimum, not a fixed height: scaled text grows the bar instead of
+	 * clipping the links inside it */
+	min-height: var(--k-nav-h);
+	padding-block: 6px;
 }
 
 .k-brand {
@@ -641,6 +644,25 @@ html[data-mode="dark"]:has(.kiri) {
 .k-mobile.is-open {
 	display: block;
 }
+/* Opens from the corner that touches the burger, so it reads as coming out of
+ * its trigger. Compositor-only properties, and no motion when the reader
+ * asked for none. */
+.k-mobile.is-open {
+	transform-origin: top right;
+}
+@media (prefers-reduced-motion: no-preference) {
+	.k-mobile.is-open {
+		animation: k-menu-in 220ms var(--k-ease) both;
+	}
+}
+@keyframes k-menu-in {
+	from {
+		opacity: 0;
+		scale: 0.98 0.94;
+		translate: 0 -6px;
+	}
+}
+
 .k-mobile a {
 	display: block;
 	padding: 11px 4px;
@@ -855,10 +877,9 @@ html[data-mode="dark"]:has(.kiri) {
 	flex-wrap: wrap;
 	font: 400 0.8438rem/1.7 var(--k-text);
 	color: var(--k-muted);
-	max-height: 5.2em;
-	overflow: hidden;
-	-webkit-mask-image: linear-gradient(180deg, black 62%, transparent);
-	mask-image: linear-gradient(180deg, black 62%, transparent);
+	/* no clip: at a larger text scale the list wraps to more lines instead of
+	 * dropping entries (WCAG 1.4.4, and the OS text-scale opt-in below) */
+	text-wrap: pretty;
 }
 .k-lang-list li {
 	white-space: nowrap;
@@ -2895,7 +2916,8 @@ html[data-mode="dark"]:has(.kiri) {
 		/* the header settles into its compact height as the page moves */
 		@keyframes k-nav-shrink {
 			to {
-				height: 54px;
+				min-height: 54px;
+				padding-block: 0px;
 			}
 		}
 		@keyframes k-mark-shrink {
@@ -3176,8 +3198,55 @@ html[data-mode="dark"]:has(.kiri) {
 		min-height: 300px;
 		font-size: 0.7188rem;
 	}
+	/* The footer is the phone's long tail. Two compact columns plus 44px rows
+	 * cut it to roughly half the height of one column of links, and keep every
+	 * link inside thumb reach instead of a 22px row a finger misses. */
 	.k-foot-grid {
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 20px 18px;
+	}
+	.k-foot-grid > :first-child {
+		grid-column: 1 / -1;
+	}
+	/* the third group spans the row instead of leaving an empty cell, and
+	 * spends the width on two columns of its own */
+	.k-foot-grid > :nth-child(4) {
+		grid-column: 1 / -1;
+	}
+	.k-foot-grid > :nth-child(4) .k-foot-list {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 18px;
+	}
+	.k-foot-grid > :first-child .k-foot-tag {
+		max-width: none;
+	}
+	.k-foot-h {
+		margin-bottom: 4px;
+	}
+	.k-foot-list {
+		gap: 0;
+	}
+	.k-foot-list a {
+		display: flex;
+		align-items: center;
+		min-height: 44px;
+		font-size: 0.9375rem;
+	}
+	/* the pill is the only way back up on a phone, so give it the thumb zone
+	 * and clear the home indicator */
+	.k-foot-top {
+		min-height: 44px;
+		padding: 0 18px;
+		margin-top: 22px;
+	}
+	.k-footer {
+		padding-bottom: calc(30px + env(safe-area-inset-bottom, 0px));
+	}
+	.k-legal {
+		margin-top: 22px;
+		padding-top: 18px;
+		font-size: 0.75rem;
+		line-height: 1.75;
 	}
 	.k-kicker[data-code]::after {
 		display: none;
@@ -3206,6 +3275,13 @@ html[data-mode="dark"]:has(.kiri) {
 }
 /* 320px-class phones: the race console must keep every control reachable */
 @media (max-width: 22em) {
+	/* 320px-wide phones: the badge is what pushes the CTA off the edge */
+	.k-beta {
+		display: none;
+	}
+	.k-nav-in {
+		gap: 8px;
+	}
 	.k-tab {
 		padding: 8px 10px;
 		font-size: 0.8125rem;

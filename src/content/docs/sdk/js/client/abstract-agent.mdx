@@ -1,0 +1,216 @@
+---
+title: AbstractAgent
+description: 带核心事件处理的基础智能体实现。
+---
+
+# AbstractAgent
+
+`AbstractAgent` 类为 AG-UI 中所有智能体实现提供基础。它负责核心事件流处理、状态管理与消息历史。
+
+```typescript
+import { AbstractAgent } from "@ag-ui/client"
+```
+
+## 配置
+
+默认情况下，所有智能体都通过构造函数接收一个可选的 `AgentConfig` 对象。
+
+```typescript
+interface AgentConfig {
+  agentId?: string        // 智能体标识
+  description?: string    // 智能体描述，供 LLM 使用
+  threadId?: string       // 会话线程标识
+  initialMessages?: Message[] // 初始消息
+  initialState?: State    // 初始状态
+  maxEnforcedEntries?: number // 每个入站事件、以及 HttpAgent 出站输入的条目上限（默认 1,000,000；Infinity 关闭）
+}
+```
+
+### 在子类中增加配置项
+
+推荐扩展 `AgentConfig` 接口，并在子类中以扩展后的配置调用 `super`：
+
+```typescript
+interface MyAgentConfig extends AgentConfig {
+  myConfigOption: string
+}
+
+class MyAgent extends AbstractAgent {
+  private myConfigOption: string
+
+  constructor(config: MyAgentConfig) {
+    super(config)
+    this.myConfigOption = config.myConfigOption
+  }
+}
+```
+
+## 核心方法
+
+### runAgent()
+
+执行智能体并处理结果的主要方法。
+
+```typescript
+runAgent(parameters?: RunAgentParameters, subscriber?: AgentSubscriber): Promise<RunAgentResult>
+```
+
+#### 参数
+
+```typescript
+interface RunAgentParameters {
+  runId?: string                  // 本次执行的唯一 ID
+  tools?: Tool[]                  // 可用工具
+  context?: Context[]             // 上下文信息
+  forwardedProps?: Record<string, any> // 转发的附加属性
+}
+```
+
+可选的 `subscriber` 参数可为本次运行单独提供 [AgentSubscriber](/sdk/js/client/subscriber/)。
+
+#### 返回值
+
+```typescript
+interface RunAgentResult {
+  result: any          // 智能体返回的最终结果
+  newMessages: Message[] // 本次运行新增的消息
+}
+```
+
+### subscribe()
+
+添加一个跨多次运行生效的 [AgentSubscriber](/sdk/js/client/subscriber/)。
+
+```typescript
+subscribe(subscriber: AgentSubscriber): { unsubscribe: () => void }
+```
+
+返回带 `unsubscribe()` 的对象，不再需要时用于移除订阅者。
+
+### use()
+
+向智能体的事件处理管线添加中间件。
+
+```typescript
+use(...middlewares: (Middleware | MiddlewareFunction)[]): this
+```
+
+```typescript
+// 函数中间件
+agent.use((input, next) => {
+  console.log("Processing:", input.runId)
+  return next.run(input)
+})
+
+// 类中间件
+agent.use(new FilterToolCallsMiddleware({
+  allowedToolCalls: ["search"]
+}))
+
+// 串联多个中间件
+agent.use(loggingMiddleware, authMiddleware, filterMiddleware)
+```
+
+中间件按添加顺序执行，每个包裹下一个。中间件在 `runAgent()` 中生效；`connectAgent()` 目前直接调用 `connect()`。详见[中间件](/sdk/js/client/middleware/)。
+
+### getCapabilities()
+
+返回智能体当前的能力。可选——子类实现它以公告自己的支持范围。未实现时返回 `undefined`。
+
+```typescript
+getCapabilities?(): Promise<AgentCapabilities>
+```
+
+`AgentCapabilities` 的完整定义见[能力](/concepts/capabilities/)。
+
+### abortRun()
+
+取消当前执行。
+
+```typescript
+abortRun(): void
+```
+
+### clone()
+
+创建智能体实例的深拷贝。
+
+```typescript
+clone(): AbstractAgent
+```
+
+### connectAgent()
+
+与实现了 `connect()` 方法的智能体建立持久连接。
+
+```typescript
+connectAgent(parameters?: RunAgentParameters, subscriber?: AgentSubscriber): Promise<RunAgentResult>
+```
+
+与 `runAgent()` 类似，但内部使用 `connect()`。智能体必须实现 `connect()`，或由 [CopilotKit](https://copilotkit.ai) 之类的框架提供。
+
+## 可观察属性
+
+### events$
+
+执行期间发出的所有事件的可观察流。
+
+```typescript
+events$: Observable<BaseEvent>
+```
+
+该属性直接暴露智能体的事件流。事件存于 `ReplaySubject`，因此晚到的订阅者会收到全部历史事件。
+
+## 属性
+
+- `agentId`：智能体实例的唯一标识
+- `description`：人类可读描述
+- `threadId`：会话线程标识
+- `messages`：会话消息数组
+- `state`：当前状态对象
+- `events$`：所有 `BaseEvent` 的可观察流（对晚到订阅者重放）
+
+## 受保护方法
+
+以下方法供子类实现或扩展。
+
+### run()
+
+执行智能体并返回可观察事件流。
+
+```typescript
+protected abstract run(input: RunAgentInput): RunAgent
+```
+
+### connect()
+
+建立持久连接并返回可观察事件流。默认实现抛出 `ConnectNotImplementedError`。
+
+```typescript
+protected connect(input: RunAgentInput): RunAgent
+```
+
+### apply()
+
+处理运行中的事件并更新智能体状态。
+
+```typescript
+protected apply(input: RunAgentInput): ApplyEvents
+```
+
+### prepareRunAgentInput()
+
+准备执行输入参数。
+
+```typescript
+protected prepareRunAgentInput(parameters?: RunAgentParameters): RunAgentInput
+```
+
+### onError() 与 onFinalize()
+
+错误处理与清理的生命周期钩子。
+
+```typescript
+protected onError(error: Error): void
+protected onFinalize(): void
+```

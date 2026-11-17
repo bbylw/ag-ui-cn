@@ -1,0 +1,40 @@
+---
+title: Schema 文件
+description: 1.0：机器可读 schema 的地址与使用方式。
+---
+
+**schema 对结构权威**：哪些字段存在、哪些必填、各携带什么类型、判别符可取哪些值。本页说明去哪里获取。
+
+## 文件
+
+- [schema.json](https://docs.ag-ui.com/spec/1-0/schema.json) —— 完整的 1.0 schema：每个事件、消息与运行输入。
+
+```text
+https://ag-ui.com/spec/1-0/schema.json
+```
+
+文件在自身 `$id` 中声明该地址，因此跟随引用的验证器无需配置即可解析它们。该地址直接提供文件：工具与 schema 之间没有重定向，响应携带跨源头，使基于浏览器的工具可以读取它。
+
+它是 [JSON Schema draft 2020-12](https://json-schema.org/draft/2020-12/release-notes)。每个定义都可通过锚点到达——`#TextMessageStartEvent`、`#RunAgentInput`——因此工具无需切割文件即可定位某个形状。
+
+## 使用
+
+```bash
+curl -sS https://ag-ui.com/spec/1-0/schema.json -o ag-ui-1.0.json
+```
+
+针对整个 schema 验证事件，让判别符选择成员；或在已知形状时针对单个锚点验证。
+
+**schema 在协议严格之处同样严格**：它封闭其形状固定的对象，因此针对它运行的验证器会拒绝协议未描述的内容。按设计开放的对象保持开放——`metadata` 与 JSON Patch 操作在其中——因为协议携带消费者放在那里的任何内容。
+
+这种严格性用于**编写与测试**。**运行时**消费者做相反的事——接受未识别内容并剥离它，如[处理模型](/spec/1-0/basic/processing/)所要求。不要把严格 schema 接进接收路径，然后把结果称为一致性。
+
+## schema 不表达的内容
+
+顺序、生命周期、归因、错误处理与兼容性属于行为，没有 JSON Schema 能表达它们。它们在本文件的其他页面规定，从[总览](/spec/1-0/)开始。
+
+## 另见
+
+- [事件模型](/spec/1-0/basic/)
+- [处理模型](/spec/1-0/basic/processing/)
+- [Schema Reference（官方生成页）](https://docs.ag-ui.com/spec/1-0/schema)

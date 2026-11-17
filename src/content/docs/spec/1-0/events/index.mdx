@@ -1,0 +1,28 @@
+---
+title: 事件流
+description: 1.0：八个事件族，以及每一族由谁处理。
+---
+
+生产者要说的每一件事都以事件到达，分属八个族。每个族绑定一种[事件模式](/spec/1-0/basic/patterns/)，并添加自己的规则；每个族面向消费者的不同部分：
+
+| 族 | 事件 | 模式 | 由谁消费 |
+| --- | --- | --- | --- |
+| [运行与步骤](/spec/1-0/events/lifecycle/) | `RUN_STARTED` · `RUN_FINISHED` · `RUN_ERROR` · `STEP_STARTED` · `STEP_FINISHED` | 生命周期 | 客户端自身 |
+| [文本消息](/spec/1-0/events/text-messages/) | `TEXT_MESSAGE_*` | 流式 | UI |
+| [工具调用](/spec/1-0/events/tool-calls/) | `TOOL_CALL_*` | 流式 | 应用 |
+| [推理](/spec/1-0/events/reasoning/) | `REASONING_*` | 流式 | UI |
+| [状态](/spec/1-0/events/state/) | `STATE_SNAPSHOT` · `STATE_DELTA` · `MESSAGES_SNAPSHOT` | 快照–增量 | 应用存储 |
+| [活动](/spec/1-0/events/activity/) | `ACTIVITY_SNAPSHOT` · `ACTIVITY_DELTA` | 快照–增量 | UI |
+| [子智能体](/spec/1-0/events/subagents/) | `SUBAGENT_STARTED` · `SUBAGENT_FINISHED` · `SUBAGENT_ERROR` | 生命周期 | 客户端自身 |
+| [透传](/spec/1-0/events/passthrough/) | `RAW` · `CUSTOM` | 独立 | 应用（按需） |
+
+这些族共 31 种事件类型，在[事件模型](/spec/1-0/basic/)中枚举，其形状属于 [schema](https://docs.ag-ui.com/spec/1-0/schema)。**只有运行生命周期对生产者是强制的**——其他每个族都是它在有内容要表达时才发射的特性。消费者 MUST 接受全部：消费者用不到的族的事件仍是格式良好的事件，不是[未识别内容](/spec/1-0/basic/processing/)。
+
+- [**运行与步骤**](/spec/1-0/events/lifecycle/)：运行何时开始与结束，步骤如何标记其阶段。
+- [**文本消息**](/spec/1-0/events/text-messages/)：会话本身，随生成而流式传输。
+- [**工具调用**](/spec/1-0/events/tool-calls/)：智能体提议，应用处置。
+- [**推理**](/spec/1-0/events/reasoning/)：模型的思考，以及往返它的加密产物。
+- [**状态**](/spec/1-0/events/state/)：共享状态与会话，替换与修订。
+- [**活动**](/spec/1-0/events/activity/)：UI 在对话记录之外渲染的结构化进度。
+- [**子智能体**](/spec/1-0/events/subagents/)：归因、所有权、嵌套、并行、状态与终止。
+- [**透传**](/spec/1-0/events/passthrough/)：两个逃生舱及其限制。

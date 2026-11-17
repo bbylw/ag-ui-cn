@@ -1,0 +1,105 @@
+---
+title: 多模态输入
+description: 使用带类型化 data/url 来源的模态专属输入片段。
+---
+
+# 多模态输入
+
+`UserMessage.content` 既接受纯文本，也接受按序排列的多模态内容片段数组。
+
+```typescript
+import { UserMessage } from "@ag-ui/core"
+
+const message: UserMessage = {
+  id: "user-1",
+  role: "user",
+  content: [
+    { type: "text", text: "总结这份 PDF 和截图" },
+    {
+      type: "image",
+      source: {
+        type: "url",
+        value: "https://example.com/screen.png",
+        mimeType: "image/png",
+      },
+    },
+    {
+      type: "document",
+      source: {
+        type: "url",
+        value: "https://example.com/report.pdf",
+        mimeType: "application/pdf",
+      },
+    },
+  ],
+}
+```
+
+## 来源类型
+
+用 `source.type` 描述载荷的投递方式：
+
+- `data`：内联 base64 载荷，`mimeType` 必填
+- `url`：HTTP(S) 或 data URL，`mimeType` 可选
+- `file`：模型提供方一侧已存在的字节（文件 id 或 URI），`value` 对协议不透明
+
+## 常见用法
+
+### 视觉问答
+
+```typescript
+{
+  id: "q1",
+  role: "user",
+  content: [
+    { type: "text", text: "这个界面有什么问题？" },
+    {
+      type: "image",
+      source: { type: "url", value: "https://example.com/ui.png", mimeType: "image/png" },
+      metadata: { detail: "high" },
+    },
+  ],
+}
+```
+
+### 音频转写
+
+```typescript
+{
+  id: "q2",
+  role: "user",
+  content: [
+    { type: "text", text: "转写这段录音。" },
+    {
+      type: "audio",
+      source: { type: "url", value: "https://example.com/meeting.wav", mimeType: "audio/wav" },
+    },
+  ],
+}
+```
+
+### 混合媒体对比
+
+```typescript
+{
+  id: "q3",
+  role: "user",
+  content: [
+    { type: "text", text: "把截图与规格说明对比一下。" },
+    {
+      type: "image",
+      source: { type: "data", value: "iVBORw0KGgo...", mimeType: "image/png" },
+    },
+    {
+      type: "document",
+      source: { type: "url", value: "https://example.com/spec.pdf", mimeType: "application/pdf" },
+    },
+  ],
+}
+```
+
+## 处理约定
+
+- 片段顺序有意义：文本与媒体交替出现时，智能体按序读取。
+- 智能体不支持的模态应**丢弃该片段**，而不是让整个运行失败。
+- `metadata` 不参与协议语义，可用于 `detail` 之类的提供方提示。

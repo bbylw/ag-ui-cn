@@ -1,0 +1,52 @@
+---
+title: 概览
+description: AGUI.Client —— 把 AG-UI 端点适配为 Microsoft.Extensions.AI 的 IChatClient。
+---
+
+# AGUI.Client
+
+AG-UI .NET 客户端 SDK 把 AG-UI 端点适配为标准 `Microsoft.Extensions.AI.IChatClient` 抽象。它不引入新的智能体基类，而是让 .NET 应用像消费任何聊天模型一样消费 AG-UI 服务端。
+
+```bash
+dotnet add package AGUI.Client
+```
+
+> 如果你已经在用 `Microsoft.Extensions.AI`，那么一个 AG-UI 服务端只是另一个 `IChatClient`。
+
+## AGUIChatClient
+
+`AGUIChatClient` 是本包的主要类型。它封装 AG-UI 的 HTTP+SSE 端点，并实现 `IChatClient` 的 `GetStreamingResponseAsync` 与 `GetResponseAsync`。
+
+- 构造 — 从 `HttpClient` 与端点，或从自定义传输创建客户端
+- 流式 — 把 AG-UI 事件消费为 `ChatResponseUpdate`
+- 无状态行为 — 每轮发送完整消息历史
+- 线程连续性 — 保持稳定线程，或从上次运行分支
+- 中断与审批 — 用标准 MEAI 内容类型处理服务端暂停
+
+详见 [AGUIChatClient](/sdk/dotnet/client/chat-client/)。
+
+## 传输
+
+本包包含一个小型传输抽象，用于发送 `RunAgentInput` 并接收 AG-UI 事件流。默认走 HTTP POST 与 Server-Sent Events；自定义传输适用于测试或非 HTTP 环境。
+
+- `IAGUITransport` — `AGUIChatClient` 使用的传输接口
+- HTTP 传输 — 内置的 HTTP+SSE 行为
+- 自定义传输 — 接入内存传输或其它线路协议
+
+## 设计上无状态
+
+从 .NET 客户端的视角看，AG-UI 端点是无状态的。每次请求都发送完整消息历史，返回的 `ChatResponseUpdate` 不会暴露 `ConversationId`。更新通过 `ResponseId` 关联，它对应 AG-UI 的运行 id。AG-UI 线程 id 可从 `RUN_STARTED` 事件获得，也可从 `AdditionalProperties["agui_thread_id"]` 读到。
+
+线路上的协议类型见 [.NET abstractions](/sdk/dotnet/abstractions/overview/)。
+
+## 客户端验证
+
+客户端测试保护 `Microsoft.Extensions.AI` 与 AG-UI 之间的转换：`ChatMessage` 历史转成 AG-UI 消息、`ChatOptions.Tools` 转成 AG-UI 工具、调用方提供的 AG-UI 上下文、转发属性与 resume 载荷得到保留，`RUN_ERROR` 事件转为 MEAI 的 `ErrorContent` 更新。
+
+它们同样保护无状态会话契约：线程与运行标识经由 AG-UI 字段保留，返回的更新清空 `ConversationId`，服务端工具调用被标记为信息性，避免 .NET 客户端在本地执行它们。
+
+```bash
+cd sdks/dotnet
+dotnet test tests/AGUI.Client.UnitTests/
+dotnet test tests/AGUI.CrossLanguage.IntegrationTests/
+```

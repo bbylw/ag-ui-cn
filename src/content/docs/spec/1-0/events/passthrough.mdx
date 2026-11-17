@@ -1,0 +1,48 @@
+---
+title: 原始与自定义事件
+description: 1.0：两个逃生舱，以及防止它们变成第二套协议的限制。
+---
+
+两种事件类型携带协议未建模的内容：`RAW`，原样透传的提供商原生事件；`CUSTOM`，应用自己的事件。两者都是独立的——不开启也不关闭任何项，MAY 出现在开启运行内的任何位置，但 `CUSTOM`（不同于 `RAW`）确实会结束其 lane 中打开的 [chunk 流](/spec/1-0/basic/patterns/streaming/#关闭-chunk-流)。**它们的限制才是重点**：本页的一切都是为了让逃生舱无法悄悄变成第二套协议。
+
+## `RAW`
+
+原样透传提供商原生事件，供需要协议未建模细节的消费者使用。
+
+```json
+{
+  "type": "RAW",
+  "event": { "…the provider's own event…": true },
+  "source": "openai"
+}
+```
+
+- `event` 是 **REQUIRED**，可为任意 JSON 值；`source` 是 OPTIONAL，命名其来源提供商或框架。
+- 消费者 MUST NOT 从 `RAW` 事件推导协议行为：其中没有任何内容开启、关闭或修订本规范跟踪的东西。
+- 生产者 SHOULD 在标准事件**之外**发射 `RAW`，绝不取而代之。仅以 `RAW` 表达某事的，并没有把它放进协议。
+- 同样的载荷也作为普通事件上的 `rawEvent` 字段传输——那种拼写把来源附加到一个被翻译的事件上，而 `RAW` 携带的是不存在对应翻译事件的内容。
+
+## `CUSTOM`
+
+协议为应用自有事件提供的扩展点。
+
+```json
+{
+  "type": "CUSTOM",
+  "name": "com.example.cart-updated",
+  "value": { "items": 3 }
+}
+```
+
+- `name` 与 `value` 是 **REQUIRED**——没有名称消费者无法路由值，没有载荷的事件什么也没说。
+- 不认识某个 `name` 的消费者 MUST 忽略该事件。这是协议合法流量，不是[未识别内容](/spec/1-0/basic/processing/)：不剥离、不警告。
+- 名称属于应用空间。生产者 SHOULD 为自创名称加厂商或应用标识前缀，使两个扩展同一流的参与方不冲突；无前缀名称保留给协议未来使用。
+- 消费者对已识别 `CUSTOM` 事件做什么，在协议之外。生产者 MUST NOT 依赖 `CUSTOM` 事件携带本规范分配给标准事件的语义——一个合规消费者可合法忽略的自定义“消息”不是消息。
+
+## 数据类型
+
+`RawEvent` 与 `CustomEvent` 由 [schema 参考](https://docs.ag-ui.com/spec/1-0/schema)定义。
+
+## 安全考量
+
+透传内容按定义未经验证：没有 schema 约束 `event` 或 `value`，`RAW` 载荷来自提供商获取处。消费者 MUST 把两者视为不可信输入——绝不渲染为标记、执行或授予权限——并 SHOULD 以与它所概括的网络流量相同的怀疑态度对待 `RAW` 载荷。

@@ -1,0 +1,57 @@
+---
+title: 概览
+description: AGUI.Server —— 把 IChatClient 流适配为 AG-UI 事件的服务端适配器。
+---
+
+# AGUI.Server
+
+`AGUI.Server` 是 AG-UI 的 .NET 服务端适配器。它把 `Microsoft.Extensions.AI.IChatClient` 流转换为 AG-UI 协议事件，因此任何聊天客户端都能作为 AG-UI 端点暴露：接受 `RunAgentInput`，并把 AG-UI 事件流式发给前端。
+
+```bash
+dotnet add package AGUI.Server
+```
+
+## 核心理念
+
+你不需要学习新的智能体编程模型。你托管的是一个 `IChatClient`。
+
+本包把 AG-UI 请求体适配为 `Microsoft.Extensions.AI` 的消息与选项，调用你的聊天客户端，再把流式返回的 `ChatResponseUpdate` 转换回 AG-UI 协议事件。
+
+## 依赖
+
+`AGUI.Server` 刻意保持精简，只依赖：
+
+- 来自 `AGUI.Abstractions` 的 [AG-UI 协议类型](/sdk/dotnet/abstractions/overview/)
+- `Microsoft.Extensions.AI.Abstractions`
+
+它与框架无关：不依赖 ASP.NET Core 或任何 Web 框架，由你把它托管在自选的 Web 框架中（示例与文档使用 ASP.NET Core）。它也不依赖 .NET 的 AG-UI 客户端包——服务端与客户端共享协议类型，但彼此独立。
+
+> **说明：** 服务端包面向 `net10.0`、`net9.0` 与 `net8.0`。
+
+## 托管层负责什么
+
+- 把 `RunAgentInput.Messages` 转换为 `ChatMessage`
+- 把 `RunAgentInput.Resume` 翻译为 MEAI 的审批与中断响应内容，载荷（以及非工具中断的 metadata）落到 `InterruptResponseContent`
+- 把客户端声明的工具安装到 `ChatOptions`
+- 把原始输入存到 `ChatOptions.AdditionalProperties[AGUIConstants.RunAgentInputKey]`
+- 发出 `RUN_STARTED` 与终态 `RUN_FINISHED` 结果
+- 把文本、推理、工具调用、工具结果、状态、原始事件与中断映射为 AG-UI 事件
+- 以 Server-Sent Events 流式输出结果
+
+## 验证与框架归属
+
+服务端测试验证：`RunAgentInput` 变为 `ChatMessage` 与 `ChatOptions`；resume 载荷变为标准 MEAI 响应内容；生命周期事件被发出；流式的 `ChatResponseUpdate` 变为预期的文本、推理、工具、状态、原始、自定义与中断事件。当 `RUN_ERROR` 等原始 AG-UI 事件由 `ChatResponseUpdate.RawRepresentation` 提供时会原样透传。
+
+```bash
+cd sdks/dotnet
+dotnet test tests/AGUI.Server.UnitTests/
+dotnet test tests/AGUI.Hosting.AspNetCore.IntegrationTests/
+```
+
+SDK 负责 AG-UI 与 `Microsoft.Extensions.AI` 之间的共享桥接。框架专属的映射属于使用方框架。例如 Microsoft Agent Framework 可以使用 `AGUI.Server` 完成通用桥接，再用 `AGUIStreamOptions` 或原始 AG-UI 事件映射它自己的工作流、步骤与智能体事件。
+
+## 与服务端客户端配合
+
+构建 AG-UI 服务端时使用 `AGUI.Server`；.NET 代码需要把 AG-UI 端点当作 `IChatClient` 消费时使用 [AGUI.Client](/sdk/dotnet/client/overview/)。
+
+两端的协议语义均以[规范 1.0](/spec/1-0/) 为准：托管层产出的事件必须是规范允许的序列，客户端必须接受全部已定义事件。

@@ -55,7 +55,7 @@ const el = (type: string, style: Style, children?: CardNode | (CardNode | undefi
   props: { style, children },
 });
 
-// Kiri's official mark, rasterized once at build time: Satori's SVG subset
+// Site mark, rasterized once at build time: Satori's SVG subset
 // doesn't cover the skew and clip path the artwork uses, so the card embeds an
 // exact PNG rendering of the upstream SVG instead.
 const markPng = `data:image/png;base64,${(

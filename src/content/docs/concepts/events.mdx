@@ -1,0 +1,103 @@
+---
+title: 事件机制
+description: 理解 AG-UI 的事件驱动模型、事件分类、流式模式与客户端处理原则。
+---
+
+AG-UI 的核心是**事件流（Event Stream）**。智能体在执行过程中持续发出事件，客户端订阅并据此实时更新界面、状态与交互控制。
+
+## 事件通用属性
+
+标准事件通常包含以下基础字段（具体以协议版本/SDK 为准）：
+
+| 属性 | 说明 |
+| --- | --- |
+| `type` | 事件类型标识（如 `RUN_STARTED`、`TEXT_MESSAGE_CONTENT` 等） |
+| `timestamp` | 可选，事件产生时间 |
+| `rawEvent` | 可选，原始事件数据（当事件由外部格式转换而来时） |
+| `metadata` | 可选，附加元数据（不同事件的合并/消费行为可能不同） |
+
+## 事件分类总览
+
+| 类别 | 作用 | 典型事件 |
+| --- | --- | --- |
+| **生命周期事件** | 标识运行与步骤的开始、结束和错误 | `RUN_STARTED`, `RUN_FINISHED`, `RUN_ERROR`, `STEP_STARTED`, `STEP_FINISHED` |
+| **文本消息事件** | 流式传输对话文本内容 | `TEXT_MESSAGE_START`, `TEXT_MESSAGE_CONTENT`, `TEXT_MESSAGE_END`, `TEXT_MESSAGE_CHUNK` |
+| **工具调用事件** | 表达工具调用生命周期、参数与结果 | `TOOL_CALL_START`, `TOOL_CALL_ARGS`, `TOOL_CALL_END`, `TOOL_CALL_RESULT`, `TOOL_CALL_CHUNK` |
+| **状态管理事件** | 在智能体与 UI 之间同步状态与消息 | `STATE_SNAPSHOT`, `STATE_DELTA`, `MESSAGES_SNAPSHOT` |
+| **活动事件** | 表示结构化的进行中活动进度 | `ACTIVITY_SNAPSHOT`, `ACTIVITY_DELTA` |
+| **推理事件** | 传输可展示的推理/过程信息流 | `REASONING_START/END`, `REASONING_MESSAGE_*`, `REASONING_ENCRYPTED_VALUE` |
+| **子智能体事件** | 跟踪子智能体调用与结果归因 | `SUBAGENT_STARTED`, `SUBAGENT_FINISHED`, `SUBAGENT_ERROR` |
+| **特殊事件** | 透传原始事件与协议扩展 | `RAW`, `CUSTOM` |
+
+> 注：协议在演进中可能包含草案（Draft）事件或扩展字段，实现时应以所用协议版本与 SDK 文档为准。完整字段参考见[事件参考](/reference/events/)。
+
+## 常见事件流模式
+
+### 1. Start - Content - End（流式模式）
+
+用于文本消息、工具参数、推理消息等增量内容：
+- `*Start`：创建流上下文（分配/声明 ID、角色或名称）
+- `*Content` / `*Args`：携带 `delta` 增量片段，客户端按顺序拼接
+- `*End`：标记流结束，客户端可完成渲染与状态收尾
+
+部分实现还提供 `*Chunk` 便捷事件，由客户端/适配层自动展开为标准三段式。
+
+### 2. Snapshot - Delta（快照-增量模式）
+
+用于共享状态与活动数据同步：
+- `*Snapshot`：提供完整当前状态（或完整活动内容），适合初始化或重同步
+- `*Delta`：提供增量更新（状态增量通常采用 JSON Patch / RFC 6902）
+
+当客户端检测到增量应用后状态不一致时，可请求或等待新的快照以恢复一致性（具体策略由实现决定）。
+
+### 3. 生命周期模式
+
+用于运行与步骤监控：
+- 运行开始：`RUN_STARTED`
+- 可选步骤：`STEP_STARTED` / `STEP_FINISHED`（可多次出现）
+- 运行结束：`RUN_FINISHED` 或 `RUN_ERROR`
+
+## 关键事件说明
+
+### 运行生命周期
+
+- **`RUN_STARTED`**：包含 `threadId`、`runId` 等上下文，标志一次运行开始。
+- **`RUN_FINISHED`**：表示运行结束；在支持中断感知生命周期的实现中可能携带 `outcome`（如 success / interrupt）。
+- **`RUN_ERROR`**：表示运行失败，客户端应展示错误并结束进行中状态。
+
+### 文本消息
+
+- `messageId` 将同一条消息的 Start/Content/End 关联起来。
+- `TEXT_MESSAGE_CONTENT.delta` 为非空文本片段，需按接收顺序拼接。
+- `role` 通常用于区分 assistant/user 等角色（以事件定义为准）。
+
+### 工具调用
+
+- `TOOL_CALL_START` 提供 `toolCallId` 与 `toolCallName`（可关联父消息）。
+- `TOOL_CALL_ARGS` 通过 `delta` 流式传输参数片段（常为 JSON 片段）。
+- `TOOL_CALL_END` 表示调用规格完成；`TOOL_CALL_RESULT` 携带工具执行结果（通常作为完整内容返回，关联 `toolCallId`/`messageId`）。
+
+### 状态与消息同步
+
+- `STATE_SNAPSHOT`：全量状态替换/初始化。
+- `STATE_DELTA`：基于 JSON Patch 的增量更新。
+- `MESSAGES_SNAPSHOT`：全量消息同步；不同消息角色/类型的替换语义需按协议规定处理。
+
+### 推理、活动与子智能体
+
+- **推理事件**：用于展示可见的推理过程或摘要，支持流式消息与加密推理值等形式（不等同于暴露原始链式思考）。
+- **活动事件**：通过快照/增量更新结构化活动内容（如计划、搜索进度）。
+- **子智能体事件**：标识子智能体启动、完成或失败，并可用于输出归因。
+
+### 扩展事件
+
+- **`RAW`**：封装来自外部系统的原始事件。
+- **`CUSTOM`**：协议内的自定义扩展点（通过 `name`/`value` 等字段携带业务数据）。
+
+## 客户端处理最佳实践
+
+1. **基于 ID 聚合**：用 `messageId`、`toolCallId`、`runId` 等关联同一实体的事件。
+2. **增量渲染**：优先支持流式更新，提升感知性能。
+3. **幂等与顺序意识**：按事件到达顺序处理流式片段；对快照/增量应用失败准备恢复策略。
+4. **错误与中断可见**：明确展示 `RUN_ERROR`、中断请求与等待用户操作的状态。
+5. **前向兼容**：对未识别事件类型安全降级处理，避免整个会话崩溃。

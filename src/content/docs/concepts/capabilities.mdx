@@ -1,0 +1,318 @@
+---
+title: 能力发现（Capabilities）
+description: 智能体在运行时声明自身支持的能力，让客户端动态适配 UI 与功能。
+---
+
+AG-UI 协议中的智能体可以通过**能力发现（capability discovery）**在运行时声明它支持什么。这使客户端可以查询智能体，并基于可用特性调整行为——无需猜测或硬编码假设。
+
+## 工作原理
+
+`AbstractAgent` 声明一个可选的 `getCapabilities()` 方法，返回智能体当前支持内容的类型化快照。它由了解自身能力的智能体子类实现——LangGraph 与 ADK 集成，或你自己的实现——而不是裸 `HttpAgent`，后者只是传输层，没有可询问的发现端点。对未实现该方法的智能体，下面的可选调用返回 `undefined`：
+
+```ts
+// 任何实现 getCapabilities() 的 AbstractAgent 子类；
+// 普通 HttpAgent 不实现，这里会得到 undefined。
+const agent = new LangGraphAgent({ url: "https://my-agent.example.com/api" })
+
+const capabilities = await agent.getCapabilities?.()
+
+if (capabilities?.tools?.supported) {
+  console.log(`Agent provides ${capabilities.tools.items?.length} tools`)
+}
+
+if (capabilities?.reasoning?.supported) {
+  // 显示推理 UI 开关
+}
+```
+
+### 关键原则
+
+- **仅发现** —— 智能体声明它能做什么，没有协商
+- **动态** —— 返回调用时刻的当前状态（例如新增工具后，下次调用会反映）
+- **可选** —— 未实现的智能体返回 `undefined`
+- **缺省 = 未知** —— 只声明你支持的；省略字段表示该能力未被声明
+
+## AgentCapabilities 接口
+
+能力按类型化类别组织，每类代表智能体功能的不同方面：
+
+```ts
+interface AgentCapabilities {
+  /** 智能体身份与元数据 */
+  identity?: IdentityCapabilities
+  /** 支持的传输机制（SSE、WebSocket、binary 等） */
+  transport?: TransportCapabilities
+  /** 智能体提供的工具与工具调用配置 */
+  tools?: ToolsCapabilities
+  /** 输出格式支持（结构化输出、MIME 类型） */
+  output?: OutputCapabilities
+  /** 状态与记忆管理（快照、增量、持久化） */
+  state?: StateCapabilities
+  /** 多智能体协调（委派、交接、子智能体） */
+  multiAgent?: MultiAgentCapabilities
+  /** 推理与思考支持（思维链、加密思考） */
+  reasoning?: ReasoningCapabilities
+  /** 按方向组织（输入 vs 输出）的多模态支持 */
+  multimodal?: MultimodalCapabilities
+  /** 执行控制与限制（代码执行、超时、迭代上限） */
+  execution?: ExecutionCapabilities
+  /** 人机协同支持（审批、干预、反馈） */
+  humanInTheLoop?: HumanInTheLoopCapabilities
+  /** 标准类别未覆盖的集成特定能力 */
+  custom?: Record<string, unknown>
+}
+```
+
+`custom` 字段是集成特定能力的逃生舱。
+
+## 能力类别
+
+### 身份（Identity）
+
+智能体的基本元数据。适用于发现 UI、智能体市场与调试。
+
+```ts
+interface IdentityCapabilities {
+  name?: string              // UI 与选择器中显示的人类可读名称
+  type?: string              // 驱动该智能体的框架或平台（如 "langgraph"）
+  description?: string       // 这个智能体做什么
+  version?: string           // 语义化版本，用于兼容性检查
+  provider?: string          // 维护该智能体的组织或团队
+  documentationUrl?: string  // 文档或主页 URL
+  metadata?: Record<string, unknown>
+}
+```
+
+### 传输（Transport）
+
+声明智能体支持的传输机制。客户端据此选择最佳连接策略。只对实际支持的传输设为 `true`。
+
+```ts
+interface TransportCapabilities {
+  streaming?: boolean          // 通过 SSE 流式返回
+  websocket?: boolean          // 接受持久 WebSocket 连接
+  httpBinary?: boolean         // 支持 AG-UI 二进制协议（protobuf over HTTP）
+  pushNotifications?: boolean  // 运行结束后通过 webhook 发送异步更新
+  resumable?: boolean          // 支持通过序列号恢复中断的流
+}
+```
+
+### 工具（Tools）
+
+工具调用能力。区分智能体自身提供的工具（列在 `items` 中）与客户端在运行时通过 `RunAgentInput.tools` 传入的工具。
+
+```ts
+interface ToolsCapabilities {
+  supported?: boolean     // 是否可进行工具调用；false 表示显式禁用
+  items?: Tool[]          // 智能体自身提供的工具（完整 JSON Schema）
+  parallelCalls?: boolean // 单步内是否可并发调用多个工具
+  clientProvided?: boolean// 是否接受并使用客户端在运行时提供的工具
+}
+```
+
+### 输出（Output）
+
+输出格式支持。当智能体能返回符合 JSON schema 的响应时启用 `structuredOutput`，便于程序化消费。
+
+```ts
+interface OutputCapabilities {
+  structuredOutput?: boolean   // 可生成符合所提供 schema 的结构化 JSON
+  supportedMimeTypes?: string[] // 可生成的 MIME 类型
+}
+```
+
+### 状态（State）
+
+状态与记忆管理能力，告诉客户端智能体如何处理共享状态，以及会话上下文是否跨运行持久化。
+
+```ts
+interface StateCapabilities {
+  snapshots?: boolean        // 发射 STATE_SNAPSHOT（完整状态替换）
+  deltas?: boolean           // 发射 STATE_DELTA（JSON Patch 增量）
+  memory?: boolean           // 当前线程之外有长期记忆
+  persistentState?: boolean  // 状态在同一线程的多次运行间保留；false 则每次重置
+}
+```
+
+### 多智能体（Multi-Agent）
+
+多智能体协调能力。当智能体能编排或交接给其他智能体时启用。
+
+```ts
+interface MultiAgentCapabilities {
+  supported?: boolean   // 参与任多智能体协调
+  delegation?: boolean  // 可委派子任务并保留控制权
+  handoffs?: boolean    // 可把会话完全转交给另一个智能体
+  subagents?: Array<{ name: string; description?: string }> // 可调用的子智能体
+}
+```
+
+### 推理（Reasoning）
+
+推理与思考能力。当智能体暴露内部思考过程时启用。
+
+```ts
+interface ReasoningCapabilities {
+  supported?: boolean  // 产生对客户端可见的推理/思考 token
+  streaming?: boolean  // 推理 token 增量流式输出（而非一次性返回）
+  encrypted?: boolean  // 推理内容加密（零数据保留模式）
+}
+```
+
+### 多模态（Multimodal）
+
+输入与输出支持，按 `input` 与 `output` 子对象组织，使客户端可独立查询智能体接受什么、产生什么。客户端据此显示/隐藏文件上传按钮、音频录制器、图片选择器等。
+
+```ts
+interface MultimodalInputCapabilities {
+  image?: boolean   // 可处理图片输入
+  audio?: boolean   // 可处理音频输入
+  video?: boolean   // 可处理视频输入
+  pdf?: boolean     // 可处理 PDF 文档
+  file?: boolean    // 可处理任意文件上传
+}
+
+interface MultimodalOutputCapabilities {
+  image?: boolean   // 可生成图片
+  audio?: boolean   // 可产生音频输出（TTS、音频文件）
+}
+
+interface MultimodalCapabilities {
+  input?: MultimodalInputCapabilities
+  output?: MultimodalOutputCapabilities
+}
+```
+
+### 执行（Execution）
+
+执行控制与限制。声明这些让客户端对运行可能持续多久、多少步建立预期。
+
+```ts
+interface ExecutionCapabilities {
+  codeExecution?: boolean   // 运行期间可执行代码（如 Python、JS）
+  sandboxed?: boolean       // 代码执行在沙箱/隔离环境中（仅在 codeExecution 为 true 时有意义）
+  maxIterations?: number    // 每次运行最大的工具调用/推理迭代次数
+  maxExecutionTime?: number // 超时前的最大墙钟时间（毫秒）
+}
+```
+
+### 人机协同（Human-in-the-Loop）
+
+当智能体可暂停执行以请求人工输入、审批或反馈时启用。
+
+```ts
+interface HumanInTheLoopCapabilities {
+  supported?: boolean       // 支持任人机协同交互
+  approvals?: boolean       // 可在敏感操作前暂停并请求明确审批
+  interventions?: boolean   // 允许人工在执行中途干预并修改计划
+  feedback?: boolean        // 可纳入用户反馈（点赞/点踩、纠正）
+  interrupts?: boolean      // 参与 AG-UI 中断协议
+  approveWithEdits?: boolean// 工具调用中断的 resume 载荷接受 editedArgs
+}
+```
+
+完整协议规范见[中断](/concepts/interrupts/)。
+
+## 实现 getCapabilities()
+
+### 自定义智能体
+
+在智能体子类上实现 `getCapabilities()`，只返回你实际支持的能力：
+
+```ts
+import { AbstractAgent, AgentCapabilities } from "@ag-ui/client"
+
+class MyAgent extends AbstractAgent {
+  async getCapabilities(): Promise<AgentCapabilities> {
+    return {
+      identity: {
+        name: "my-agent",
+        description: "A custom agent with tool support",
+        version: "1.0.0",
+      },
+      transport: { streaming: true },
+      tools: {
+        supported: true,
+        items: this.getRegisteredTools(),
+        clientProvided: true,
+      },
+      state: { snapshots: true, deltas: true },
+    }
+  }
+
+  // ... run() 实现
+}
+```
+
+### 动态能力
+
+由于 `getCapabilities()` 返回实时快照，它会反映智能体当前状态：
+
+```ts
+const agent = new MyAgent(config)
+
+let caps = await agent.getCapabilities()
+console.log(caps.tools?.items?.length) // 5
+
+// 运行时注册更多工具
+agent.registerTool(newTool)
+
+caps = await agent.getCapabilities()
+console.log(caps.tools?.items?.length) // 6
+```
+
+## 客户端使用模式
+
+### 自适应 UI
+
+根据智能体支持的能力渲染 UI 组件：
+
+```ts
+const capabilities = await agent.getCapabilities?.()
+
+if (capabilities?.reasoning?.supported) {
+  showReasoningPanel()
+}
+
+if (capabilities?.multiAgent?.subagents?.length) {
+  showSubAgentSelector(capabilities.multiAgent.subagents)
+}
+
+if (capabilities?.humanInTheLoop?.approvals) {
+  enableApprovalWorkflow()
+}
+```
+
+### 功能门控
+
+禁用以智能体不支持的功能，而不是在运行时失败：
+
+```ts
+const capabilities = await agent.getCapabilities?.()
+
+// 基于显式声明做门控：省略字段表示未声明，而不是“不支持”
+const canUseStructuredOutput = capabilities?.output?.structuredOutput === true
+const canStream = capabilities?.transport?.streaming === true
+```
+
+### 自定义能力
+
+通过 `custom` 字段访问集成特定能力：
+
+```ts
+const capabilities = await agent.getCapabilities?.()
+
+const rateLimit = capabilities?.custom?.rateLimit as
+  | { maxRequestsPerMinute: number }
+  | undefined
+
+if (rateLimit) {
+  configureThrottling(rateLimit.maxRequestsPerMinute)
+}
+```
+
+## 相关页面
+
+- [智能体](/concepts/agents/)
+- [中断](/concepts/interrupts/)
+- [状态管理](/concepts/state/)

@@ -1,0 +1,146 @@
+---
+title: 元数据（Metadata）
+description: 在事件、消息与工具调用上附加额外信息的合规方式及其合并规则。
+---
+
+元数据是协议中附加额外信息的**合规方式**——token 用量、trace id、结束原因，以及应用需要随会话携带的任何内容。
+
+在它出现之前，生产者会把未声明的属性挂在事件上，并寄希望于消费者透传。这就是为什么 1.0 中**未知属性不会再到达订阅者**：元数据用一个已声明、有类型且消费者必须携带的机制取而代之。
+
+## 位置
+
+四个位置，全部可选：
+
+| 携带 `metadata` 的位置 | 说明 |
+| --- | --- |
+| 每个事件 | 在基础事件上声明一次，因此所有事件类型都有 |
+| 每条消息 | 全部七种角色：developer、system、assistant、user、tool、activity、reasoning |
+| 每个工具调用 | 工具调用不是消息——见[工具调用](#工具调用) |
+| 每个 resume 条目 | 请求字段，因此没有合并——见 [Resume 条目](#resume-条目) |
+
+## 形状
+
+对象**按 key 开放**。任何 JSON 值都允许放在 key 下，包括 `null`。对其内容没有 schema。
+
+```ts
+{
+  type: EventType.TEXT_MESSAGE_END,
+  messageId: "msg_123",
+  metadata: {
+    "ag-ui": { usage: { input: 1200, output: 340 } },
+    finishReason: "stop",
+    traceId: "abc-123",
+    retries: 0,
+    labels: ["experimental"]
+  }
+}
+```
+
+对象本身要么**缺省，要么是对象——永远不是 `null`**。空对象是合法的，表示“无内容”，与省略等价。
+
+> 生产者从不发射 `"metadata": null`：没有值的可选字段在所有官方 SDK 中都会从 JSON 中完全省略。TypeScript 客户端会强制这一点并拒绝 `null` 元数据对象。注意这种不对称：key 下的 `null` **值**是有意义的数据，总会被保留；只有整个对象为 `null` 才是非法的。
+
+## 保留 key
+
+`ag-ui` key 保留给 AG-UI 自身使用。其他 key 都属于你。运行时不会拒绝写入 `ag-ui`——强制会与“按 key 开放”规则矛盾——但请把它视为禁区，因为 AG-UI 未来可能在其中放置自己的值。
+
+## 合并进消息
+
+消息由一系列事件组装而成，而有趣的值往往在最后才知道：提供商在生成完成前并不知道 token 用量。因此消费者会**在序列到达时，把每个事件的元数据合并进该事件所构建的消息**。
+
+这描述的是从流中组装消息的客户端，例如 TypeScript 客户端。.NET 客户端不组装 AG-UI 消息——见下方 SDK 说明。
+
+规则是**逐 key 最后写入胜出**：
+
+```ts
+// TEXT_MESSAGE_START    metadata: { source: "openai", stage: "start" }
+// TEXT_MESSAGE_CONTENT  metadata: { stage: "content" }
+// TEXT_MESSAGE_END      metadata: { stage: "end", usage: { output: 340 } }
+
+message.metadata
+// { source: "openai", stage: "end", usage: { output: 340 } }
+```
+
+`source` 保留是因为后续没有覆盖它；`stage` 以最后写入的值为准；`usage` 只在结束时到达——这正是重点。
+
+### 值被替换，绝不混合
+
+合并**不会递归**。持有数组或对象的 key 会被整体替换：
+
+```ts
+// earlier: { tags: ["a", "b", "c"] }
+// later:   { tags: ["z"] }
+// result:  { tags: ["z"] }        not ["a", "b", "c", "z"]
+```
+
+这在 `ag-ui` 下同样成立。若要向嵌套结构添加内容，请发送完整的新值。
+
+### 哪些不合并
+
+不构建消息的事件上的元数据留在该事件上，永不进入消息：
+
+- `RUN_STARTED`、`RUN_FINISHED`、`RUN_ERROR`
+- `STEP_STARTED`、`STEP_FINISHED`
+- `STATE_SNAPSHOT`、`STATE_DELTA`
+- `RAW`、`CUSTOM`
+- `REASONING_START`、`REASONING_END`、`REASONING_ENCRYPTED_VALUE`
+
+`MESSAGES_SNAPSHOT` 是特例：其中的消息自带元数据并原样到达，因此事件自身的元数据不会合并进任何消息。
+
+> 把运行级总量放在 `RUN_FINISHED` 上完全合理且常常是正确的——只需从事件读取，而不要期望它出现在消息上。若希望它出现在特定消息上，请在该消息的 `*_END` 事件上发送。
+
+## 工具调用
+
+工具调用事件——`TOOL_CALL_START`、`TOOL_CALL_ARGS`、`TOOL_CALL_END`——合并进**工具调用**，而不是拥有它的助手消息。
+
+```ts
+assistantMessage.toolCalls[0].metadata
+// { provider: "anthropic", latencyMs: 84 }
+```
+
+原因是多个工具调用可以共享一个父助手消息。把它们的元数据全部折叠进父消息会让结果取决于调用的交错顺序——而流转换允许改变该顺序。让每个工具调用拥有自己的元数据消除了共享目标，因此无论流如何被处理，结果都相同。
+
+`TOOL_CALL_RESULT` 不同：它创建一条工具消息，因此其元数据像其他构建消息的事件一样合并进该消息。
+
+## Resume 条目
+
+`RunAgentInput.resume` 中的每个条目——客户端在运行以中断结果结束后回传的逐中断响应——携带自己的元数据。它保存关于响应的信封数据，例如证明人工决策未被篡改的签名或路由键；智能体请求的答案本身属于 `payload`。
+
+resume 条目是请求字段，不是从流组装的对象，因此**没有合并语义**——不会有任何内容累积进去。完整 resume 契约见[中断](/concepts/interrupts/)。
+
+## 传输
+
+通过 JSON（SSE 承载的、所有 SDK 读写的内容），元数据是普通对象，每种值形状都能精确往返：null、数组、嵌套对象、字符串与数字。
+
+二进制 protobuf 格式把它作为 `google.protobuf.Struct` 承载，其值类型有真正的 null 情况，因此 key 下的 `null` 会被保留而非近似处理，缺省对象与空对象也可区分。那里有两个注意事项，且都与元数据本身无关：
+
+- **并非每个事件都有 protobuf 表示。** wire 格式覆盖事件类型的一个子集——工具结果、活动、推理与已弃用的 thinking 事件没有 protobuf 消息，因此无论是否带元数据都无法跨该传输。.NET 编码器会直接拒绝它们；TypeScript 编码器会生成空载荷，解码时再被拒绝。无论哪种方式事件都不会到达，因此不要依赖二进制传输承载这些事件。
+- **数字是 IEEE-754 双精度浮点。** `google.protobuf.Value` 把每个数字建模为 double，因此超过 2^53 的整数在往返中会丢失精度。这是格式属性，对 `state` 及其他动态载荷同样适用。
+
+不保证编码器之间字节级一致：`Struct` 是 `map<string, Value>`，而 protobuf map 条目顺序不是规范的。保证的是双方解码到相同的值。
+
+## SDK 参考
+
+> 元数据在每个 SDK 中都是按 key 开放的，因此类型刻意宽松。保持内容可 JSON 序列化是你的责任——函数或 `bigint` 在类型层面会被接受，但在编码时失败。
+
+**TypeScript** —— 事件、消息、工具调用与 resume 条目上的 `metadata?: Record<string, any>`。若你自行组装消息，`@ag-ui/core` 导出 `mergeMetadata(existing, incoming)`，以及保留 key 的 `AGUI_METADATA_KEY`。
+
+**Python** —— `metadata: Optional[Dict[str, Any]]`。基础模型在所有序列化路径上省略未设置的可选字段，因此缺省对象被省略而非发射为 `null`——无需 `exclude_none=True`。`Metadata` 与 `AGUI_METADATA_KEY` 从 `ag_ui.core` 导出。
+
+**.NET** —— `BaseEvent`、`AGUIMessage`、`AGUIToolCall` 与 `AGUIResume` 上的 `JsonElement? Metadata`，保留 key 用 `AGUIMetadata.ReservedKey`。它是 **wire 级字段**，可忠实往返 JSON 与 protobuf，因此读取 `RunAgentInput` 的服务端或解码流的客户端都能看到原样内容，`AGUIMessage.Metadata` 也会在 `MESSAGES_SNAPSHOT` 内的消息上携带它。它刻意不暴露在 `Microsoft.Extensions.AI` 的 `ChatMessage` 上。
+
+若通过 `AGUIChatClient` 消费流，需注意：`EventStreamConverter` 不会为 `TEXT_MESSAGE_START`、`TEXT_MESSAGE_END`、`TOOL_CALL_START` 或 `TOOL_CALL_ARGS` 发射 `ChatResponseUpdate`，因此这些事件上的元数据（包括按建议放在 `TEXT_MESSAGE_END` 上的 usage）也不会到达 `RawRepresentation`。请从原始事件流读取，而不是从高层 chat 客户端读取。
+
+## 压缩
+
+TypeScript 客户端中的 `compactEvents` 会把一串流式事件压缩为更少的事件以便存储或回放，并会有意重排，使每条流的事件保持在一起。
+
+元数据本身不会引入新的顺序敏感性：每个合并目标都是唯一的——每条消息有自己的目标，每个工具调用携带自己的目标而不会折叠进可能共享的父级——因此合并到同一目标的两个事件永远不会相对彼此被重排。
+
+不过压缩的重排一般并不保持语义，这与元数据无关。中断流的事件会在流之后发射，因此消息中间到达的 `MESSAGES_SNAPSHOT` 会在该消息自身事件之后重放，并覆盖它们产生的内容——追加内容与合并元数据都一样。若依赖精确回放等价性，请避免把快照与未关闭的流交错。
+
+## 相关页面
+
+- [消息](/concepts/messages/)
+- [事件参考](/reference/events/)
+- [序列化](/concepts/serialization/)

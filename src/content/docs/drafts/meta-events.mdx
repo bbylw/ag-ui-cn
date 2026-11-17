@@ -1,0 +1,219 @@
+---
+title: 草案：元事件
+description: 独立于智能体运行的标注与信号（Meta Events）提案。
+---
+
+# 元事件提案
+
+## 摘要
+
+### 问题陈述
+
+目前，AG-UI 事件与智能体运行紧密耦合。没有标准化方式把用户反馈、标注或外部信号附加到事件流上，并独立于智能体的执行生命周期。
+
+### 动机
+
+AG-UI 扩展出 **MetaEvents**——一类可在事件流任意位置出现、独立于智能体运行的新事件。MetaEvents 提供一种把标注、信号或反馈附加到序列化流的方式。它们可能来自用户、客户端或外部系统，而非智能体。例如对消息的点赞/点踩反馈。
+
+## 状态
+
+- **状态**：Draft
+- **作者**：Markus Ecker（[mail@mme.xyz](mailto:mail@mme.xyz)）
+
+## 详细规范
+
+### 概览
+
+本提案引入：
+
+- 新的 **MetaEvent** 类型用于旁路标注
+- 可出现在流中任意位置的事件
+- 对用户反馈、标签与外部标注的支持
+- 可扩展的载荷结构用于应用特定数据
+
+## 新类型：MetaEvent
+
+```ts
+type MetaEvent = BaseEvent & {
+  type: EventType.META
+  /**
+   * 应用定义的元事件类型。
+   * 例如："thumbs_up"、"thumbs_down"、"tag"、"note"
+   */
+  metaType: string
+
+  /**
+   * 应用定义的载荷。
+   * 可引用其他实体（如 messageId）或包含自由格式数据。
+   */
+  payload: Record<string, unknown>
+}
+```
+
+### 关键特征
+
+- **独立于运行**：MetaEvents 不绑定任何特定运行生命周期
+- **位置灵活**：可出现在运行之前、之间或之后
+- **来源多样**：可来自用户、客户端或外部系统
+- **可扩展**：应用定义自己的 `metaType` 值与载荷 schema
+
+## 实现示例
+
+### 用户反馈
+
+**点赞：**
+
+```json
+{
+  "id": "evt_123",
+  "ts": 1714063982000,
+  "type": "META",
+  "metaType": "thumbs_up",
+  "payload": { "messageId": "msg_456", "userId": "user_789" }
+}
+```
+
+**带原因的点踩：**
+
+```json
+{
+  "id": "evt_124",
+  "ts": 1714063985000,
+  "type": "META",
+  "metaType": "thumbs_down",
+  "payload": {
+    "messageId": "msg_456",
+    "userId": "user_789",
+    "reason": "inaccurate",
+    "comment": "The calculation seems incorrect"
+  }
+}
+```
+
+### 标注
+
+**用户备注：**
+
+```json
+{
+  "id": "evt_789",
+  "ts": 1714064001000,
+  "type": "META",
+  "metaType": "note",
+  "payload": {
+    "text": "Important question to revisit",
+    "relatedRunId": "run_001",
+    "author": "user_123"
+  }
+}
+```
+
+**标签分配：**
+
+```json
+{
+  "id": "evt_890",
+  "ts": 1714064100000,
+  "type": "META",
+  "metaType": "tag",
+  "payload": { "tags": ["important", "follow-up"], "threadId": "thread_001" }
+}
+```
+
+### 外部系统事件
+
+**分析事件：**
+
+```json
+{
+  "id": "evt_901",
+  "ts": 1714064200000,
+  "type": "META",
+  "metaType": "analytics",
+  "payload": {
+    "event": "conversation_shared",
+    "properties": { "shareMethod": "link", "recipientCount": 3 }
+  }
+}
+```
+
+**审核标记：**
+
+```json
+{
+  "id": "evt_902",
+  "ts": 1714064300000,
+  "type": "META",
+  "metaType": "moderation",
+  "payload": {
+    "action": "flag",
+    "messageId": "msg_999",
+    "category": "inappropriate_content",
+    "confidence": 0.95
+  }
+}
+```
+
+## 常见元事件类型
+
+应用可定义自己的类型，以下是常用类型：
+
+| MetaType | 说明 | 典型载荷 |
+| --- | --- | --- |
+| `thumbs_up` | 正向反馈 | `{ messageId, userId }` |
+| `thumbs_down` | 负向反馈 | `{ messageId, userId, reason? }` |
+| `note` | 用户标注 | `{ text, relatedId?, author }` |
+| `tag` | 分类 | `{ tags[], targetId }` |
+| `bookmark` | 稍后保存 | `{ messageId, userId }` |
+| `copy` | 内容被复制 | `{ messageId, content }` |
+| `share` | 内容被分享 | `{ messageId, method }` |
+| `rating` | 数值评分 | `{ messageId, rating, maxRating }` |
+
+## 用例
+
+### 收集用户反馈
+捕获用户对智能体响应的反应，用于质量改进。
+
+### 会话标注
+允许用户为会话重要部分添加备注、标签或书签。
+
+### 分析与跟踪
+记录用户交互与行为，而不影响智能体执行。
+
+### 内容审核
+标记内容供外部审核系统审查。
+
+### 协作功能
+使多个用户能够对共享会话进行标注或评论。
+
+### 审计轨迹
+创建所有交互的完整记录，而不仅是智能体响应。
+
+## 实现考量
+
+### 客户端 SDK 变更
+
+TypeScript SDK：
+
+- `@ag-ui/core` 中新增 `MetaEvent` 类型
+- 常见元事件类型的辅助函数
+- MetaEvent 过滤与查询工具
+
+Python SDK：
+
+- `MetaEvent` 类实现
+- 常见类型的元事件构建器
+- 事件流过滤能力
+
+## 测试策略
+
+- MetaEvent 创建与验证的单元测试
+- 混合事件流的集成测试
+- 高并发元事件的性能测试
+- 载荷验证的安全测试
+
+## 参考
+
+- [事件机制](/concepts/events/)
+- [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html)
+- [CQRS Pattern](https://martinfowler.com/bliki/CQRS.html)

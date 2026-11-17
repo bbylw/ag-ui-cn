@@ -1,7 +1,7 @@
 ---
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import Mark from "./Mark.astro";
-import { DOWNLOAD_URL, REPO_URL, navLinks } from "../../lib/landing";
+import { GITHUB_URL, QUICKSTART_URL, navLinks } from "../../lib/landing";
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => `${base}${path}`;
@@ -9,9 +9,9 @@ const href = (path: string) => `${base}${path}`;
 
 <header class="k-nav" data-k-nav>
   <div class="k-wrap k-nav-in">
-    <a href={href("/")} class="k-brand" aria-label="Kiri 首页">
+    <a href={href("/")} class="k-brand" aria-label="AG-UI 中文站首页">
       <Mark class="k-logo k-brand-logo" />
-      <span class="k-beta">Beta</span>
+      <span class="k-beta">Protocol</span>
     </a>
 
     <nav aria-label="页面导航">
@@ -34,12 +34,12 @@ const href = (path: string) => `${base}${path}`;
         <Icon name="ph:moon" class="k-moon h-[18px] w-[18px]" aria-hidden="true" />
         <Icon name="ph:sun" class="k-sun h-[18px] w-[18px]" aria-hidden="true" />
       </button>
-      <a href={REPO_URL} target="_blank" rel="noopener" class="k-icon-btn k-nav-gh" aria-label="在 GitHub 上查看 Kiri">
+      <a href={GITHUB_URL} target="_blank" rel="noopener" class="k-icon-btn k-nav-gh" aria-label="在 GitHub 上查看 AG-UI">
         <Icon name="ph:github-logo" class="h-[18px] w-[18px]" aria-hidden="true" />
       </a>
-      <a href={DOWNLOAD_URL} target="_blank" rel="noopener" class="k-btn k-btn-sm">
-        <Icon name="ph:download-simple" class="h-4 w-4" aria-hidden="true" />
-        下载
+      <a href={href(QUICKSTART_URL)} class="k-btn k-btn-sm">
+        <Icon name="ph:rocket-launch" class="h-4 w-4" aria-hidden="true" />
+        快速开始
       </a>
       <button type="button" class="k-icon-btn k-burger" data-k-burger aria-label="打开菜单" aria-expanded="false" aria-controls="k-mobile">
         <Icon name="ph:list" class="h-[18px] w-[18px]" aria-hidden="true" />
@@ -50,8 +50,8 @@ const href = (path: string) => `${base}${path}`;
   <div class="k-mobile" id="k-mobile" data-k-mobile>
     {navLinks.map((l) => <a href={l.href}>{l.label}</a>)}
     <a href={href("/intro/")}>文档</a>
-    <a href={DOWNLOAD_URL} target="_blank" rel="noopener">下载 Kiri</a>
-    <a href={REPO_URL} target="_blank" rel="noopener">GitHub</a>
+    <a href={href(QUICKSTART_URL)}>快速开始</a>
+    <a href={GITHUB_URL} target="_blank" rel="noopener">GitHub</a>
   </div>
 </header>
 

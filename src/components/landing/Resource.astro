@@ -8,26 +8,26 @@ const href = (path: string) => `${base}${path}`;
 <section class="k-section k-defer" id="resource" tabindex="-1">
   <div class="k-wrap">
     <header class="k-head" data-reveal>
-      <p class="k-kicker" data-code="MEM-04">内存与休眠</p>
-      <h2 class="k-h2">没有工作的时候，它几乎不占地方。</h2>
+      <p class="k-kicker" data-code="OBS-04">可观测与可控</p>
+      <h2 class="k-h2">把智能体过程变成可理解的交互。</h2>
       <p class="k-lede">
-        VM 用内存气球贴近容器的实际用量；没有容器运行、空闲约 60 秒后它会自动关机，把内存还给系统，下一条命令再用约
-        0.15 秒把它叫回来。下面这台机器交给你操作。
+        面向用户的智能体不仅要“给出答案”，还要展示进展、解释状态、处理工具结果并在必要时请求确认。
+        AG-UI 的事件模型为这些体验提供了统一基础。
       </p>
     </header>
 
     <div class="k-rl" data-k-rl data-reveal>
       <div class="k-rl-controls">
-        <h3><Icon name="ph:sliders-horizontal" class="h-[18px] w-[18px]" aria-hidden="true" />控制台</h3>
+        <h3><Icon name="ph:sliders-horizontal" class="h-[18px] w-[18px]" aria-hidden="true" />交互要素</h3>
 
         <div class="k-ctl">
-          <span class="k-ctl-k">运行中的容器 <b data-k-rl-containers-val>4</b></span>
-          <input type="range" class="k-range" data-k-rl-containers min="0" max="12" step="1" value="4" aria-label="运行中的容器数量" />
+          <span class="k-ctl-k">并发事件流 <b data-k-rl-containers-val>4</b></span>
+          <input type="range" class="k-range" data-k-rl-containers min="0" max="12" step="1" value="4" aria-label="并发事件流数量" />
         </div>
 
         <div class="k-ctl">
-          <span class="k-ctl-k">每容器内存 <b data-k-rl-per-val>128 MB</b></span>
-          <input type="range" class="k-range" data-k-rl-per min="32" max="512" step="16" value="128" aria-label="每个容器占用的内存" />
+          <span class="k-ctl-k">每流负载 <b data-k-rl-per-val>128</b></span>
+          <input type="range" class="k-range" data-k-rl-per min="32" max="512" step="16" value="128" aria-label="每个事件流负载" />
         </div>
 
         <div class="k-ctl">
@@ -36,10 +36,10 @@ const href = (path: string) => `${base}${path}`;
         </div>
 
         <div class="k-ctl">
-          <span class="k-ctl-k">空闲多久后休眠</span>
-          <select class="k-select" data-k-rl-idle aria-label="空闲休眠阈值">
+          <span class="k-ctl-k">空闲窗口</span>
+          <select class="k-select" data-k-rl-idle aria-label="空闲窗口">
             <option value="30">30 秒</option>
-            <option value="60" selected>60 秒（文档示例）</option>
+            <option value="60" selected>60 秒</option>
             <option value="120">120 秒</option>
           </select>
         </div>
@@ -52,7 +52,7 @@ const href = (path: string) => `${base}${path}`;
               <Icon name="ph:pause" class="k-i-pause h-4 w-4" aria-hidden="true" />
               <span data-k-rl-play-label>暂停</span>
             </button>
-            <button type="button" class="k-run k-run-ghost" data-k-rl-wake>立即唤醒</button>
+            <button type="button" class="k-run k-run-ghost" data-k-rl-wake>刷新状态</button>
             <button type="button" class="k-run k-run-ghost" data-k-rl-reset>重置</button>
           </div>
         </div>
@@ -60,36 +60,36 @@ const href = (path: string) => `${base}${path}`;
         <label class="k-switch">
           <input type="checkbox" data-k-rl-auto />
           <i />
-          自动演示：容器来来去去
+          自动演示：事件波动
         </label>
       </div>
 
       <div class="k-rl-stage">
         <div class="k-rl-head">
-          <span class="k-rl-state" data-k-rl-state><i></i><span data-k-rl-state-text>运行中</span></span>
+          <span class="k-rl-state" data-k-rl-state><i></i><span data-k-rl-state-text>会话进行中</span></span>
           <span class="k-rl-clock">模拟时间 <b data-k-rl-clock>00:00</b></span>
         </div>
 
         <div class="k-rl-meters">
           <div class="k-meter-row">
-            <span>VM 气球</span>
+            <span>事件吞吐</span>
             <span class="k-meter"><span class="k-meter-fill" data-k-rl-vm-fill></span></span>
-            <span class="k-meter-val" data-k-rl-vm-val>632 MB</span>
+            <span class="k-meter-val" data-k-rl-vm-val>512</span>
           </div>
           <div class="k-meter-row">
-            <span>守护进程</span>
+            <span>基础开销</span>
             <span class="k-meter"><span class="k-meter-fill is-daemon" data-k-rl-daemon-fill></span></span>
-            <span class="k-meter-val" data-k-rl-daemon-val>15 MB</span>
+            <span class="k-meter-val" data-k-rl-daemon-val>15</span>
           </div>
           <div class="k-meter-row">
-            <span>空闲计时</span>
+            <span>空闲窗口</span>
             <span class="k-meter"><span class="k-meter-fill" data-k-rl-idle-fill style="background:linear-gradient(90deg,#b4690e,#ffc23d)"></span></span>
             <span class="k-meter-val" data-k-rl-idle-val>0 / 60 s</span>
           </div>
         </div>
 
         <div class="k-rl-graph">
-          <div class="k-rl-graph-k"><span>内存占用 · 最近 2 分钟</span><span data-k-rl-peak>峰值 632 MB</span></div>
+          <div class="k-rl-graph-k"><span>交互活动 · 最近 2 分钟</span><span data-k-rl-peak>峰值 512</span></div>
           <svg viewBox="0 0 300 96" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               <linearGradient id="k-rl-grad" x1="0" y1="0" x2="0" y2="1">
@@ -105,12 +105,12 @@ const href = (path: string) => `${base}${path}`;
         </div>
 
         <ul class="k-rl-log" role="list" data-k-rl-log>
-          <li><b>00:00</b><span>引擎就绪，4 个容器运行中</span></li>
+          <li><b>00:00</b><span>会话已建立，等待用户输入与智能体事件</span></li>
         </ul>
 
         <p class="k-rl-note">
-          示意模型：按<a href={href("/guide/memory/")}>《内存与休眠》</a>描述的行为模拟，用来说明气球与休眠如何配合，不是实测数据。守护进程约
-          15 MB、唤醒约 0.15 秒来自文档示例。
+          本面板为交互可观测性的示意演示，用于说明事件流、状态与中断如何共同构成可控体验。协议细节请参阅
+          <a href={href("/concepts/events/")}>事件机制</a> 与 <a href={href("/concepts/building-blocks/")}>核心能力</a>。
         </p>
       </div>
     </div>

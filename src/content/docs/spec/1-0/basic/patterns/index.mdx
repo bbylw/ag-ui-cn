@@ -1,0 +1,51 @@
+---
+title: 事件模式
+description: 1.0：生产者把事件组合成流的方式。
+---
+
+本页定义核心协议的事件模式：生产者把事件组合成流的方式。每种[传输](/spec/1-0/basic/transports/)都承载所有这些模式；传输之间的差异只在于事件如何成帧与投递。
+
+**协议方向是固定的。** 事件从生产者流向消费者；消费者每次交换只说一次话，即发送开启交换的[运行输入](/spec/1-0/basic/run-input/)。生产者 MUST NOT 要求消费者在运行中途发送任何消息——需要外部输入的运行会**结束**，答案在下一次运行到达：通过中断及其 resume 条目，或通过一个未被回答、在下一次输入消息中回答的[前端工具调用](/spec/1-0/events/tool-calls/#前端工具)。
+
+## 流式（Streaming）
+
+长值逐片到达：`*_START` 开启一项，内容事件扩展它，`*_END` 关闭它——或用 chunk 简写压缩这三步。文本消息、工具调用与推理消息都这样流式传输。
+
+```text
+Producer → Consumer: *_START (id)
+Producer → Consumer: content (id, delta) ×N
+Producer → Consumer: *_END (id)
+```
+
+详见[流式消息](/spec/1-0/basic/patterns/streaming/)。
+
+## 快照与增量（Snapshot and delta）
+
+会演进的值——智能体状态、活动、会话本身——以**快照**替换、以**增量**修订，增量用 RFC 6902 JSON Patch 表达。
+
+```text
+Producer → Consumer: *_SNAPSHOT（完整值）
+Producer → Consumer: *_DELTA（patch）×N
+Producer → Consumer: *_SNAPSHOT（重新同步）
+```
+
+详见[快照与增量](/spec/1-0/basic/patterns/snapshots/)。
+
+## 中断与恢复（Interrupt and resume）
+
+需要外部内容——审批、缺失的值——的运行以中断结果结束，从中继续的运行在输入中携带答案。
+
+```text
+Application → Agent: RunAgentInput
+Agent → Application: … events …
+Agent → Application: RUN_FINISHED (outcome: interrupt)
+Application: 收集答案
+Application → Agent: RunAgentInput (resume: answers)
+Agent → Application: RUN_STARTED …
+```
+
+详见[中断与恢复](/spec/1-0/basic/patterns/interrupt-resume/)。
+
+## 新增模式
+
+所有协议特性都由这些模式构建。新增模式的协议修订在本页定义它。传输无需改动即可承载新模式，因为模式完全用事件与运行输入表达。
