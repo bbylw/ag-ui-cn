@@ -6,7 +6,7 @@ import nimbus, {
 import { tableScroll } from "@cloudflare/nimbus-docs/markdown";
 
 const nimbusConfig = defineNimbusConfig({
-  site: "https://ag-ui.example.com",
+  site: "https://ag-ui.ndjp.net",
   title: "AG-UI 中文文档",
   description:
     "AG-UI（Agent–User Interaction Protocol）中文站点：开放、轻量、事件驱动的智能体与用户交互协议，包含落地页与完整中文文档。",
@@ -152,7 +152,7 @@ const nimbusConfig = defineNimbusConfig({
 });
 
 export default defineConfig({
-  site: "https://ag-ui.example.com",
+  site: "https://ag-ui.ndjp.net",
   output: "static",
   vite: {
     plugins: [tailwindcss()],
