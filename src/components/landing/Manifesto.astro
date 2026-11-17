@@ -1,0 +1,42 @@
+---
+import { manifestoLines } from "../../lib/landing";
+---
+
+<section class="k-manifesto k-defer" id="manifesto" aria-label="AG-UI 协议设计宣言" data-k-manifesto>
+  <div class="k-wrap k-manifesto-in">
+    <p class="k-kicker" data-code="MANIFESTO-02">协议设计哲学</p>
+    <p class="k-manifesto-text">
+      {
+        manifestoLines.map((line) => (
+          <span class="k-manifesto-line">
+            {line.map((word) => (
+              <span
+                class:list={[
+                  "k-m-word",
+                  (word.trim() === "AG-UI" || word === "同一套" || word === "事件") && "is-accent",
+                ]}
+                data-k-word
+              >
+                {word}
+              </span>
+            ))}
+          </span>
+        ))
+      }
+    </p>
+    <ul class="k-manifesto-pillars" role="list">
+      <li>
+        <b>01 · 事件即契约</b>
+        <span>31 种强类型事件取代私有胶水代码</span>
+      </li>
+      <li>
+        <b>02 · 状态同源</b>
+        <span>SNAPSHOT + RFC 6902 DELTA 双向同步</span>
+      </li>
+      <li>
+        <b>03 · 传输无关</b>
+        <span>同一套语义横跨 SSE、WebSocket 与多端 UI</span>
+      </li>
+    </ul>
+  </div>
+</section>

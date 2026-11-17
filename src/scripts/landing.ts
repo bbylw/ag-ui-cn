@@ -709,6 +709,53 @@ function initPlatforms(root: HTMLElement) {
   });
 }
 
+function initManifesto(root: HTMLElement) {
+  const box = q<HTMLElement>(root, "[data-k-manifesto]");
+  if (!box) return;
+  const words = every<HTMLElement>(box, "[data-k-word]");
+  if (!words.length) return;
+
+  if (reduced()) {
+    words.forEach((w) => w.classList.add("is-lit"));
+    return;
+  }
+
+  let raf = 0;
+
+  const update = () => {
+    raf = 0;
+    const vh = window.innerHeight || 900;
+    const top = box.getBoundingClientRect().top;
+    const raw = (vh * 0.82 - top) / (vh * 0.54);
+    const p = Math.max(0, Math.min(1, raw));
+    const total = words.length;
+    words.forEach((word, i) => {
+      word.classList.toggle("is-lit", p >= (i + 0.15) / (total + 0.4));
+    });
+  };
+
+  const schedule = () => {
+    if (!raf) raf = window.requestAnimationFrame(update);
+  };
+
+  const io = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((e) => e.isIntersecting)) update();
+    },
+    { rootMargin: "10% 0px 10% 0px" },
+  );
+  io.observe(box);
+  teardowns.push(() => io.disconnect());
+
+  listen(window, "scroll", schedule, { passive: true });
+  listen(window, "resize", schedule, { passive: true });
+  teardowns.push(() => {
+    if (raf) window.cancelAnimationFrame(raf);
+  });
+
+  update();
+}
+
 /* --------------------------------------------------------------- lifecycle */
 
 function init() {
@@ -718,6 +765,7 @@ function init() {
   initChrome(root);
   initHeroInspector(root);
   initSandbox(root);
+  initManifesto(root);
   initSdkTabs(root);
   initPlatforms(root);
 }

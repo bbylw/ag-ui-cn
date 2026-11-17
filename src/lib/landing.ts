@@ -423,6 +423,8 @@ export interface Feature {
   title: string;
   desc: string;
   href: string;
+  /** Representative wire sequence rendered as a mini event trace on the card. */
+  trace: string[];
   tone?: "rose" | "teal" | "orchid";
 }
 
@@ -433,6 +435,7 @@ export const features: Feature[] = [
     title: "实时流式对话",
     desc: "通过 Start / Content / End 三段式或 Chunk 增量传输 token，支持随时取消、多轮续写与低延迟首字响应。",
     href: "/concepts/messages/",
+    trace: ["TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT ×n", "TEXT_MESSAGE_END"],
   },
   {
     icon: "ph:arrows-clockwise",
@@ -440,6 +443,7 @@ export const features: Feature[] = [
     title: "双向共享状态",
     desc: "前后端围绕同一份类型化状态协作：初始化下发全量快照，随后仅推送 RFC 6902 JSON Patch 增量差异。",
     href: "/concepts/state/",
+    trace: ["STATE_SNAPSHOT", "STATE_DELTA ×n"],
     tone: "teal",
   },
   {
@@ -448,6 +452,7 @@ export const features: Feature[] = [
     title: "工具调用与前端交接",
     desc: "流式推送工具参数与结果事件，既可在聊天中可视化后端执行，也可把动作安全交接给前端浏览器执行。",
     href: "/concepts/tools/",
+    trace: ["TOOL_CALL_START", "TOOL_CALL_ARGS", "TOOL_CALL_RESULT"],
     tone: "orchid",
   },
   {
@@ -456,6 +461,7 @@ export const features: Feature[] = [
     title: "人机协同中断",
     desc: "智能体在敏感操作或关键决策前以 interrupt 暂停运行，收集人类批准、编辑或补充参数后无损恢复。",
     href: "/concepts/interrupts/",
+    trace: ['outcome: "interrupt"', "resume → RUN_STARTED"],
     tone: "rose",
   },
   {
@@ -464,6 +470,7 @@ export const features: Feature[] = [
     title: "静态与声明式生成式 UI",
     desc: "将模型意图映射为前端受控的强类型组件，或结合 A2UI 等声明式规范动态挂载丰富交互界面。",
     href: "/concepts/generative-ui/",
+    trace: ["ACTIVITY_SNAPSHOT", "ACTIVITY_DELTA"],
   },
   {
     icon: "ph:stack",
@@ -471,8 +478,14 @@ export const features: Feature[] = [
     title: "推理、子智能体与扩展",
     desc: "内置可读推理步骤、嵌套子智能体追踪与活动进度事件，并提供 RAW / CUSTOM 满足业务私有扩展。",
     href: "/concepts/events/",
+    trace: ["REASONING_START", "STEP_STARTED", "STEP_FINISHED", "CUSTOM"],
     tone: "teal",
   },
+];
+
+export const manifestoLines: string[][] = [
+  ["智能体", "负责", "思考，", "界面", "负责", "呈现。"],
+  ["AG-UI ", "让", "两者", "用", "同一套", "事件", "实时", "对话。"],
 ];
 
 export interface QuickPath {

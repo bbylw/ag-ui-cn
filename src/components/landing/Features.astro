@@ -20,24 +20,28 @@ const accent = { rose: "var(--k-rose)", teal: "var(--k-teal)", orchid: "var(--k-
     <ul class="k-ft-grid" role="list">
       {
         features.map((f, i) => (
-          <li
-            class="k-ft"
-            style={f.tone ? `--k-ft-accent: ${accent[f.tone]}` : undefined}
-            data-reveal
-            data-i={i % 3}
-          >
-            <div class="k-ft-top">
-              <span class="k-ft-ico">
-                <Icon name={f.icon} class="h-[22px] w-[22px]" aria-hidden="true" />
+          <li class="k-ft-cell" data-reveal data-i={i % 3}>
+            <article class="k-ft" style={f.tone ? `--k-ft-accent: ${accent[f.tone]}` : undefined}>
+              <header class="k-ft-top">
+                <span class="k-ft-ico">
+                  <Icon name={f.icon} class="h-[22px] w-[22px]" aria-hidden="true" />
+                </span>
+                <code class="k-ft-ev">{f.eventTag}</code>
+              </header>
+              <div class="k-ft-body">
+                <h3>
+                  <a href={href(f.href)} class="k-ft-a">{f.title}</a>
+                </h3>
+                <p>{f.desc}</p>
+              </div>
+              <ol class="k-ft-trace" aria-label={`${f.title}的典型事件序列`}>
+                {f.trace.map((t) => <li><code>{t}</code></li>)}
+              </ol>
+              <span class="k-ft-more" aria-hidden="true">
+                查看规范与概念
+                <Icon name="ph:arrow-right" class="h-3.5 w-3.5" aria-hidden="true" />
               </span>
-              <code class="k-ft-ev">{f.eventTag}</code>
-            </div>
-            <h3>{f.title}</h3>
-            <p>{f.desc}</p>
-            <a href={href(f.href)} class="k-ft-link">
-              查看规范与概念
-              <Icon name="ph:arrow-right" class="h-3.5 w-3.5" aria-hidden="true" />
-            </a>
+            </article>
           </li>
         ))
       }
